@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강의 일정 통합 관리</title>
+    <title>강의 일정 통합 관리 (실시간)</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Pretendard', sans-serif; background: #f4f7f9; }
@@ -23,26 +22,25 @@
 <body>
     <div class="wrapper">
         <div class="nav-bar">
-            <strong>🏫 출강 관리 시스템</strong>
+            <strong>🏫 출강 관리 시스템 (실시간)</strong>
             <div class="nav-links">
-                <a href="input.html" style="border-color: var(--success); color: #5ef19b;">+ 새 수업 입력</a>
+                <a href="input.html" style="color: #5ef19b;">+ 새 수업 입력</a>
                 <a href="manage.html">📊 정산 대시보드</a>
             </div>
         </div>
-        <div id="calendar-container">
-            <div id="calendar"></div>
-        </div>
+        <div id="calendar-container"><div id="calendar"></div></div>
     </div>
 
     <div id="modalOverlay" onclick="closeModal()"></div>
     <div id="detailModal">
-        <h3 id="m-title" style="margin-top:0; color:var(--primary);">강의 상세</h3>
+        <h3 id="m-title" style="margin:0 0 15px 0; color:var(--primary);">강의 상세</h3>
         <div id="modalBody"></div>
         <button onclick="closeModal()" style="margin-top:20px; width:100%; padding:10px; cursor:pointer; border:none; border-radius:6px; background:#eee;">닫기</button>
     </div>
 
     <script>
-        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQU8y9F421T9gs_rSTWzqxHyy_w9pvvUnHqqlsDg_rJaRATCUS67fZjhetrf9Cg4pZytbHrQA5Mwkx/pub?output=csv';
+        // ★ 1단계에서 배포한 GAS 웹 앱 URL을 넣으세요
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyTMFj7peDa4JSiq6RE1Uvd04n84LUW5HdREtdS4OuTU93S61oQqvRjyAVf6NSVI6hF/exec';
 
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
@@ -52,10 +50,10 @@
                 height: '100%',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
                 events: function(info, successCallback, failureCallback) {
-                    Papa.parse(CSV_URL, {
-                        download: true, header: true, skipEmptyLines: true,
-                        complete: function(res) {
-                            const events = res.data.filter(r => r['날짜']).map(r => ({
+                    fetch(GAS_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            const events = data.filter(r => r['날짜']).map(r => ({
                                 title: `[${r['기관명']}] ${r['프로그램명']}`,
                                 start: `${r['날짜']}T${(r['시작시간']||"09:00").padStart(5, '0')}`,
                                 end: `${r['날짜']}T${(r['종료시간']||"10:00").padStart(5, '0')}`,
@@ -63,24 +61,21 @@
                                 color: r['주강사'] ? '#3498db' : '#95a5a6'
                             }));
                             successCallback(events);
-                        }
-                    });
+                        })
+                        .catch(err => { console.error(err); failureCallback(err); });
                 },
                 eventClick: function(info) { showModal(info.event.extendedProps); }
             });
             calendar.render();
-            window.addEventListener('resize', () => calendar.updateSize());
         });
 
         function showModal(p) {
             document.getElementById('m-title').innerText = p['기관명'];
             document.getElementById('modalBody').innerHTML = `
-                <div class="info-row"><span class="info-label">날짜:</span> ${p['날짜']}</div>
                 <div class="info-row"><span class="info-label">시간:</span> ${p['시작시간']} ~ ${p['종료시간']}</div>
                 <div class="info-row"><span class="info-label">프로그램:</span> ${p['프로그램명']}</div>
                 <div class="info-row"><span class="info-label">대상:</span> ${p['학년']} (${p['대상인원']}명)</div>
                 <div class="info-row"><span class="info-label">강사:</span> 주:${p['주강사']} / 보:${p['보조강사']||'-'}</div>
-                <div class="info-row"><span class="info-label">교구:</span> ${p['교구종류']} (${p['교구수량']}개)</div>
                 <div class="info-row"><span class="info-label">비고:</span> ${p['비고']||'-'}</div>
             `;
             document.getElementById('modalOverlay').style.display = 'block';
