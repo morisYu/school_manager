@@ -2,67 +2,69 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>수업 입력</title>
+    <title>출강 내역 입력</title>
     <style>
-        body { font-family: 'Pretendard', sans-serif; background: #f0f2f5; padding: 20px; display: flex; justify-content: center; }
-        .form-card { background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        body { font-family: 'Pretendard', sans-serif; background: #f4f7f6; padding: 20px; display: flex; justify-content: center; }
+        .form-card { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 500px; box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; font-size: 0.9em; }
-        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .btn-submit { width: 100%; padding: 15px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-submit:disabled { background: #ccc; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; font-size: 0.9em; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .time-group { display: flex; gap: 10px; align-items: center; }
+        .btn-submit { width: 100%; padding: 16px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: background 0.3s; }
+        .btn-submit:hover { background: #2980b9; }
+        .btn-back { width: 100%; margin-top: 10px; background: none; border: none; color: #888; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="form-card">
-        <h2 style="margin-top:0; text-align:center;">📝 수업 내역 등록</h2>
-        <form id="lectureForm">
-            <div class="form-group"><label>날짜</label><input type="date" id="date" required></div>
-            <div class="form-group"><label>교시/시간 (예: 09:00~11:00)</label><input type="text" id="time" required></div>
-            <div class="form-group"><label>학교명</label><input type="text" id="school" required></div>
-            <div class="form-group"><label>과목명</label><input type="text" id="subject" required></div>
-            <div class="form-group"><label>수업시간(숫자만)</label><input type="number" id="hours" step="0.5" required></div>
-            <div style="display:flex; gap:10px;">
-                <div class="form-group" style="flex:1;"><label>주강사</label><input type="text" id="mainTeacher" required></div>
-                <div class="form-group" style="flex:1;"><label>보조강사</label><input type="text" id="subTeacher"></div>
-            </div>
-            <div class="form-group"><label>학년 및 인원</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="text" id="grade" placeholder="학년" style="flex:1.5;">
-                    <input type="number" id="students" placeholder="인원" style="flex:1;">
-                </div>
-            </div>
-            <button type="submit" class="btn-submit" id="s-btn">구글 시트에 저장하기</button>
-            <button type="button" onclick="location.href='index.html'" style="width:100%; margin-top:10px; background:none; border:none; color:#888; cursor:pointer;">돌아가기</button>
-        </form>
-    </div>
-
-    <script>
-        // ★ 2단계에서 얻은 GAS 웹 앱 URL을 넣으세요
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyf-9EwMR9UONsq20T6xLNgJ5_BBfVK5yyxT3f38kinXKuFhumzJD1u_20KG6RohAbh/exec';
-
-        document.getElementById('lectureForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('s-btn');
-            btn.innerText = '저장 중...'; btn.disabled = true;
-
-            const payload = {
-                date: document.getElementById('date').value,
-                time: document.getElementById('time').value,
-                school: document.getElementById('school').value,
-                subject: document.getElementById('subject').value,
-                hours: document.getElementById('hours').value,
-                mainTeacher: document.getElementById('mainTeacher').value,
-                subTeacher: document.getElementById('subTeacher').value,
-                grade: document.getElementById('grade').value,
-                students: document.getElementById('students').value,
-                etc: "" // 필요시 추가
-            };
-
-            fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
-            .then(() => { alert('저장 완료!'); location.href='index.html'; })
-            .catch(() => { alert('오류 발생!'); btn.disabled = false; btn.innerText = '다시 시도'; });
-        });
-    </script>
+<div class="form-card">
+    <h2>📝 수업 내역 등록</h2>
+    <form id="lectureForm">
+        <div class="form-group"><label>1. 날짜</label><input type="date" id="date" required></div>
+        <div class="form-group"><label>2. 시간 (시작 ~ 종료)</label>
+            <div class="time-group"><input type="time" id="startTime" required><span>~</span><input type="time" id="endTime" required></div>
+        </div>
+        <div class="form-group"><label>3. 프로그램명</label><input type="text" id="program" required></div>
+        <div class="form-group"><label>4. 기관명(학교)</label><input type="text" id="institution" required></div>
+        <div class="form-group"><label>5. 학년</label><input type="text" id="grade"></div>
+        <div class="form-group"><label>6. 대상인원</label><input type="number" id="students"></div>
+        <div style="display:flex; gap:10px;">
+            <div class="form-group" style="flex:1;"><label>7. 주강사</label><input type="text" id="mainTeacher" required></div>
+            <div class="form-group" style="flex:1;"><label>8. 보조강사</label><input type="text" id="subTeacher"></div>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <div class="form-group" style="flex:2;"><label>9. 교구종류</label><input type="text" id="toolType"></div>
+            <div class="form-group" style="flex:1;"><label>10. 교구수량</label><input type="number" id="toolCount"></div>
+        </div>
+        <div class="form-group"><label>11. 비고</label><textarea id="note" rows="2"></textarea></div>
+        <button type="submit" class="btn-submit" id="submitBtn">구글 시트에 저장하기</button>
+        <button type="button" class="btn-back" onclick="location.href='index.html'">돌아가기</button>
+    </form>
+</div>
+<script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzsgYxEWWdKZB8Vy5OddKQECCzzSzw8-VaWmm4J8ppN79o0TIVvhMjAl6iz3tZuV5LM/exec';
+    document.getElementById('lectureForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = '저장 중...'; btn.disabled = true;
+        const formData = {
+            date: document.getElementById('date').value,
+            startTime: document.getElementById('startTime').value,
+            endTime: document.getElementById('endTime').value,
+            program: document.getElementById('program').value,
+            institution: document.getElementById('institution').value,
+            grade: document.getElementById('grade').value,
+            students: document.getElementById('students').value,
+            mainTeacher: document.getElementById('mainTeacher').value,
+            subTeacher: document.getElementById('subTeacher').value,
+            toolType: document.getElementById('toolType').value,
+            toolCount: document.getElementById('toolCount').value,
+            note: document.getElementById('note').value
+        };
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify(formData) })
+        .then(() => { alert('저장되었습니다!'); location.href = 'index.html'; })
+        .catch(() => { alert('실패했습니다.'); btn.disabled = false; btn.innerText = '다시 시도'; });
+    });
+</script>
 </body>
 </html>
