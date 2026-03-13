@@ -42,11 +42,12 @@
     </form>
 </div>
 <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzsgYxEWWdKZB8Vy5OddKQECCzzSzw8-VaWmm4J8ppN79o0TIVvhMjAl6iz3tZuV5LM/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyTMFj7peDa4JSiq6RE1Uvd04n84LUW5HdREtdS4OuTU93S61oQqvRjyAVf6NSVI6hF/exec';
     document.getElementById('lectureForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const btn = document.getElementById('submitBtn');
         btn.innerText = '저장 중...'; btn.disabled = true;
+
         const formData = {
             date: document.getElementById('date').value,
             startTime: document.getElementById('startTime').value,
@@ -61,8 +62,9 @@
             toolCount: document.getElementById('toolCount').value,
             note: document.getElementById('note').value
         };
+
         fetch(GAS_URL, { method: 'POST', body: JSON.stringify(formData) })
-        .then(() => { alert('저장되었습니다!'); location.href = 'index.html'; })
+        .then(() => { alert('성공적으로 저장되었습니다!'); location.href = 'index.html'; })
         .catch(() => { alert('실패했습니다.'); btn.disabled = false; btn.innerText = '다시 시도'; });
     });
 </script>
