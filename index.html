@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강의 일정 통합 관리</title>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Pretendard', sans-serif; background: #f4f7f9; }
+        .wrapper { display: flex; flex-direction: column; height: 100vh; padding: 15px; box-sizing: border-box; }
+        .nav-bar { background: var(--primary); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .nav-links a { color: white; text-decoration: none; margin-left: 15px; font-weight: bold; font-size: 0.9em; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; }
+        .nav-links a:hover { background: rgba(255,255,255,0.1); }
+        #calendar-container { flex-grow: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 0; }
+        #calendar { height: 100%; }
+        /* 모달 스타일 */
+        #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; }
+        #detailModal { display: none; position: fixed; z-index: 1000; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
+        .info-row { margin-bottom: 8px; font-size: 0.95em; display: flex; }
+        .info-label { font-weight: bold; color: #888; width: 90px; flex-shrink: 0; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="nav-bar">
+            <strong>🏫 출강 관리 시스템</strong>
+            <div class="nav-links">
+                <a href="input.html" style="border-color: var(--success); color: #5ef19b;">+ 새 수업 입력</a>
+                <a href="manage.html">📊 정산 대시보드</a>
+            </div>
+        </div>
+        <div id="calendar-container">
+            <div id="calendar"></div>
+        </div>
+    </div>
+
+    <div id="modalOverlay" onclick="closeModal()"></div>
+    <div id="detailModal">
+        <h3 id="m-title" style="margin-top:0; color:var(--primary);">강의 상세</h3>
+        <div id="modalBody"></div>
+        <button onclick="closeModal()" style="margin-top:20px; width:100%; padding:10px; cursor:pointer; border:none; border-radius:6px;">닫기</button>
+    </div>
+
+    <script>
+        // ★ 1단계에서 얻은 구글 시트 CSV URL을 넣으세요
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQU8y9F421T9gs_rSTWzqxHyy_w9pvvUnHqqlsDg_rJaRATCUS67fZjhetrf9Cg4pZytbHrQA5Mwkx/pub?output=csv';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                height: '100%',
+                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+                events: function(info, successCallback, failureCallback) {
+                    Papa.parse(CSV_URL, {
+                        download: true, header: true, skipEmptyLines: true,
+                        complete: function(res) {
+                            const events = res.data.filter(r => r['날짜']).map(r => ({
+                                title: `${r['학교']} (${r['과목명']})`,
+                                start: `${r['날짜']}T${(r['시간']||"09:00").split('~')[0].trim().padStart(5, '0')}`,
+                                extendedProps: r,
+                                color: r['주강사'] ? '#3498db' : '#95a5a6'
+                            }));
+                            successCallback(events);
+                        }
+                    });
+                },
+                eventClick: function(info) { showModal(info.event.extendedProps); }
+            });
+            calendar.render();
+            window.addEventListener('resize', () => calendar.updateSize());
+        });
+
+        function showModal(p) {
+            document.getElementById('m-title').innerText = p['학교'];
+            document.getElementById('modalBody').innerHTML = `
+                <div class="info-row"><span class="info-label">일시:</span> ${p['날짜']} / ${p['시간']}</div>
+                <div class="info-row"><span class="info-label">대상:</span> ${p['학년']} (${p['대상인원']}명)</div>
+                <div class="info-row"><span class="info-label">과목:</span> ${p['과목명']} (${p['수업시간']}h)</div>
+                <div class="info-row"><span class="info-label">강사:</span> 주:${p['주강사']} / 보:${p['보조강사']||'-'}</div>
+                <div class="info-row"><span class="info-label">비고:</span> ${p['기타사항']||'-'}</div>
+            `;
+            document.getElementById('modalOverlay').style.display = 'block';
+            document.getElementById('detailModal').style.display = 'block';
+        }
+        function closeModal() { document.getElementById('modalOverlay').style.display='none'; document.getElementById('detailModal').style.display='none'; }
+    </script>
+</body>
+</html>
