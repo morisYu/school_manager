@@ -2,16 +2,17 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>정산 관리</title>
+    <title>정산 관리 대시보드</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         body { font-family: 'Pretendard', sans-serif; padding: 25px; background: #fafafa; }
         .header-box { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; display: flex; gap: 15px; align-items: center; margin-bottom: 20px; }
         .card-row { display: flex; gap: 15px; margin-bottom: 20px; }
         .card { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-top: 10px; }
         th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
-        th { background: #f8f9fa; color: #666; font-size: 0.9em; }
+        th { background: #f8f9fa; font-size: 0.9em; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #eee; }
         @media print { .header-box, .btn-home { display: none; } }
     </style>
 </head>
@@ -24,21 +25,20 @@
     </div>
 
     <div class="card-row">
-        <div class="card" style="border-color:#e67e22;"><h3>주강사</h3><p id="h-main">0h</p></div>
-        <div class="card" style="border-color:#3498db;"><h3>보조강사</h3><p id="h-sub">0h</p></div>
-        <div class="card" style="border-color:#2c3e50;"><h3>합계</h3><p id="h-total">0h</p></div>
+        <div class="card" style="border-color:#e67e22;"><h3>주강사</h3><p id="h-main">0.0h</p></div>
+        <div class="card" style="border-color:#3498db;"><h3>보조강사</h3><p id="h-sub">0.0h</p></div>
+        <div class="card" style="border-color:#2c3e50;"><h3>합계</h3><p id="h-total">0.0h</p></div>
     </div>
 
-    <table id="res-table">
-        <thead><tr><th>날짜</th><th>학교</th><th>과목</th><th>역할</th><th>시간</th></tr></thead>
+    <table>
+        <thead><tr><th>날짜</th><th>기관명</th><th>프로그램</th><th>역할</th><th>시간(계계)</th></tr></thead>
         <tbody id="res-body"></tbody>
     </table>
-    <button class="btn-home" onclick="location.href='index.html'" style="margin-top:20px; cursor:pointer;">달력으로 돌아가기</button>
+    <button class="btn-home" onclick="location.href='index.html'" style="margin-top:20px; cursor:pointer;">홈으로</button>
 
     <script>
         const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQU8y9F421T9gs_rSTWzqxHyy_w9pvvUnHqqlsDg_rJaRATCUS67fZjhetrf9Cg4pZytbHrQA5Mwkx/pub?output=csv';
         let db = [];
-
         window.onload = function() {
             Papa.parse(CSV_URL, {
                 download: true, header: true,
@@ -50,25 +50,24 @@
                 }
             });
         };
-
         function calc() {
             const name = document.getElementById('t-sel').value;
             const month = document.getElementById('m-sel').value;
             if(!name || !month) return alert('강사와 월을 선택하세요.');
-
             const filtered = db.filter(r => (r['주강사']===name || r['보조강사']===name) && r['날짜']?.startsWith(month));
             let mH = 0, sH = 0;
             const html = filtered.map(r => {
                 const isM = r['주강사'] === name;
-                const h = parseFloat(r['수업시간']) || 0;
-                isM ? mH += h : sH += h;
-                return `<tr><td>${r['날짜']}</td><td>${r['학교']}</td><td>${r['과목명']}</td><td>${isM?'주강사':'보조강사'}</td><td>${h}h</td></tr>`;
+                const start = new Date(`2000-01-01T${r['시작시간']}`);
+                const end = new Date(`2000-01-01T${r['종료시간']}`);
+                const duration = (end - start) / (1000 * 60 * 60) || 0;
+                isM ? mH += duration : sH += duration;
+                return `<tr><td>${r['날짜']}</td><td>${r['기관명']}</td><td>${r['프로그램명']}</td><td><span class="badge">${isM?'주강사':'보조강사'}</span></td><td>${duration.toFixed(1)}h (${r['시작시간']}~${r['종료시간']})</td></tr>`;
             }).join('');
-
             document.getElementById('res-body').innerHTML = html || '<tr><td colspan="5" style="text-align:center;">내역 없음</td></tr>';
-            document.getElementById('h-main').innerText = mH + 'h';
-            document.getElementById('h-sub').innerText = sH + 'h';
-            document.getElementById('h-total').innerText = (mH + sH) + 'h';
+            document.getElementById('h-main').innerText = mH.toFixed(1) + 'h';
+            document.getElementById('h-sub').innerText = sH.toFixed(1) + 'h';
+            document.getElementById('h-total').innerText = (mH + sH).toFixed(1) + 'h';
         }
     </script>
 </body>
