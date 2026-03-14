@@ -10,39 +10,69 @@
         body { margin: 0; font-family: 'Pretendard', sans-serif; background: var(--bg); }
         .wrapper { padding: 10px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
         
+        /* 상단 네비게이션 */
         .nav-bar { background: var(--primary); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .nav-links a { color: white; text-decoration: none; font-weight: bold; font-size: 0.85em; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; }
 
+        /* 캘린더 컨테이너 */
         #calendar-container { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); flex-grow: 1; min-height: 0; }
         
-        /* 캘린더 내부 글자 크기 및 스타일 강제 적용 */
-        .fc-event { background: transparent !important; border: none !important; }
-        .event-wrapper { padding: 2px 4px; border-radius: 4px; border-left: 4px solid; } /* 왼쪽 바 형태로 색상 구분 */
-        .event-line1 { font-weight: 800 !important; font-size: 13px !important; margin-bottom: 2px; }
-        .event-line2 { font-weight: 500 !important; font-size: 11px !important; opacity: 0.9; }
+        /* ★ [핵심] 폰트 크기 및 스타일 강제 고정 ★ */
+        .fc-event { background: transparent !important; border: none !important; margin: 1px 0 !important; }
+        .fc-event-main { padding: 0 !important; }
+        
+        .event-wrapper { 
+            padding: 4px 6px !important; 
+            border-radius: 4px !important; 
+            border-left: 5px solid !important; /* 왼쪽 강조 바 */
+            display: flex !important; 
+            flex-direction: column !important;
+            line-height: 1.4 !important;
+            background: rgba(0,0,0,0.03); /* 아주 연한 배경으로 영역 구분 */
+        }
+
+        .event-line1 { 
+            font-weight: 800 !important; 
+            font-size: 15px !important; /* 첫 줄 폰트 크기 */
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        .event-line2 { 
+            font-weight: 600 !important; 
+            font-size: 13px !important; /* 둘째 줄 폰트 크기 */
+            opacity: 0.85 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+
+        /* 캘린더 기본 시간/제목 숨기기 (우리가 직접 커스텀하므로) */
+        .fc-event-time, .fc-event-title { display: none !important; }
 
         /* 모달 스타일 */
         #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; backdrop-filter: blur(2px); }
-        #editModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 15px; width: 92%; max-width: 500px; z-index: 1000; max-height: 90vh; overflow-y: auto; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        #editModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 15px; width: 92%; max-width: 500px; z-index: 1000; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group.full { grid-column: span 2; }
-        label { font-size: 0.75em; font-weight: bold; color: #7f8c8d; margin-bottom: 3px; }
-        input, select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
+        label { font-size: 0.75em; font-weight: bold; color: #7f8c8d; margin-bottom: 4px; }
+        input, select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95em; font-weight: bold; }
         
-        .btn-group { margin-top: 20px; display: flex; gap: 8px; }
-        .btn-save { flex: 2; background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-delete { flex: 1; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; padding: 12px; border-radius: 8px; cursor: pointer; }
-        .btn-close { flex: 1; background: #eee; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+        .btn-group { margin-top: 25px; display: flex; gap: 10px; }
+        .btn-save { flex: 2; background: #3498db; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-delete { flex: 1; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; padding: 14px; border-radius: 8px; cursor: pointer; }
+        .btn-close { flex: 1; background: #eee; border: none; padding: 14px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="wrapper">
         <div class="nav-bar">
-            <strong>🏫 스마트 출강 관리</strong>
+            <strong>🏫 스마트 출강 관리 시스템</strong>
             <div class="nav-links">
-                <a href="manage.html" style="margin-right: 5px;">📊 정산</a>
-                <a href="input.html">+ 추가</a>
+                <a href="manage.html" style="margin-right: 5px;">📊 정산 관리</a>
+                <a href="input.html">+ 일정 추가</a>
             </div>
         </div>
         <div id="calendar-container"><div id="calendar"></div></div>
@@ -50,7 +80,7 @@
 
     <div id="modalOverlay" onclick="closeModal()"></div>
     <div id="editModal">
-        <h3 style="margin:0 0 10px 0;">일정 상세 정보</h3>
+        <h3 style="margin:0 0 15px 0; border-bottom: 2px solid #eee; padding-bottom: 10px;">일정 상세 및 수정</h3>
         <input type="hidden" id="edit-row">
         <div class="form-grid">
             <div class="form-group full"><label>기관명</label><input type="text" id="edit-institution"></div>
@@ -65,9 +95,7 @@
                     <option value="#f39c12">오렌지</option>
                     <option value="#9b59b6">보라</option>
                     <option value="#1abc9c">청록</option>
-                    <option value="#e67e22">당근</option>
                     <option value="#34495e">회색</option>
-                    <option value="#d35400">진한 주황</option>
                 </select>
             </div>
             <div class="form-group"><label>시작시간</label><input type="time" id="edit-start"></div>
@@ -81,13 +109,14 @@
             <div class="form-group full"><label>비고</label><textarea id="edit-note" rows="2"></textarea></div>
         </div>
         <div class="btn-group">
-            <button class="btn-save" onclick="processData('update')">저장</button>
-            <button class="btn-delete" onclick="processData('delete')">삭제</button>
+            <button class="btn-save" onclick="processData('update')">수정 저장</button>
+            <button class="btn-delete" onclick="processData('delete')">일정 삭제</button>
             <button class="btn-close" onclick="closeModal()">닫기</button>
         </div>
     </div>
 
     <script>
+        // ★ 본인의 GAS 웹 앱 URL을 여기에 넣으세요 ★
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzst3PGPjqrF9DCqfQFl6bFztp-AsIYq0LfuFJhYoFh5I1k1iG7oQ7XBJeCRpmYxio2/exec'; 
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -95,7 +124,7 @@
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'ko',
-                // 4. 주간 일정(Week) 보기 추가
+                // 주간(Week) 보기 추가
                 headerToolbar: { 
                     left: 'prev,next today', 
                     center: 'title', 
@@ -104,7 +133,7 @@
                 events: function(info, successCallback, failureCallback) {
                     fetch(GAS_URL).then(res => res.json()).then(data => {
                         const events = data.map(r => {
-                            // 1. 날짜 밀림 현상 방지: ISO 문자열에서 10자리만 추출 (2026-03-17)
+                            // [수정 핵심] 날짜 밀림 방지: ISO 문자열에서 날짜 글자만 그대로 추출 (시계 무시)
                             const dateStr = String(r['날짜']).substring(0, 10);
                             const sTime = extractTime(r['시작시간']);
                             const eTime = extractTime(r['종료시간']);
@@ -113,7 +142,6 @@
                                 title: r['프로그램명'],
                                 start: `${dateStr}T${sTime}`,
                                 end: `${dateStr}T${eTime}`,
-                                // 2. 사용자가 선택한 색상을 글자색으로 적용
                                 textColor: r['색상'] || '#2c3e50', 
                                 extendedProps: r
                             };
@@ -121,7 +149,7 @@
                         successCallback(events);
                     });
                 },
-                // 3. 2줄 구성 및 내용 수정
+                // [수정 핵심] 이벤트 2줄 구성 및 폰트 크기 적용
                 eventContent: function(arg) {
                     const p = arg.event.extendedProps;
                     const time = extractTime(p['시작시간']);
@@ -140,17 +168,21 @@
             window.myCalendar = calendar;
         });
 
+        // 시간 데이터에서 HH:mm 추출
         function extractTime(val) {
             const match = String(val).match(/\d{2}:\d{2}/);
             return match ? match[0] : "09:00";
         }
 
+        // 모달 열기 및 날짜 문자열 고정
         function openModal(p) {
             document.getElementById('edit-row').value = p.row;
             document.getElementById('edit-institution').value = p['기관명'] || '';
             document.getElementById('edit-program').value = p['프로그램명'] || '';
-            // 날짜 파싱 (밀림 방지)
+            
+            // 날짜 밀림 방지: 팝업에서도 substring(0,10) 사용
             document.getElementById('edit-date').value = String(p['날짜']).substring(0, 10);
+            
             document.getElementById('edit-start').value = extractTime(p['시작시간']);
             document.getElementById('edit-end').value = extractTime(p['종료시간']);
             document.getElementById('edit-grade').value = p['학년'] || '';
@@ -166,10 +198,12 @@
             document.getElementById('editModal').style.display = 'block';
         }
 
+        // 데이터 수정 및 삭제 처리
         function processData(action) {
-            if (action === 'delete' && !confirm("정말 삭제하시겠습니까?")) return;
+            if (action === 'delete' && !confirm("정말 이 일정을 영구 삭제하시겠습니까?")) return;
             
             const btn = document.querySelector('.btn-save');
+            const originalText = btn.innerText;
             btn.innerText = '처리 중...'; btn.disabled = true;
 
             const payload = {
@@ -191,12 +225,14 @@
             };
 
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
+            .then(res => res.json())
             .then(() => {
-                alert('완료되었습니다.');
+                alert('정상적으로 처리되었습니다.');
                 closeModal();
                 window.myCalendar.refetchEvents();
             })
-            .finally(() => { btn.innerText = '저장'; btn.disabled = false; });
+            .catch(err => alert('오류가 발생했습니다: ' + err))
+            .finally(() => { btn.innerText = originalText; btn.disabled = false; });
         }
 
         function closeModal() {
