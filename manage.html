@@ -2,73 +2,207 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>실시간 정산 관리</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강사 정산 대시보드</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        body { font-family: 'Pretendard', sans-serif; padding: 25px; background: #fafafa; }
-        .header-box { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
-        .card-row { display: flex; gap: 15px; margin-bottom: 20px; }
-        .card { flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #ddd; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #eee; padding: 12px; text-align: left; }
-        th { background: #f8f9fa; font-size: 0.9em; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #eee; }
-        @media print { .header-box, .btn-home { display: none; } }
+        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f8f9fa; }
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #333; }
+        
+        /* 4. header-box 디자인 및 Bold 처리 */
+        .header-box { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
+            margin-bottom: 20px; 
+        }
+        .header-row { 
+            display: flex; 
+            gap: 15px; 
+            align-items: flex-end; 
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .input-group { display: flex; flex-direction: column; gap: 5px; }
+        .input-group label { font-weight: bold; font-size: 0.9em; color: var(--primary); }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-weight: bold; }
+
+        /* 3. 버튼 레이아웃 (조회와 홈으로 동일 선상 배치) */
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .left-btns { display: flex; gap: 10px; }
+
+        button { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.2s; 
+        }
+        .btn-search { background-color: var(--primary); color: white; }
+        .btn-pdf { background-color: var(--accent); color: white; }
+        .btn-home { background-color: #95a5a6; color: white; }
+        button:hover { opacity: 0.8; }
+
+        /* 테이블 스타일 */
+        #report-area { background: white; padding: 20px; border-radius: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
+        th { background: #f4f7f9; color: var(--primary); font-weight: bold; padding: 12px; border-bottom: 2px solid #dee2e6; }
+        td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
+        .total-row { background: #fdfdfe; font-weight: bold; color: var(--accent); font-size: 1.1em; }
     </style>
 </head>
 <body>
+
     <div class="header-box">
-        <select id="t-sel"><option value="">강사 선택</option></select>
-        <input type="month" id="m-sel">
-        <button onclick="calc()" style="padding:10px 15px; cursor:pointer;">조회</button>
-        <button onclick="window.print()" style="padding:10px 15px; background:#27ae60; color:white; border:none; border-radius:4px; cursor:pointer;">PDF 출력</button>
+        <div class="header-row">
+            <div class="input-group">
+                <label>👤 강사 성함</label>
+                <input type="text" id="teacherName" placeholder="이름 입력">
+            </div>
+            <div class="input-group">
+                <label>📅 시작일</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="input-group">
+                <label>📅 종료일</label>
+                <input type="date" id="endDate">
+            </div>
+        </div>
+
+        <div class="button-container">
+            <div class="left-btns">
+                <button class="btn-search" onclick="loadReport()">조회하기</button>
+                <button class="btn-pdf" onclick="generatePDF()">PDF 출력</button>
+            </div>
+            <a href="index.html"><button class="btn-home">홈으로</button></a>
+        </div>
     </div>
 
-    <div class="card-row">
-        <div class="card" style="border-color:#e67e22;"><h3>주강사</h3><p id="h-main">0.0h</p></div>
-        <div class="card" style="border-color:#3498db;"><h3>보조강사</h3><p id="h-sub">0.0h</p></div>
+    <div id="report-area">
+        <h2 id="report-title" style="text-align: center; font-weight: bold;">출강 및 정산 내역서</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>날짜</th>
+                    <th>기관명</th>
+                    <th>프로그램명</th>
+                    <th>시간(h)</th>
+                    <th>비고</th>
+                </tr>
+            </thead>
+            <tbody id="report-table-body">
+                </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3">총 합계</td>
+                    <td id="total-hours">0.0</td>
+                    <td>-</td>
+                </tr>
+            </tfoot>
+        </table>
     </div>
-
-    <table id="res-table">
-        <thead><tr><th>날짜</th><th>기관명</th><th>프로그램</th><th>역할</th><th>시간</th></tr></thead>
-        <tbody id="res-body"></tbody>
-    </table>
-    <button class="btn-home" onclick="location.href='index.html'" style="margin-top:20px; cursor:pointer;">홈으로</button>
 
     <script>
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzKKEaRi-Nr_as4CpcjhZ7Zdtoq8Y2Grs7GJfwM1zdhNm-zifyaOwPjrFwg-47B_Q_I/exec';
-        let db = [];
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzst3PGPjqrF9DCqfQFl6bFztp-AsIYq0LfuFJhYoFh5I1k1iG7oQ7XBJeCRpmYxio2/exec'; // 여기에 실제 GAS 웹 앱 URL을 넣으세요.
 
-        window.onload = function() {
-            fetch(GAS_URL)
-                .then(res => res.json())
-                .then(data => {
-                    db = data;
-                    const ts = new Set();
-                    db.forEach(r => { if(r['주강사']) ts.add(r['주강사']); if(r['보조강사']) ts.add(r['보조강사']); });
-                    const sel = document.getElementById('t-sel');
-                    ts.forEach(t => { const o = document.createElement('option'); o.value=t; o.text=t; sel.add(o); });
+        // 1 & 2. 날짜 및 시간 가공 로직
+        function formatDate(isoString) {
+            if (!isoString) return "-";
+            const d = new Date(isoString);
+            // 2026-3-15 형식 (0 제거)
+            return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+        }
+
+        function calculateHours(startStr, endStr) {
+            try {
+                // '1899-12-30T02:02:08.000Z' 형태에서 시간만 추출
+                const sMatch = String(startStr).match(/(\d{2}):(\d{2})/);
+                const eMatch = String(endStr).match(/(\d{2}):(\d{2})/);
+                
+                if (!sMatch || !eMatch) return 0;
+
+                const startMin = parseInt(sMatch[1]) * 60 + parseInt(sMatch[2]);
+                const endMin = parseInt(eMatch[1]) * 60 + parseInt(eMatch[2]);
+                
+                const diff = endMin - startMin;
+                return diff > 0 ? (diff / 60).toFixed(1) : 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        async function loadReport() {
+            const name = document.getElementById('teacherName').value;
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            if (!name) { alert("강사 이름을 입력해주세요."); return; }
+
+            const tbody = document.getElementById('report-table-body');
+            tbody.innerHTML = '<tr><td colspan="5">데이터를 불러오는 중...</td></tr>';
+
+            try {
+                const res = await fetch(GAS_URL);
+                const data = await res.json();
+
+                // 필터링 (이름 및 날짜 범위)
+                const filtered = data.filter(r => {
+                    const rDate = new Date(r['날짜']);
+                    const isNameMatch = String(r['주강사']).includes(name) || String(r['보조강사']).includes(name);
+                    const isAfter = !start || rDate >= new Date(start);
+                    const isBefore = !end || rDate <= new Date(end);
+                    return isNameMatch && isAfter && isBefore;
                 });
-        };
 
-        function calc() {
-            const name = document.getElementById('t-sel').value;
-            const month = document.getElementById('m-sel').value;
-            if(!name || !month) return alert('강사와 월을 선택하세요.');
+                tbody.innerHTML = '';
+                let total = 0;
 
-            const filtered = db.filter(r => (r['주강사']===name || r['보조강사']===name) && r['날짜']?.startsWith(month));
-            let mH = 0, sH = 0;
-            const html = filtered.map(r => {
-                const isM = r['주강사'] === name;
-                const start = new Date(`2000-01-01T${r['시작시간']}`);
-                const end = new Date(`2000-01-01T${r['종료시간']}`);
-                const duration = (end - start) / (1000 * 60 * 60) || 0;
-                isM ? mH += duration : sH += duration;
-                return `<tr><td>${r['날짜']}</td><td>${r['기관명']}</td><td>${r['프로그램명']}</td><td><span class="badge">${isM?'주강사':'보조강사'}</span></td><td>${duration.toFixed(1)}h (${r['시작시간']}~${r['종료시간']})</td></tr>`;
-            }).join('');
+                filtered.forEach(r => {
+                    const hours = calculateHours(r['시작시간'], r['종료시간']);
+                    total += parseFloat(hours);
 
-            document.getElementById('res-body').innerHTML = html || '<tr><td colspan="5" style="text-align:center;">내역 없음</td></tr>';
-            document.getElementById('h-main').innerText = mH.toFixed(1) + 'h';
-            document.getElementById('h-sub').innerText = sH.toFixed(1) + 'h';
+                    const row = `
+                        <tr>
+                            <td style="font-weight:bold;">${formatDate(r['날짜'])}</td>
+                            <td>${r['기관명']}</td>
+                            <td>${r['프로그램명']}</td>
+                            <td style="font-weight:bold;">${hours}</td>
+                            <td>${r['비고'] || '-'}</td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+
+                document.getElementById('total-hours').innerText = total.toFixed(1);
+                if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="5">조회된 내역이 없습니다.</td></tr>';
+
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = '<tr><td colspan="5">데이터 로딩 중 오류가 발생했습니다.</td></tr>';
+            }
+        }
+
+        function generatePDF() {
+            const element = document.getElementById('report-area');
+            const name = document.getElementById('teacherName').value || '강사';
+            const opt = {
+                margin: 10,
+                filename: `정산내역서_${name}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
         }
     </script>
 </body>
