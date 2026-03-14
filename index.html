@@ -3,43 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출강 관리 시스템 (실시간 최적화)</title>
+    <title>출강 관리 시스템 (v2.0 실시간 최적화)</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
-        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Pretendard', sans-serif; background: #f4f7f9; }
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --bg: #f4f7f9; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); }
+        
+        /* 레이아웃 스타일 */
         .wrapper { display: flex; flex-direction: column; height: 100vh; padding: 15px; box-sizing: border-box; }
-        .nav-bar { background: var(--primary); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        .nav-links a { color: white; text-decoration: none; margin-left: 15px; font-weight: bold; font-size: 0.9em; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; }
-        #calendar-container { flex-grow: 1; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 0; }
+        .nav-bar { background: var(--primary); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .nav-links a { color: white; text-decoration: none; margin-left: 15px; font-weight: bold; font-size: 0.9em; padding: 8px 15px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; transition: 0.2s; }
+        .nav-links a:hover { background: rgba(255,255,255,0.1); }
+        
+        #calendar-container { flex-grow: 1; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); min-height: 0; }
         #calendar { height: 100%; }
-        #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; }
-        #detailModal { display: none; position: fixed; z-index: 1000; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
-        .info-row { margin-bottom: 8px; font-size: 0.95em; display: flex; }
-        .info-label { font-weight: bold; color: #888; width: 90px; flex-shrink: 0; }
+
+        /* 모달 스타일 */
+        #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:999; backdrop-filter: blur(2px); }
+        #detailModal { display: none; position: fixed; z-index: 1000; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 16px; width: 90%; max-width: 450px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); }
+        .modal-header { border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px; }
+        .info-row { margin-bottom: 12px; font-size: 1em; display: flex; align-items: flex-start; }
+        .info-label { font-weight: bold; color: #7f8c8d; width: 100px; flex-shrink: 0; }
+        .info-value { color: #2c3e50; line-height: 1.4; }
+        .close-btn { margin-top: 25px; width: 100%; padding: 12px; cursor: pointer; border: none; border-radius: 8px; background: #ecf0f1; color: #7f8c8d; font-weight: bold; transition: 0.2s; }
+        .close-btn:hover { background: #dfe6e9; }
+
+        /* FullCalendar 커스텀 스타일 */
+        .fc-event { cursor: pointer; border: none !important; padding: 2px 5px; }
+        .fc-toolbar-title { font-size: 1.2em !important; font-weight: bold; color: var(--primary); }
     </style>
 </head>
 <body>
     <div class="wrapper">
         <div class="nav-bar">
-            <strong>🏫 출강 관리 시스템</strong>
+            <strong>🏫 강사 출강 관리 시스템</strong>
             <div class="nav-links">
-                <a href="input.html" style="color: #5ef19b;">+ 새 수업 입력</a>
+                <a href="input.html" style="color: #5ef19b; border-color: #5ef19b;">+ 새 수업 입력</a>
                 <a href="manage.html">📊 정산 대시보드</a>
             </div>
         </div>
-        <div id="calendar-container"><div id="calendar"></div></div>
+        <div id="calendar-container">
+            <div id="calendar"></div>
+        </div>
     </div>
 
     <div id="modalOverlay" onclick="closeModal()"></div>
     <div id="detailModal">
-        <h3 id="m-title" style="margin:0 0 15px 0; color:var(--primary);">강의 상세</h3>
+        <div class="modal-header"><h2 id="m-title" style="margin:0; color:var(--primary);">강의 정보</h2></div>
         <div id="modalBody"></div>
-        <button onclick="closeModal()" style="margin-top:20px; width:100%; padding:10px; cursor:pointer; border:none; border-radius:6px; background:#eee;">닫기</button>
+        <button class="close-btn" onclick="closeModal()">닫기</button>
     </div>
 
     <script>
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyTMFj7peDa4JSiq6RE1Uvd04n84LUW5HdREtdS4OuTU93S61oQqvRjyAVf6NSVI6hF/exec';
+        // ★ 배포한 GAS 웹 앱 URL을 여기에 넣으세요
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzKKEaRi-Nr_as4CpcjhZ7Zdtoq8Y2Grs7GJfwM1zdhNm-zifyaOwPjrFwg-47B_Q_I/exec';
 
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
@@ -47,46 +64,40 @@
                 initialView: 'dayGridMonth',
                 locale: 'ko',
                 height: '100%',
-                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
-                // index.html 내의 events 함수 부분을 이 코드로 교체하세요.
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,listWeek'
+                },
                 events: function(info, successCallback, failureCallback) {
                     fetch(GAS_URL)
                         .then(res => res.json())
                         .then(data => {
-                            console.log("받은 원본 데이터:", data);
+                            console.log("서버 응답 데이터:", data);
                             const events = data.filter(r => r['날짜']).map(r => {
                                 
-                                // [핵심 수정] ISO 날짜 형식(T 포함)에서 날짜만 추출하는 로직
-                                let rawDate = String(r['날짜']);
-                                let formattedDate = "";
-                
-                                if (rawDate.includes('T')) {
-                                    // '2026-03-15T15:00:00.000Z' -> '2026-03-15'
-                                    formattedDate = rawDate.split('T')[0];
-                                } else if (rawDate.includes(' ')) {
-                                    // '2026. 3. 15.' 또는 다른 형식 대응
-                                    const d = new Date(rawDate);
-                                    const year = d.getFullYear();
-                                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                                    const day = String(d.getDate()).padStart(2, '0');
-                                    formattedDate = `${year}-${month}-${day}`;
-                                } else {
-                                    formattedDate = rawDate;
-                                }
-                
-                                // 시간 문자열 정리 (HH:mm)
-                                const sTime = String(r['시작시간'] || "09:00").substring(0, 5);
-                                const eTime = String(r['종료시간'] || "10:00").substring(0, 5);
-                
+                                // 1. 날짜 가공 (ISO 형식 무관하게 날짜만 추출)
+                                const pureDate = String(r['날짜']).split('T')[0];
+
+                                // 2. 시간 가공 (정규식을 통해 1899년 등의 데이터 속에서 HH:mm만 추출)
+                                const extractTime = (val) => {
+                                    const match = String(val).match(/\d{2}:\d{2}/);
+                                    return match ? match[0] : "09:00";
+                                };
+
+                                const sTime = extractTime(r['시작시간']);
+                                const eTime = extractTime(r['종료시간']);
+
                                 return {
-                                    title: `[${r['기관명'] || '기관'}] ${r['프로그램명'] || '수업'}`,
-                                    start: `${formattedDate}T${sTime.padStart(5, '0')}`,
-                                    end: `${formattedDate}T${eTime.padStart(5, '0')}`,
+                                    title: `[${r['기관명'] || '미정'}] ${r['프로그램명'] || '수업'}`,
+                                    start: `${pureDate}T${sTime}`,
+                                    end: `${pureDate}T${eTime}`,
                                     extendedProps: r,
+                                    // 주강사일 때와 아닐 때 색상 구분
                                     color: r['주강사'] ? '#3498db' : '#95a5a6'
                                 };
                             });
-                            console.log("변환된 이벤트:", events);
+                            console.log("가공된 이벤트:", events);
                             successCallback(events);
                         })
                         .catch(err => {
@@ -94,25 +105,40 @@
                             failureCallback(err);
                         });
                 },
-                eventClick: function(info) { showModal(info.event.extendedProps); }
+                eventClick: function(info) {
+                    showModal(info.event.extendedProps);
+                }
             });
             calendar.render();
         });
 
         function showModal(p) {
-            document.getElementById('m-title').innerText = p['기관명'] || '강의 정보';
+            document.getElementById('m-title').innerText = p['기관명'] || '강의 상세 정보';
+            
+            // 날짜와 시간 결합 표시
+            const displayDate = String(p['날짜']).split('T')[0];
+            const extractTime = (val) => {
+                const match = String(val).match(/\d{2}:\d{2}/);
+                return match ? match[0] : "시간미정";
+            };
+
             document.getElementById('modalBody').innerHTML = `
-                <div class="info-row"><span class="info-label">날짜:</span> ${String(p['날짜']).split('T')[0]}</div>
-                <div class="info-row"><span class="info-label">시간:</span> ${p['시작시간']} ~ ${p['종료시간']}</div>
-                <div class="info-row"><span class="info-label">프로그램:</span> ${p['프로그램명']}</div>
-                <div class="info-row"><span class="info-label">대상:</span> ${p['학년']} (${p['대상인원']}명)</div>
-                <div class="info-row"><span class="info-label">강사:</span> 주:${p['주강사']} / 보:${p['보조강사']||'-'}</div>
-                <div class="info-row"><span class="info-label">비고:</span> ${p['비고']||'-'}</div>
+                <div class="info-row"><span class="info-label">📅 일시</span><span class="info-value">${displayDate} (${extractTime(p['시작시간'])} ~ ${extractTime(p['종료시간'])})</span></div>
+                <div class="info-row"><span class="info-label">💻 프로그램</span><span class="info-value">${p['프로그램명']}</span></div>
+                <div class="info-row"><span class="info-label">👥 대상</span><span class="info-value">${p['학년'] || '-'} (${p['대상인원'] || 0}명)</span></div>
+                <div class="info-row"><span class="info-label">👨‍🏫 강사</span><span class="info-value">주: ${p['주강사']} / 보: ${p['보조강사'] || '-'}</span></div>
+                <div class="info-row"><span class="info-label">📦 교구</span><span class="info-value">${p['교구종류'] || '-'} (${p['교구수량'] || 0}개)</span></div>
+                <div class="info-row"><span class="info-label">📝 비고</span><span class="info-value">${p['비고'] || '-'}</span></div>
             `;
+            
             document.getElementById('modalOverlay').style.display = 'block';
             document.getElementById('detailModal').style.display = 'block';
         }
-        function closeModal() { document.getElementById('modalOverlay').style.display='none'; document.getElementById('detailModal').style.display='none'; }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').style.display = 'none';
+            document.getElementById('detailModal').style.display = 'none';
+        }
     </script>
 </body>
 </html>
