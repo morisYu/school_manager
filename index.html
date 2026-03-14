@@ -48,31 +48,49 @@
                 locale: 'ko',
                 height: '100%',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+                // index.html 내의 events 함수 부분을 이 코드로 교체하세요.
                 events: function(info, successCallback, failureCallback) {
                     fetch(GAS_URL)
                         .then(res => res.json())
                         .then(data => {
-                            console.log("실제 받은 데이터:", data);
+                            console.log("받은 원본 데이터:", data);
                             const events = data.filter(r => r['날짜']).map(r => {
-                                // 1. 날짜 처리 (시트에서 Date객체로 넘어올 경우를 대비해 T 이후를 잘라냄)
-                                const rawDate = String(r['날짜']).split('T')[0];
                                 
-                                // 2. 시간 처리 (HH:mm 형식이 아닌 숫자로 올 경우를 대비)
+                                // [핵심 수정] ISO 날짜 형식(T 포함)에서 날짜만 추출하는 로직
+                                let rawDate = String(r['날짜']);
+                                let formattedDate = "";
+                
+                                if (rawDate.includes('T')) {
+                                    // '2026-03-15T15:00:00.000Z' -> '2026-03-15'
+                                    formattedDate = rawDate.split('T')[0];
+                                } else if (rawDate.includes(' ')) {
+                                    // '2026. 3. 15.' 또는 다른 형식 대응
+                                    const d = new Date(rawDate);
+                                    const year = d.getFullYear();
+                                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                                    const day = String(d.getDate()).padStart(2, '0');
+                                    formattedDate = `${year}-${month}-${day}`;
+                                } else {
+                                    formattedDate = rawDate;
+                                }
+                
+                                // 시간 문자열 정리 (HH:mm)
                                 const sTime = String(r['시작시간'] || "09:00").substring(0, 5);
                                 const eTime = String(r['종료시간'] || "10:00").substring(0, 5);
-                                
+                
                                 return {
                                     title: `[${r['기관명'] || '기관'}] ${r['프로그램명'] || '수업'}`,
-                                    start: `${rawDate}T${sTime.padStart(5, '0')}`,
-                                    end: `${rawDate}T${eTime.padStart(5, '0')}`,
+                                    start: `${formattedDate}T${sTime.padStart(5, '0')}`,
+                                    end: `${formattedDate}T${eTime.padStart(5, '0')}`,
                                     extendedProps: r,
                                     color: r['주강사'] ? '#3498db' : '#95a5a6'
                                 };
                             });
+                            console.log("변환된 이벤트:", events);
                             successCallback(events);
                         })
                         .catch(err => {
-                            console.error("데이터 불러오기 에러:", err);
+                            console.error("데이터 로드 에러:", err);
                             failureCallback(err);
                         });
                 },
