@@ -130,24 +130,48 @@
                     center: 'title', 
                     right: 'dayGridMonth,timeGridWeek,listWeek' 
                 },
+                // index.html의 events: function 내부
                 events: function(info, successCallback, failureCallback) {
-                    fetch(GAS_URL).then(res => res.json()).then(data => {
-                        const events = data.map(r => {
-                            // [수정 핵심] 날짜 밀림 방지: ISO 문자열에서 날짜 글자만 그대로 추출 (시계 무시)
-                            const dateStr = String(r['날짜']).substring(0, 10);
-                            const sTime = extractTime(r['시작시간']);
-                            const eTime = extractTime(r['종료시간']);
+                    fetch(GAS_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            console.group("📅 캘린더 전체 일정 로드 디버깅");
+                            console.log("1. 서버 응답 데이터 원본:", data);
+                
+                            const events = data.map((r, index) => {
+                                // [시차 보정 핵심 로직]
+                                const dateObj = new Date(r['날짜']);
+                                const localDate = dateObj.toLocaleDateString('sv-SE'); // YYYY-MM-DD 형식 추출
+                
+                                const sTime = extractTime(r['시작시간']);
+                                const eTime = extractTime(r['종료시간']);
+                
+                                // 첫 번째 데이터만 샘플로 상세 로그 남기기
+                                if (index === 0) {
+                                    console.log("--- 첫 번째 일정 보정 확인 ---");
+                                    console.log("원본(r['날짜']):", r['날짜']);
+                                    console.log("보정 후(localDate):", localDate);
+                                    console.log("최종 시작점(start):", `${localDate}T${sTime}`);
+                                }
+                
+                                return {
+                                    title: r['프로그램명'],
+                                    start: `${localDate}T${sTime}`,
+                                    end: `${localDate}T${eTime}`,
+                                    textColor: r['색상'] || '#2c3e50',
+                                    extendedProps: r
+                                };
+                            });
+                
+                            console.log("2. 최종 변환된 이벤트 객체들:", events);
+                            console.groupEnd();
                             
-                            return {
-                                title: r['프로그램명'],
-                                start: `${dateStr}T${sTime}`,
-                                end: `${dateStr}T${eTime}`,
-                                textColor: r['색상'] || '#2c3e50', 
-                                extendedProps: r
-                            };
+                            successCallback(events);
+                        })
+                        .catch(error => {
+                            console.error("❌ 데이터 로드 중 오류 발생:", error);
+                            failureCallback(error);
                         });
-                        successCallback(events);
-                    });
                 },
                 // [수정 핵심] 이벤트 2줄 구성 및 폰트 크기 적용
                 eventContent: function(arg) {
@@ -176,12 +200,19 @@
 
         // 모달 열기 및 날짜 문자열 고정
         function openModal(p) {
+            // 1. 시차 보정을 위해 날짜 객체 생성 (UTC 15:00 -> 한국 00:00 자동 변환)
+            const dateObj = new Date(p['날짜']);
+            
+            // 2. 한국 시간 기준으로 YYYY-MM-DD 형식 추출 (sv-SE 포맷 활용 팁)
+            const localDate = dateObj.toLocaleDateString('sv-SE');
+        
+            // 3. 모달 입력창들에 데이터 바인딩
             document.getElementById('edit-row').value = p.row;
             document.getElementById('edit-institution').value = p['기관명'] || '';
             document.getElementById('edit-program').value = p['프로그램명'] || '';
             
-            // 날짜 밀림 방지: 팝업에서도 substring(0,10) 사용
-            document.getElementById('edit-date').value = String(p['날짜']).substring(0, 10);
+            // [핵심 수정] 보정된 날짜 입력
+            document.getElementById('edit-date').value = localDate;
             
             document.getElementById('edit-start').value = extractTime(p['시작시간']);
             document.getElementById('edit-end').value = extractTime(p['종료시간']);
@@ -194,6 +225,7 @@
             document.getElementById('edit-note').value = p['비고'] || '';
             document.getElementById('edit-color').value = p['색상'] || '#2c3e50';
             
+            // 모달 표시
             document.getElementById('modalOverlay').style.display = 'block';
             document.getElementById('editModal').style.display = 'block';
         }
