@@ -139,10 +139,10 @@
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'ko',
+                handleWindowResize: true,  // 브라우저 크기 조절 시 달력 크기 자동 재조정
+                height: 'auto',            // 내부 콘텐츠 높이에 맞춰 달력 높이 자동 조절
                 fixedWeekCount: false,      // 해당 월의 실제 주수만큼만 표시 (6주 고정 해제)
                 showNonCurrentDates: false, // 이전/다음 달의 날짜를 화면에서 숨김
-                // ----------------------------
-            
                 headerToolbar: { 
                     left: 'prev,next today', 
                     center: 'title', 
