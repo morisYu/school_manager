@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강의 관리 시스템 - 최종 수정본</title>
+    <title>스마트 강의 관리 시스템 Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
-        :root { --primary: #2c3e50; --danger: #e74c3c; --bg: #f4f7f9; }
+        :root { --primary: #2c3e50; --bg: #f4f7f9; }
         body { margin: 0; font-family: 'Pretendard', sans-serif; background: var(--bg); }
         .wrapper { padding: 10px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
         
@@ -15,31 +15,31 @@
 
         #calendar-container { background: white; padding: 10px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); flex-grow: 1; min-height: 0; }
         
-        /* 3. 캘린더 이벤트 2줄 및 글자 크기 강화 */
-        .fc-event-main { padding: 2px !important; }
-        .event-wrapper { display: flex; flex-direction: column; line-height: 1.3; }
-        .event-line1 { font-weight: 800 !important; font-size: 12px !important; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .event-line2 { font-weight: 400 !important; font-size: 11px !important; color: rgba(255,255,255,0.9); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        /* 캘린더 내부 글자 크기 및 스타일 강제 적용 */
+        .fc-event { background: transparent !important; border: none !important; }
+        .event-wrapper { padding: 2px 4px; border-radius: 4px; border-left: 4px solid; } /* 왼쪽 바 형태로 색상 구분 */
+        .event-line1 { font-weight: 800 !important; font-size: 13px !important; margin-bottom: 2px; }
+        .event-line2 { font-weight: 500 !important; font-size: 11px !important; opacity: 0.9; }
 
         /* 모달 스타일 */
         #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; backdrop-filter: blur(2px); }
-        #editModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 15px; width: 92%; max-width: 500px; z-index: 1000; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
+        #editModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 15px; width: 92%; max-width: 500px; z-index: 1000; max-height: 90vh; overflow-y: auto; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group.full { grid-column: span 2; }
         label { font-size: 0.75em; font-weight: bold; color: #7f8c8d; margin-bottom: 3px; }
-        input, select, textarea { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; }
+        input, select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9em; font-weight: bold; }
         
         .btn-group { margin-top: 20px; display: flex; gap: 8px; }
         .btn-save { flex: 2; background: #3498db; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-delete { flex: 1; background: #fff; color: var(--danger); border: 1px solid var(--danger); padding: 12px; border-radius: 8px; cursor: pointer; }
+        .btn-delete { flex: 1; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; padding: 12px; border-radius: 8px; cursor: pointer; }
         .btn-close { flex: 1; background: #eee; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
     <div class="wrapper">
         <div class="nav-bar">
-            <strong>🏫 출강 관리 시스템</strong>
+            <strong>🏫 스마트 출강 관리</strong>
             <div class="nav-links">
                 <a href="manage.html" style="margin-right: 5px;">📊 정산</a>
                 <a href="input.html">+ 추가</a>
@@ -50,26 +50,30 @@
 
     <div id="modalOverlay" onclick="closeModal()"></div>
     <div id="editModal">
-        <h3 style="margin:0 0 10px 0; font-size: 1.1em;">일정 수정</h3>
+        <h3 style="margin:0 0 10px 0;">일정 상세 정보</h3>
         <input type="hidden" id="edit-row">
         <div class="form-grid">
             <div class="form-group full"><label>기관명</label><input type="text" id="edit-institution"></div>
             <div class="form-group full"><label>프로그램명</label><input type="text" id="edit-program"></div>
             <div class="form-group"><label>날짜</label><input type="date" id="edit-date"></div>
-            <div class="form-group"><label>색상</label>
+            <div class="form-group"><label>글자 색상</label>
                 <select id="edit-color">
-                    <option value="#3498db">파랑 (기본)</option>
-                    <option value="#e74c3c">빨강 (중요)</option>
-                    <option value="#2ecc71">초록 (완료)</option>
-                    <option value="#f1c40f">노랑 (대기)</option>
+                    <option value="#2c3e50">검정 (기본)</option>
+                    <option value="#3498db">파랑</option>
+                    <option value="#e74c3c">빨강</option>
+                    <option value="#2ecc71">초록</option>
+                    <option value="#f39c12">오렌지</option>
+                    <option value="#9b59b6">보라</option>
+                    <option value="#1abc9c">청록</option>
+                    <option value="#e67e22">당근</option>
+                    <option value="#34495e">회색</option>
+                    <option value="#d35400">진한 주황</option>
                 </select>
             </div>
             <div class="form-group"><label>시작시간</label><input type="time" id="edit-start"></div>
             <div class="form-group"><label>종료시간</label><input type="time" id="edit-end"></div>
-            
             <div class="form-group"><label>학년</label><input type="text" id="edit-grade"></div>
             <div class="form-group"><label>대상인원</label><input type="text" id="edit-students"></div>
-            
             <div class="form-group"><label>주강사</label><input type="text" id="edit-main"></div>
             <div class="form-group"><label>보조강사</label><input type="text" id="edit-sub"></div>
             <div class="form-group"><label>교구종류</label><input type="text" id="edit-tool"></div>
@@ -91,35 +95,42 @@
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
                 locale: 'ko',
-                headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
+                // 4. 주간 일정(Week) 보기 추가
+                headerToolbar: { 
+                    left: 'prev,next today', 
+                    center: 'title', 
+                    right: 'dayGridMonth,timeGridWeek,listWeek' 
+                },
                 events: function(info, successCallback, failureCallback) {
                     fetch(GAS_URL).then(res => res.json()).then(data => {
                         const events = data.map(r => {
-                            // 1. 날짜 밀림 방지: 문자열에서 직접 날짜 부분만 추출
-                            const datePart = r['날짜'].split('T')[0];
+                            // 1. 날짜 밀림 현상 방지: ISO 문자열에서 10자리만 추출 (2026-03-17)
+                            const dateStr = String(r['날짜']).substring(0, 10);
                             const sTime = extractTime(r['시작시간']);
                             const eTime = extractTime(r['종료시간']);
                             
                             return {
                                 title: r['프로그램명'],
-                                start: `${datePart}T${sTime}`,
-                                end: `${datePart}T${eTime}`,
-                                color: r['색상'] || '#3498db',
+                                start: `${dateStr}T${sTime}`,
+                                end: `${dateStr}T${eTime}`,
+                                // 2. 사용자가 선택한 색상을 글자색으로 적용
+                                textColor: r['색상'] || '#2c3e50', 
                                 extendedProps: r
                             };
                         });
                         successCallback(events);
                     });
                 },
-                // 3. 2줄 표시 및 스타일 강화
+                // 3. 2줄 구성 및 내용 수정
                 eventContent: function(arg) {
                     const p = arg.event.extendedProps;
                     const time = extractTime(p['시작시간']);
+                    const color = arg.event.textColor;
                     return {
                         html: `
-                        <div class="event-wrapper">
-                            <div class="event-line1">${time} | ${p['기관명']}</div>
-                            <div class="event-line2">${p['프로그램명']}</div>
+                        <div class="event-wrapper" style="border-left-color: ${color}; color: ${color};">
+                            <div class="event-line1">${time} | ${p['기관명']} | ${p['프로그램명']}</div>
+                            <div class="event-line2">${p['주강사']} | ${p['교구종류']}(${p['교구수량']})</div>
                         </div>`
                     };
                 },
@@ -138,21 +149,18 @@
             document.getElementById('edit-row').value = p.row;
             document.getElementById('edit-institution').value = p['기관명'] || '';
             document.getElementById('edit-program').value = p['프로그램명'] || '';
-            // 날짜 밀림 방지 처리가 된 문자열 사용
-            document.getElementById('edit-date').value = p['날짜'].split('T')[0];
+            // 날짜 파싱 (밀림 방지)
+            document.getElementById('edit-date').value = String(p['날짜']).substring(0, 10);
             document.getElementById('edit-start').value = extractTime(p['시작시간']);
             document.getElementById('edit-end').value = extractTime(p['종료시간']);
-            
-            // 2. 누락되었던 데이터 바인딩
             document.getElementById('edit-grade').value = p['학년'] || '';
             document.getElementById('edit-students').value = p['대상인원'] || '';
-            
             document.getElementById('edit-main').value = p['주강사'] || '';
             document.getElementById('edit-sub').value = p['보조강사'] || '';
             document.getElementById('edit-tool').value = p['교구종류'] || '';
             document.getElementById('edit-count').value = p['교구수량'] || 0;
             document.getElementById('edit-note').value = p['비고'] || '';
-            document.getElementById('edit-color').value = p['색상'] || '#3498db';
+            document.getElementById('edit-color').value = p['색상'] || '#2c3e50';
             
             document.getElementById('modalOverlay').style.display = 'block';
             document.getElementById('editModal').style.display = 'block';
@@ -172,11 +180,8 @@
                 endTime: document.getElementById('edit-end').value,
                 program: document.getElementById('edit-program').value,
                 institution: document.getElementById('edit-institution').value,
-                
-                // 2. 수정 시 데이터 보존
                 grade: document.getElementById('edit-grade').value,
                 students: document.getElementById('edit-students').value,
-                
                 mainTeacher: document.getElementById('edit-main').value,
                 subTeacher: document.getElementById('edit-sub').value,
                 toolType: document.getElementById('edit-tool').value,
@@ -187,7 +192,7 @@
 
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(() => {
-                alert('처리되었습니다.');
+                alert('완료되었습니다.');
                 closeModal();
                 window.myCalendar.refetchEvents();
             })
