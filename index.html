@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강의 일정 통합 관리 (실시간)</title>
+    <title>출강 관리 시스템 (실시간 최적화)</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
@@ -22,7 +22,7 @@
 <body>
     <div class="wrapper">
         <div class="nav-bar">
-            <strong>🏫 출강 관리 시스템 (실시간)</strong>
+            <strong>🏫 출강 관리 시스템</strong>
             <div class="nav-links">
                 <a href="input.html" style="color: #5ef19b;">+ 새 수업 입력</a>
                 <a href="manage.html">📊 정산 대시보드</a>
@@ -39,7 +39,6 @@
     </div>
 
     <script>
-        // ★ 1단계에서 배포한 GAS 웹 앱 URL을 넣으세요
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbyTMFj7peDa4JSiq6RE1Uvd04n84LUW5HdREtdS4OuTU93S61oQqvRjyAVf6NSVI6hF/exec';
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -53,16 +52,29 @@
                     fetch(GAS_URL)
                         .then(res => res.json())
                         .then(data => {
-                            const events = data.filter(r => r['날짜']).map(r => ({
-                                title: `[${r['기관명']}] ${r['프로그램명']}`,
-                                start: `${r['날짜']}T${(r['시작시간']||"09:00").padStart(5, '0')}`,
-                                end: `${r['날짜']}T${(r['종료시간']||"10:00").padStart(5, '0')}`,
-                                extendedProps: r,
-                                color: r['주강사'] ? '#3498db' : '#95a5a6'
-                            }));
+                            console.log("실제 받은 데이터:", data);
+                            const events = data.filter(r => r['날짜']).map(r => {
+                                // 1. 날짜 처리 (시트에서 Date객체로 넘어올 경우를 대비해 T 이후를 잘라냄)
+                                const rawDate = String(r['날짜']).split('T')[0];
+                                
+                                // 2. 시간 처리 (HH:mm 형식이 아닌 숫자로 올 경우를 대비)
+                                const sTime = String(r['시작시간'] || "09:00").substring(0, 5);
+                                const eTime = String(r['종료시간'] || "10:00").substring(0, 5);
+                                
+                                return {
+                                    title: `[${r['기관명'] || '기관'}] ${r['프로그램명'] || '수업'}`,
+                                    start: `${rawDate}T${sTime.padStart(5, '0')}`,
+                                    end: `${rawDate}T${eTime.padStart(5, '0')}`,
+                                    extendedProps: r,
+                                    color: r['주강사'] ? '#3498db' : '#95a5a6'
+                                };
+                            });
                             successCallback(events);
                         })
-                        .catch(err => { console.error(err); failureCallback(err); });
+                        .catch(err => {
+                            console.error("데이터 불러오기 에러:", err);
+                            failureCallback(err);
+                        });
                 },
                 eventClick: function(info) { showModal(info.event.extendedProps); }
             });
@@ -70,8 +82,9 @@
         });
 
         function showModal(p) {
-            document.getElementById('m-title').innerText = p['기관명'];
+            document.getElementById('m-title').innerText = p['기관명'] || '강의 정보';
             document.getElementById('modalBody').innerHTML = `
+                <div class="info-row"><span class="info-label">날짜:</span> ${String(p['날짜']).split('T')[0]}</div>
                 <div class="info-row"><span class="info-label">시간:</span> ${p['시작시간']} ~ ${p['종료시간']}</div>
                 <div class="info-row"><span class="info-label">프로그램:</span> ${p['프로그램명']}</div>
                 <div class="info-row"><span class="info-label">대상:</span> ${p['학년']} (${p['대상인원']}명)</div>
