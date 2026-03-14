@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>스마트 출강 관리 시스템 Pro</title>
+    <title>강의 관리 시스템 - 디버깅 모드</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <style>
         :root { --primary: #2c3e50; --danger: #e74c3c; --bg: #f4f7f9; }
         body { margin: 0; font-family: 'Pretendard', sans-serif; background: var(--bg); }
         .wrapper { padding: 15px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
         
-        /* 네비게이션 */
+        /* 상단 바 스타일 */
         .nav-bar { background: var(--primary); color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .nav-links a { color: white; text-decoration: none; font-weight: bold; font-size: 0.85em; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; }
 
-        /* 캘린더 커스텀 */
+        /* 캘린더 영역 */
         #calendar-container { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); flex-grow: 1; min-height: 0; }
         .fc-event { cursor: pointer; border: none !important; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .event-line1 { font-weight: bold; font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .event-line2 { font-size: 0.75em; opacity: 0.9; margin-top: 2px; }
 
-        /* 모달 스타일 */
+        /* 모달(팝업) 스타일 */
         #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; backdrop-filter: blur(2px); }
         #editModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 15px; width: 90%; max-width: 480px; z-index: 1000; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 15px; }
@@ -39,27 +39,28 @@
     <div class="wrapper">
         <div class="nav-bar">
             <strong>🏫 실시간 출강 관리 시스템</strong>
-            <div class="nav-links"><a href="input.html">+ 새 일정</a></div>
+            <div class="nav-links">
+                <a href="manage.html" style="margin-right: 10px;">📊 정산 관리</a>
+                <a href="input.html">+ 새 일정</a>
+            </div>
         </div>
         <div id="calendar-container"><div id="calendar"></div></div>
     </div>
 
     <div id="modalOverlay" onclick="closeModal()"></div>
     <div id="editModal">
-        <h3 id="modalTitle" style="margin:0 0 15px 0; color:var(--primary);">일정 수정/삭제</h3>
+        <h3 id="modalTitle" style="margin:0 0 15px 0; color:var(--primary);">일정 상세 및 수정</h3>
         <input type="hidden" id="edit-row">
         <div class="form-grid">
-            <div class="form-group full"><label>기관명 (학교명)</label><input type="text" id="edit-institution"></div>
+            <div class="form-group full"><label>기관명</label><input type="text" id="edit-institution"></div>
             <div class="form-group full"><label>프로그램명</label><input type="text" id="edit-program"></div>
             <div class="form-group"><label>날짜</label><input type="date" id="edit-date"></div>
-            <div class="form-group"><label>색상 선택</label>
+            <div class="form-group"><label>색상</label>
                 <select id="edit-color">
                     <option value="#3498db">파랑 (기본)</option>
-                    <option value="#e74c3c">빨강 (긴급)</option>
+                    <option value="#e74c3c">빨강 (중요)</option>
                     <option value="#2ecc71">초록 (완료)</option>
                     <option value="#f1c40f">노랑 (대기)</option>
-                    <option value="#9b59b6">보라 (중요)</option>
-                    <option value="#34495e">남색 (기타)</option>
                 </select>
             </div>
             <div class="form-group"><label>시작시간</label><input type="time" id="edit-start"></div>
@@ -68,7 +69,7 @@
             <div class="form-group"><label>보조강사</label><input type="text" id="edit-sub"></div>
             <div class="form-group"><label>교구종류</label><input type="text" id="edit-tool"></div>
             <div class="form-group"><label>교구수량</label><input type="number" id="edit-count"></div>
-            <div class="form-group full"><label>비고 (학년/인원 등)</label><textarea id="edit-note" rows="2"></textarea></div>
+            <div class="form-group full"><label>비고</label><textarea id="edit-note" rows="2"></textarea></div>
         </div>
         <div class="btn-group">
             <button class="btn-save" onclick="processData('update')">수정 저장</button>
@@ -78,7 +79,9 @@
     </div>
 
     <script>
-        // ★ 본인의 GAS 웹 앱 URL을 넣으세요
+        // ---------------------------------------------------------
+        // 1. 초기 설정 (본인의 GAS 웹 앱 URL을 반드시 확인하세요)
+        // ---------------------------------------------------------
         const GAS_URL = 'https://script.google.com/macros/s/AKfycbzst3PGPjqrF9DCqfQFl6bFztp-AsIYq0LfuFJhYoFh5I1k1iG7oQ7XBJeCRpmYxio2/exec';
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -87,19 +90,52 @@
                 initialView: 'dayGridMonth',
                 locale: 'ko',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,listWeek' },
+                
+                // ---------------------------------------------------------
+                // 2. 데이터 불러오기 (Debugging 로그 포함)
+                // ---------------------------------------------------------
                 events: function(info, successCallback, failureCallback) {
-                    fetch(GAS_URL).then(res => res.json()).then(data => {
-                        const events = data.map(r => ({
-                            title: r['프로그램명'],
-                            start: `${r['날짜']}T${extractTime(r['시작시간'])}`,
-                            end: `${r['날짜']}T${extractTime(r['종료시간'])}`,
-                            color: r['색상'] || '#3498db',
-                            extendedProps: r
-                        }));
-                        successCallback(events);
-                    });
+                    console.log("--- 데이터 요청 시작 ---");
+                    fetch(GAS_URL)
+                        .then(res => res.json())
+                        .then(data => {
+                            console.log("1. 서버 응답 로우 데이터:", data);
+                            
+                            if (!Array.isArray(data)) {
+                                console.error("에러: 데이터가 배열 형식이 아닙니다. GAS 배포를 확인하세요.");
+                                return;
+                            }
+
+                            const events = data.map((r, index) => {
+                                // [중요] 날짜가 ISO(2026-03-15T...)인 경우 날짜 부분만 추출
+                                const pureDate = String(r['날짜']).split('T')[0];
+                                const sTime = extractTime(r['시작시간']);
+                                const eTime = extractTime(r['종료시간']);
+
+                                // 각 일정이 어떻게 가공되는지 개별 로그 출력
+                                // console.log(`[행 ${index+2}] 가공: ${pureDate}T${sTime}`);
+
+                                return {
+                                    title: r['프로그램명'],
+                                    start: `${pureDate}T${sTime}`,
+                                    end: `${pureDate}T${eTime}`,
+                                    color: r['색상'] || '#3498db',
+                                    extendedProps: r
+                                };
+                            });
+                            
+                            console.log("2. 캘린더용 최종 가공 데이터:", events);
+                            successCallback(events);
+                        })
+                        .catch(err => {
+                            console.error("3. 데이터 로드 중 치명적 오류 발생:", err);
+                            failureCallback(err);
+                        });
                 },
-                // [디자인 1] 2줄 표시 렌더링
+
+                // ---------------------------------------------------------
+                // 3. 캘린더 화면 표시 설정 (2줄 디자인)
+                // ---------------------------------------------------------
                 eventContent: function(arg) {
                     const p = arg.event.extendedProps;
                     const time = extractTime(p['시작시간']);
@@ -114,17 +150,22 @@
             window.myCalendar = calendar;
         });
 
+        // 시간 데이터에서 HH:mm 패턴만 안전하게 추출하는 유틸리티 함수
         function extractTime(val) {
+            if (!val) return "09:00";
             const match = String(val).match(/\d{2}:\d{2}/);
             return match ? match[0] : "09:00";
         }
 
-        // [디자인 2] 모달창 열기 및 데이터 채우기
+        // ---------------------------------------------------------
+        // 4. 모달 및 CRUD 기능
+        // ---------------------------------------------------------
         function openModal(p) {
             document.getElementById('edit-row').value = p.row;
             document.getElementById('edit-institution').value = p['기관명'] || '';
             document.getElementById('edit-program').value = p['프로그램명'] || '';
-            document.getElementById('edit-date').value = p['날짜'] || '';
+            // 날짜 입력 칸(type=date)을 위해 형식 정리
+            document.getElementById('edit-date').value = String(p['날짜']).split('T')[0];
             document.getElementById('edit-start').value = extractTime(p['시작시간']);
             document.getElementById('edit-end').value = extractTime(p['종료시간']);
             document.getElementById('edit-main').value = p['주강사'] || '';
@@ -138,11 +179,11 @@
             document.getElementById('editModal').style.display = 'block';
         }
 
-        // [디자인 3] 수정 및 삭제 처리
         function processData(action) {
             if (action === 'delete' && !confirm("정말 이 일정을 삭제하시겠습니까?")) return;
             
             const btn = document.querySelector('.btn-save');
+            const originalText = btn.innerText;
             btn.innerText = '처리 중...'; btn.disabled = true;
 
             const payload = {
@@ -159,19 +200,25 @@
                 toolCount: document.getElementById('edit-count').value,
                 note: document.getElementById('edit-note').value,
                 color: document.getElementById('edit-color').value,
-                // 고정값 (학년, 학생수 등 필요시 추가)
-                grade: '', students: ''
+                grade: '', students: '' // 필요시 필드 추가
             };
 
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(res => res.json())
-            .then(() => {
+            .then(result => {
+                console.log("처리 결과:", result);
                 alert(action === 'delete' ? '삭제되었습니다.' : '수정되었습니다.');
                 closeModal();
-                window.myCalendar.refetchEvents();
+                window.myCalendar.refetchEvents(); // 캘린더 새로고침
             })
-            .catch(err => alert('오류 발생: ' + err))
-            .finally(() => { btn.innerText = '수정 저장'; btn.disabled = false; });
+            .catch(err => {
+                console.error("통신 오류:", err);
+                alert('처리 중 오류가 발생했습니다.');
+            })
+            .finally(() => { 
+                btn.innerText = originalText; 
+                btn.disabled = false; 
+            });
         }
 
         function closeModal() {
