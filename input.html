@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>출강 내역 입력 Pro</title>
+    <title>출강 내역 입력</title>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
         
@@ -13,91 +13,96 @@
             padding: 20px; 
             display: flex; 
             justify-content: center; 
+            align-items: center;
+            min-height: 100vh;
             margin: 0;
         }
 
+        /* 1. 박스를 가로형 직사각형으로 수정 (최대 너비 확장) */
         .form-card { 
             background: white; 
-            padding: 0; 
             border-radius: 25px; 
             width: 100%; 
-            max-width: 500px; 
+            max-width: 900px; /* 가로로 넓게 설정 */
             box-shadow: 0 15px 40px rgba(0,0,0,0.15); 
             overflow: hidden;
             border: 3px solid #f0f4f8;
         }
 
         .form-header {
-            background: #f8fbc2; /* index.html 모달과 동일한 포인트 컬러 */
-            padding: 25px;
+            background: #f8fbc2;
+            padding: 20px;
             text-align: center;
             border-bottom: 2px solid #edf2f7;
         }
 
-        h2 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1.4em; }
+        h2 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1.5em; }
 
-        .form-body { padding: 30px; }
+        .form-body { padding: 25px 30px; }
         
-        .form-group { margin-bottom: 18px; display: flex; flex-direction: column; }
+        /* 2. 입력 항목 적절한 배치 (Grid 레이아웃) */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2단 구성 */
+            gap: 15px 30px; /* 항목 간 간격 */
+        }
+
+        /* 비고란과 버튼은 가로 전체 차지 */
+        .full-width { grid-column: span 2; }
+
+        .form-group { display: flex; flex-direction: column; }
         
         label { 
             font-size: 0.88em; 
             font-weight: 800; 
             color: #2980b9; 
-            margin-bottom: 8px; 
-            margin-left: 2px;
+            margin-bottom: 6px; 
         }
 
+        /* 날짜, 비고 포함 모든 입력란 Bold 적용 */
         input, select, textarea { 
             width: 100%; 
-            padding: 12px; 
+            padding: 10px 12px; 
             border: 2px solid #edf2f7; 
-            border-radius: 12px; 
+            border-radius: 10px; 
             box-sizing: border-box; 
-            font-size: 1em; 
-            font-weight: 800 !important; /* 모든 입력창 볼드 */
+            font-size: 15px; 
+            font-weight: 800 !important; 
             color: #2d3436;
             background: #fdfdfd;
-            transition: all 0.2s ease;
         }
 
-        input:focus, textarea:focus { 
-            border-color: var(--accent); 
-            background: #ffffff;
-            box-shadow: 0 0 8px rgba(52, 152, 219, 0.2);
-            outline: none;
-        }
+        input:focus, textarea:focus { border-color: var(--accent); outline: none; background: #fff; }
 
-        /* 시간 입력창 스타일 (24시간 텍스트 형식) */
-        .time-group { display: flex; gap: 10px; align-items: center; }
-        .time-group input { text-align: center; letter-spacing: 1px; }
+        .time-group { display: flex; gap: 8px; align-items: center; }
         .time-separator { font-weight: 800; color: #ccc; }
 
-        .btn-group { margin-top: 30px; display: flex; flex-direction: column; gap: 10px; }
+        /* 4. 버튼 일관성 및 가로 배치 */
+        .btn-group { 
+            margin-top: 25px; 
+            display: flex; 
+            gap: 15px; 
+        }
         
-        .btn-submit { 
-            padding: 18px; 
-            background: var(--accent); 
-            color: white; 
-            border: none; 
-            border-radius: 15px; 
-            font-size: 1.05em; 
+        .btn-common { 
+            flex: 1; /* 크기 동일하게 설정 */
+            padding: 15px; 
+            border-radius: 12px; 
+            font-size: 1em; 
             font-weight: 800; 
             cursor: pointer; 
-            transition: transform 0.1s; 
+            transition: all 0.2s;
+            border: none;
+            text-align: center;
         }
         
-        .btn-submit:active { transform: scale(0.97); }
-        .btn-submit:disabled { background: #bdc3c7; }
+        .btn-submit { background: var(--accent); color: white; }
+        .btn-submit:hover { background: #2980b9; }
+        
+        .btn-back { background: #ecf0f1; color: #7f8c8d; }
+        .btn-back:hover { background: #bdc3c7; color: #2c3e50; }
 
-        .btn-back { 
-            padding: 12px;
-            background: none; 
-            border: none; 
-            color: #95a5a6; 
-            font-weight: 800;
-            cursor: pointer; 
-        }
+        .btn-common:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
@@ -109,74 +114,72 @@
     
     <div class="form-body">
         <form id="lectureForm">
-            <div class="form-group"><label>1. 날짜</label><input type="date" id="date" required></div>
-            
-            <div class="form-group">
-                <label>2. 시간 (24시간 형식)</label>
-                <div class="time-group">
-                    <input type="text" id="startTime" placeholder="14:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
-                    <span class="time-separator">~</span>
-                    <input type="text" id="endTime" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
+            <div class="form-grid">
+                <div class="form-group"><label>1. 날짜</label><input type="date" id="date" required></div>
+                
+                <div class="form-group">
+                    <label>2. 시간 (24시간 형식)</label>
+                    <div class="time-group">
+                        <input type="text" id="startTime" placeholder="14:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
+                        <span class="time-separator">~</span>
+                        <input type="text" id="endTime" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
+                    </div>
+                </div>
+
+                <div class="form-group"><label>3. 프로그램명</label><input type="text" id="program" required></div>
+                <div class="form-group"><label>4. 기관명(학교)</label><input type="text" id="institution" required></div>
+                
+                <div class="form-group"><label>5. 학년</label><input type="text" id="grade" placeholder="예: 5학년 1반"></div>
+                <div class="form-group"><label>6. 대상인원</label><input type="number" id="students" placeholder="0"></div>
+
+                <div class="form-group"><label>7. 주강사</label><input type="text" id="mainTeacher" required></div>
+                <div class="form-group"><label>8. 보조강사</label><input type="text" id="subTeacher"></div>
+
+                <div class="form-group"><label>9. 교구종류</label><input type="text" id="toolType"></div>
+                <div class="form-group"><label>10. 교구수량</label><input type="number" id="toolCount" placeholder="0"></div>
+
+                <div class="form-group full-width">
+                    <label>11. 글자 색상</label>
+                    <select id="color" onchange="this.style.color = this.value;" style="color: #2c3e50;">
+                        <option value="#2c3e50" style="color: #2c3e50; font-weight: 800;">검정 (기본)</option>
+                        <option value="#3498db" style="color: #3498db; font-weight: 800;">파랑</option>
+                        <option value="#e74c3c" style="color: #e74c3c; font-weight: 800;">빨강</option>
+                        <option value="#2ecc71" style="color: #2ecc71; font-weight: 800;">초록</option>
+                        <option value="#f39c12" style="color: #f39c12; font-weight: 800;">오렌지</option>
+                        <option value="#9b59b6" style="color: #9b59b6; font-weight: 800;">보라</option>
+                        <option value="#1abc9c" style="color: #1abc9c; font-weight: 800;">청록</option>
+                        <option value="#34495e" style="color: #34495e; font-weight: 800;">진회색</option>
+                        <option value="#e67e22" style="color: #e67e22; font-weight: 800;">황토</option>
+                        <option value="#d35400" style="color: #d35400; font-weight: 800;">진한 주황</option>
+                    </select>
+                </div>
+
+                <div class="form-group full-width">
+                    <label>12. 비고</label>
+                    <textarea id="note" rows="2" placeholder="전달사항이나 특이사항을 입력하세요."></textarea>
                 </div>
             </div>
 
-            <div class="form-group"><label>3. 프로그램명</label><input type="text" id="program" required></div>
-            <div class="form-group"><label>4. 기관명(학교)</label><input type="text" id="institution" required></div>
-            
-            <div style="display:flex; gap:10px;">
-                <div class="form-group" style="flex:1;"><label>5. 학년</label><input type="text" id="grade"></div>
-                <div class="form-group" style="flex:1;"><label>6. 대상인원</label><input type="number" id="students" placeholder="0"></div>
-            </div>
-
-            <div style="display:flex; gap:10px;">
-                <div class="form-group" style="flex:1;"><label>7. 주강사</label><input type="text" id="mainTeacher" required></div>
-                <div class="form-group" style="flex:1;"><label>8. 보조강사</label><input type="text" id="subTeacher"></div>
-            </div>
-
-            <div style="display:flex; gap:10px;">
-                <div class="form-group" style="flex:2;"><label>9. 교구종류</label><input type="text" id="toolType"></div>
-                <div class="form-group" style="flex:1;"><label>10. 교구수량</label><input type="number" id="toolCount" placeholder="0"></div>
-            </div>
-
-            <div class="form-group">
-                <label>11. 글자 색상</label>
-                <select id="color" onchange="this.style.color = this.value;" style="color: #2c3e50;">
-                    <option value="#2c3e50" style="color: #2c3e50; font-weight: 800;">● 검정 (기본)</option>
-                    <option value="#3498db" style="color: #3498db; font-weight: 800;">● 파랑</option>
-                    <option value="#e74c3c" style="color: #e74c3c; font-weight: 800;">● 빨강</option>
-                    <option value="#2ecc71" style="color: #2ecc71; font-weight: 800;">● 초록</option>
-                    <option value="#f39c12" style="color: #f39c12; font-weight: 800;">● 오렌지</option>
-                </select>
-            </div>
-
-            <div class="form-group"><label>12. 비고</label><textarea id="note" rows="2"></textarea></div>
-
             <div class="btn-group">
-                <button type="submit" class="btn-submit" id="submitBtn">구글 시트에 저장하기</button>
-                <button type="button" class="btn-back" onclick="location.href='index.html'">취소하고 돌아가기</button>
+                <button type="submit" class="btn-common btn-submit" id="submitBtn">저장하기</button>
+                <button type="button" class="btn-common btn-back" onclick="location.href='index.html'">취소하</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzKKEaRi-Nr_as4CpcjhZ7Zdtoq8Y2Grs7GJfwM1zdhNm-zifyaOwPjrFwg-47B_Q_I/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzst3PGPjqrF9DCqfQFl6bFztp-AsIYq0LfuFJhYoFh5I1k1iG7oQ7XBJeCRpmYxio2/exec';
 
-    // 자동 콜론 삽입 함수
     function autoColon(target) {
         let val = target.value.replace(/\D/g, "");
-        if (val.length > 2) {
-            target.value = val.substring(0, 2) + ":" + val.substring(2, 4);
-        } else {
-            target.value = val;
-        }
+        if (val.length > 2) { target.value = val.substring(0, 2) + ":" + val.substring(2, 4); }
+        else { target.value = val; }
     }
 
-    // 시간 유효성 검사 함수
     function isValidTime(timeStr) {
         const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-        if (!timeRegex.test(timeStr)) return false;
-        return true;
+        return timeRegex.test(timeStr);
     }
 
     document.getElementById('lectureForm').addEventListener('submit', function(e) {
@@ -185,29 +188,16 @@
         const startTime = document.getElementById('startTime').value;
         const endTime = document.getElementById('endTime').value;
 
-        // [1] 시간 유효성 검사
-        if (!isValidTime(startTime)) {
-            alert("시작 시간을 올바른 형식(00:00~23:59)으로 입력해주세요.");
-            document.getElementById('startTime').focus();
-            return;
-        }
-        if (!isValidTime(endTime)) {
-            alert("종료 시간을 올바른 형식(00:00~23:59)으로 입력해주세요.");
-            document.getElementById('endTime').focus();
-            return;
-        }
-        if (startTime >= endTime) {
-            alert("종료 시간은 시작 시간보다 늦어야 합니다.");
-            document.getElementById('endTime').focus();
+        if (!isValidTime(startTime) || !isValidTime(endTime)) {
+            alert("시간 형식이 올바르지 않습니다 (00:00~23:59).");
             return;
         }
 
         const btn = document.getElementById('submitBtn');
-        btn.innerText = '데이터 전송 중...'; 
-        btn.disabled = true;
+        btn.innerText = '전송 중...'; btn.disabled = true;
 
         const formData = {
-            action: 'insert', // 신규 입력임을 명시 (GAS 쪽 로직에 따라 조절)
+            action: 'insert',
             date: document.getElementById('date').value,
             startTime: startTime,
             endTime: endTime,
@@ -224,17 +214,8 @@
         };
 
         fetch(GAS_URL, { method: 'POST', body: JSON.stringify(formData) })
-        .then(res => res.json())
-        .then(() => { 
-            alert('성공적으로 저장되었습니다!'); 
-            location.href = 'index.html'; 
-        })
-        .catch((err) => { 
-            alert('저장에 실패했습니다. 다시 시도해주세요.'); 
-            console.error(err);
-            btn.disabled = false; 
-            btn.innerText = '다시 시도하기'; 
-        });
+        .then(() => { alert('저장 완료!'); location.href = 'index.html'; })
+        .catch(() => { alert('저장 실패!'); btn.disabled = false; btn.innerText = '다시 시도'; });
     });
 </script>
 </body>
