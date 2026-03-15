@@ -13,11 +13,12 @@
         
         .wrapper { 
             padding: 10px; 
-            min-height: 100vh; /* height 대신 min-height 사용 */
+            height: 100vh; /* 화면 높이를 100% 사용 */
             display: flex; 
             flex-direction: column; 
             box-sizing: border-box; 
             background: #ffffff; /* 본문 영역 배경을 확실하게 흰색으로 지정 */
+            overflow: hidden; /* 전체 페이지 스크롤 방지 */
         }
         
         /* 상단 네비게이션 */
@@ -29,7 +30,14 @@
             background: white; 
             padding: 10px; 
             border-radius: 12px; 
-            flex-grow: 1; 
+            flex-grow: 1; /* 남은 공간을 달력이 모두 차지하도록 설정 */
+            min-height: 0; /* 중요: flex 아이템이 컨테이너를 벗어나지 않게 함 */
+            display: flex;
+            flex-direction: column;
+        }
+
+        #calendar {
+        height: 100%; /* 부모 컨테이너 높이에 꽉 맞춤 */
         }
         
         /* ★ [핵심] 폰트 크기 및 스타일 강제 고정 ★ */
@@ -140,14 +148,26 @@
                 initialView: 'dayGridMonth',
                 locale: 'ko',
                 handleWindowResize: true,  // 브라우저 크기 조절 시 달력 크기 자동 재조정
-                height: 'auto',            // 내부 콘텐츠 높이에 맞춰 달력 높이 자동 조절
+                height: '100%',            // 부모 요소(#calendar-container)의 높이를 100% 따름
+                expandRows: true,      // 일정이 적어도 행을 늘려 전체 높이를 채움
+                dayMaxEvents: false,   // 일정 개수가 많아도 '+more'로 숨기지 않고 행 높이를 늘려 모두 표시
                 fixedWeekCount: false,      // 해당 월의 실제 주수만큼만 표시 (6주 고정 해제)
                 showNonCurrentDates: false, // 이전/다음 달의 날짜를 화면에서 숨김
-                headerToolbar: { 
-                    left: 'prev,next today', 
-                    center: 'title', 
-                    right: 'dayGridMonth,timeGridWeek,listWeek' 
+
+                // [1] 24시간 형식 강제 설정
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false // 오전/오후 표시 제거
                 },
+                
+                // [2] 주간/일일 보기 왼쪽 시간축도 24시간제로 변경
+                slotLabelFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                },
+                
                 // 주간(Week) 보기 추가
                 headerToolbar: { 
                     left: 'prev,next today', 
@@ -216,9 +236,26 @@
             window.myCalendar = calendar;
         });
 
-        // 시간 데이터에서 HH:mm 추출
+        // 시간 데이터에서 로컬 시간 기준 HH:mm 추출
         function extractTime(val) {
-            const match = String(val).match(/\d{2}:\d{2}/);
+            if (!val) return "09:00"; // 기본값
+            
+            const valStr = String(val);
+        
+            // [핵심] T나 Z가 포함된 ISO 날짜 형식인 경우 (시차 보정이 필요한 경우)
+            if (valStr.includes('T') || valStr.includes('Z')) {
+                const d = new Date(valStr);
+                // 브라우저의 로컬 시간을 기준으로 24시간 형식(HH:mm) 추출
+                // 'en-GB' 로케일은 기본적으로 24시간 형식을 사용하므로 유용합니다.
+                return d.toLocaleTimeString('en-GB', { 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    hour12: false 
+                });
+            }
+        
+            // 이미 "13:00" 처럼 깨끗한 문자열로 들어오는 경우
+            const match = valStr.match(/\d{2}:\d{2}/);
             return match ? match[0] : "09:00";
         }
 
