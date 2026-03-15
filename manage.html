@@ -4,19 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>강사 정산 대시보드</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f8f9fa; }
-        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #333; }
+        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
         
-        /* 4. header-box 디자인 및 Bold 처리 */
+        body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: #333; }
+        
+        /* 1. 상단 시스템 헤더 - 왼쪽 정렬 버전 */
+        .system-header {
+            width: 100%;
+            background: #2c3e50;
+            color: white;
+            padding: 18px 0; /* 세로 높이 조절 */
+            font-size: 1.3em;
+            font-weight: 800;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            
+            /* 왼쪽 정렬 설정 */
+            display: flex;
+            justify-content: flex-start; 
+            align-items: center;
+        }
+
+        .system-header .header-content {
+            /* index.html의 컨테이너 위치와 맞추기 위해 좌측 여백 부여 */
+            margin-left: 40px; 
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .container { padding: 0 20px 40px 20px; max-width: 1100px; margin: 0 auto; }
+
         .header-box { 
             background: white; 
             padding: 25px; 
-            border-radius: 12px; 
+            border-radius: 15px; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); 
             margin-bottom: 20px; 
+            border: 1px solid #e0e6ed;
         }
+
         .header-row { 
             display: flex; 
             gap: 15px; 
@@ -24,185 +52,217 @@
             flex-wrap: wrap;
             margin-bottom: 15px;
         }
-        .input-group { display: flex; flex-direction: column; gap: 5px; }
-        .input-group label { font-weight: bold; font-size: 0.9em; color: var(--primary); }
-        input { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-weight: bold; }
 
-        /* 3. 버튼 레이아웃 (조회와 홈으로 동일 선상 배치) */
+        .input-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+        .input-group label { font-weight: 800; font-size: 0.85em; color: #2980b9; }
+        
+        /* 모든 입력창 Bold 적용 */
+        input, select { 
+            padding: 10px; 
+            border: 2px solid #edf2f7; 
+            border-radius: 8px; 
+            font-weight: 800; 
+            font-family: 'Pretendard', sans-serif;
+        }
+
         .button-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 100%;
             margin-top: 10px;
             padding-top: 15px;
             border-top: 1px solid #eee;
         }
+
         .left-btns { display: flex; gap: 10px; }
 
         button { 
-            padding: 10px 20px; 
+            padding: 12px 20px; 
             border: none; 
-            border-radius: 6px; 
-            font-weight: bold; 
+            border-radius: 8px; 
+            font-weight: 800; 
             cursor: pointer; 
             transition: 0.2s; 
         }
         .btn-search { background-color: var(--primary); color: white; }
-        .btn-pdf { background-color: var(--accent); color: white; }
-        .btn-home { background-color: #95a5a6; color: white; }
-        button:hover { opacity: 0.8; }
+        .btn-print { background-color: var(--accent); color: white; }
+        .btn-home { background-color: #ecf0f1; color: #7f8c8d; }
+        button:hover { opacity: 0.8; transform: translateY(-1px); }
 
-        /* 테이블 스타일 */
-        #report-area { background: white; padding: 20px; border-radius: 12px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9em; }
-        th { background: #f4f7f9; color: var(--primary); font-weight: bold; padding: 12px; border-bottom: 2px solid #dee2e6; }
-        td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; }
-        .total-row { background: #fdfdfe; font-weight: bold; color: var(--accent); font-size: 1.1em; }
+        /* 보고서 영역 스타일 */
+        #report-area { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        #report-title { text-align: center; font-weight: 800; margin-bottom: 30px; color: #2c3e50; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background: #f8fbc2; color: var(--primary); font-weight: 800; padding: 12px; border: 1px solid #dee2e6; font-size: 0.9em; }
+        td { padding: 10px; border: 1px solid #eee; text-align: center; font-size: 0.9em; }
+        
+        /* 비고 입력창 스타일 */
+        .note-input { 
+            width: 90%; 
+            border: none; 
+            border-bottom: 1px solid #ccc; 
+            background: transparent; 
+            text-align: center;
+            font-weight: 800;
+        }
+        .note-input:focus { outline: none; border-bottom: 2px solid var(--accent); }
+
+        .total-row { background: #fdfdfe; font-weight: 800; color: var(--accent); font-size: 1.1em; }
+
+        /* 인쇄 시 스타일 조절 */
+        @media print {
+            body { background: white; padding: 0; }
+            .system-header, .header-box, .btn-home { display: none !important; }
+            #report-area { box-shadow: none; padding: 0; }
+            .note-input { border: none; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="header-box">
-        <div class="header-row">
-            <div class="input-group">
-                <label>👤 강사 성함</label>
-                <input type="text" id="teacherName" placeholder="이름 입력">
-            </div>
-            <div class="input-group">
-                <label>📅 시작일</label>
-                <input type="date" id="startDate">
-            </div>
-            <div class="input-group">
-                <label>📅 종료일</label>
-                <input type="date" id="endDate">
-            </div>
-        </div>
-
-        <div class="button-container">
-            <div class="left-btns">
-                <button class="btn-search" onclick="loadReport()">조회하기</button>
-                <button class="btn-pdf" onclick="generatePDF()">PDF 출력</button>
-            </div>
-            <a href="index.html"><button class="btn-home">홈으로</button></a>
-        </div>
+    <div class="system-header">
+        🚀 스마트 출강 관리 시스템
     </div>
 
-    <div id="report-area">
-        <h2 id="report-title" style="text-align: center; font-weight: bold;">출강 및 정산 내역서</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>날짜</th>
-                    <th>기관명</th>
-                    <th>프로그램명</th>
-                    <th>시간(h)</th>
-                    <th>비고</th>
-                </tr>
-            </thead>
-            <tbody id="report-table-body">
+    <div class="container">
+        <div class="header-box">
+            <div class="header-row">
+                <div class="input-group">
+                    <label>👤 강사 선택</label>
+                    <select id="teacherSelect">
+                        <option value="">강사 데이터를 불러오는 중...</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>📅 시작일</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="input-group">
+                    <label>📅 종료일</label>
+                    <input type="date" id="endDate">
+                </div>
+            </div>
+
+            <div class="button-container">
+                <div class="left-btns">
+                    <button class="btn-search" onclick="loadReport()">조회하기</button>
+                    <button class="btn-print" onclick="window.print()">인쇄하기</button>
+                </div>
+                <button class="btn-home" onclick="location.href='index.html'">홈으로</button>
+            </div>
+        </div>
+
+        <div id="report-area">
+            <h2 id="report-title">출강 및 정산 내역서</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>순번</th>
+                        <th>날짜</th>
+                        <th>기관명</th>
+                        <th>프로그램명</th>
+                        <th>강사 구분</th>
+                        <th>시간(h)</th>
+                        <th>비고</th>
+                    </tr>
+                </thead>
+                <tbody id="report-table-body">
+                    <tr><td colspan="7">조회 조건을 입력 후 버튼을 눌러주세요.</td></tr>
                 </tbody>
-            <tfoot>
-                <tr class="total-row">
-                    <td colspan="3">총 합계</td>
-                    <td id="total-hours">0.0</td>
-                    <td>-</td>
-                </tr>
-            </tfoot>
-        </table>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="5">총 합계</td>
+                        <td id="total-hours">0.0</td>
+                        <td>-</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
     </div>
 
     <script>
-        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzst3PGPjqrF9DCqfQFl6bFztp-AsIYq0LfuFJhYoFh5I1k1iG7oQ7XBJeCRpmYxio2/exec'; // 여기에 실제 GAS 웹 앱 URL을 넣으세요.
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbzst3PGPjqrF9DCqfQFl6bFztp-AsIYq0LfuFJhYoFh5I1k1iG7oQ7XBJeCRpmYxio2/exec'; 
+        let rawData = [];
 
-        // 1 & 2. 날짜 및 시간 가공 로직
+        // 페이지 로드 시 강사 목록 추출
+        window.onload = async () => {
+            try {
+                const res = await fetch(GAS_URL);
+                rawData = await res.json();
+                
+                // 주강사, 보조강사 중 중복 없이 강사명 추출
+                const teachers = new Set();
+                rawData.forEach(r => {
+                    if(r['주강사']) teachers.add(r['주강사']);
+                    if(r['보조강사']) teachers.add(r['보조강사']);
+                });
+
+                const select = document.getElementById('teacherSelect');
+                select.innerHTML = '<option value="">강사 선택</option>';
+                [...teachers].sort().forEach(t => {
+                    select.innerHTML += `<option value="${t}">${t}</option>`;
+                });
+            } catch (e) {
+                alert("강사 목록을 불러오지 못했습니다.");
+            }
+        };
+
         function formatDate(isoString) {
             if (!isoString) return "-";
             const d = new Date(isoString);
-            // 2026-3-15 형식 (0 제거)
             return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
         }
 
         function calculateHours(startStr, endStr) {
             try {
-                // '1899-12-30T02:02:08.000Z' 형태에서 시간만 추출
                 const sMatch = String(startStr).match(/(\d{2}):(\d{2})/);
                 const eMatch = String(endStr).match(/(\d{2}):(\d{2})/);
-                
                 if (!sMatch || !eMatch) return 0;
-
-                const startMin = parseInt(sMatch[1]) * 60 + parseInt(sMatch[2]);
-                const endMin = parseInt(eMatch[1]) * 60 + parseInt(eMatch[2]);
-                
-                const diff = endMin - startMin;
+                const diff = (parseInt(eMatch[1]) * 60 + parseInt(eMatch[2])) - (parseInt(sMatch[1]) * 60 + parseInt(sMatch[2]));
                 return diff > 0 ? (diff / 60).toFixed(1) : 0;
-            } catch (e) {
-                return 0;
-            }
+            } catch (e) { return 0; }
         }
 
         async function loadReport() {
-            const name = document.getElementById('teacherName').value;
+            const name = document.getElementById('teacherSelect').value;
             const start = document.getElementById('startDate').value;
             const end = document.getElementById('endDate').value;
 
-            if (!name) { alert("강사 이름을 입력해주세요."); return; }
+            if (!name) { alert("강사를 선택해주세요."); return; }
+
+            const filtered = rawData.filter(r => {
+                const rDate = new Date(r['날짜']);
+                const isNameMatch = String(r['주강사']) === name || String(r['보조강사']) === name;
+                const isAfter = !start || rDate >= new Date(start);
+                const isBefore = !end || rDate <= new Date(end);
+                return isNameMatch && isAfter && isBefore;
+            }).sort((a, b) => new Date(a['날짜']) - new Date(b['날짜']));
 
             const tbody = document.getElementById('report-table-body');
-            tbody.innerHTML = '<tr><td colspan="5">데이터를 불러오는 중...</td></tr>';
+            tbody.innerHTML = '';
+            let total = 0;
 
-            try {
-                const res = await fetch(GAS_URL);
-                const data = await res.json();
+            filtered.forEach((r, index) => {
+                const hours = calculateHours(r['시작시간'], r['종료시간']);
+                total += parseFloat(hours);
+                const role = String(r['주강사']) === name ? "주강사" : "보조강사";
 
-                // 필터링 (이름 및 날짜 범위)
-                const filtered = data.filter(r => {
-                    const rDate = new Date(r['날짜']);
-                    const isNameMatch = String(r['주강사']).includes(name) || String(r['보조강사']).includes(name);
-                    const isAfter = !start || rDate >= new Date(start);
-                    const isBefore = !end || rDate <= new Date(end);
-                    return isNameMatch && isAfter && isBefore;
-                });
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td style="font-weight:800;">${formatDate(r['날짜'])}</td>
+                        <td>${r['기관명']}</td>
+                        <td>${r['프로그램명']}</td>
+                        <td>${role}</td>
+                        <td style="font-weight:800;">${hours}</td>
+                        <td><input type="text" class="note-input" value="${r['비고'] || ''}" placeholder="입력 가능"></td>
+                    </tr>
+                `;
+            });
 
-                tbody.innerHTML = '';
-                let total = 0;
-
-                filtered.forEach(r => {
-                    const hours = calculateHours(r['시작시간'], r['종료시간']);
-                    total += parseFloat(hours);
-
-                    const row = `
-                        <tr>
-                            <td style="font-weight:bold;">${formatDate(r['날짜'])}</td>
-                            <td>${r['기관명']}</td>
-                            <td>${r['프로그램명']}</td>
-                            <td style="font-weight:bold;">${hours}</td>
-                            <td>${r['비고'] || '-'}</td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-
-                document.getElementById('total-hours').innerText = total.toFixed(1);
-                if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="5">조회된 내역이 없습니다.</td></tr>';
-
-            } catch (err) {
-                console.error(err);
-                tbody.innerHTML = '<tr><td colspan="5">데이터 로딩 중 오류가 발생했습니다.</td></tr>';
-            }
-        }
-
-        function generatePDF() {
-            const element = document.getElementById('report-area');
-            const name = document.getElementById('teacherName').value || '강사';
-            const opt = {
-                margin: 10,
-                filename: `정산내역서_${name}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            html2pdf().set(opt).from(element).save();
+            document.getElementById('total-hours').innerText = total.toFixed(1);
+            if (filtered.length === 0) tbody.innerHTML = '<tr><td colspan="7">내역이 없습니다.</td></tr>';
         }
     </script>
 </body>
