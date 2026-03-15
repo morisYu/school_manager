@@ -17,6 +17,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>스마트 강의 관리 시스템 Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    
     <style>
         /* 배경색을 흰색(#ffffff)으로 통일하거나 기존 배경 변수를 변경합니다 */
         :root { --primary: #2c3e50; --bg: #ffffff; } /* --bg를 #ffffff로 수정 */
@@ -88,19 +89,67 @@
 
         /* 모달 스타일 */
         #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; backdrop-filter: blur(2px); }
-        #editModal { display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: white; padding: 25px; border-radius: 15px; width: 92%; max-width: 500px; z-index: 1000; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.3); }
+        #editModal { 
+            display: none; 
+            position: fixed; 
+            left: 50%; 
+            top: 50%; 
+            transform: translate(-50%, -50%); 
+            background: white; 
+            padding: 30px; 
+            border-radius: 25px; /* 더 둥글게 해서 귀여운 느낌 강조 */
+            width: 92%; 
+            max-width: 500px; 
+            z-index: 1000; 
+            max-height: 85vh; 
+            overflow-y: auto; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15); /* 부드러운 그림자 */
+            border: 3px solid #f0f4f8; /* 외곽선 추가 */
+        }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group.full { grid-column: span 2; }
-        label { font-size: 0.75em; font-weight: bold; color: #7f8c8d; margin-bottom: 4px; }
-        input, select, textarea { padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95em; font-weight: bold; }
-        
-        .btn-group { margin-top: 25px; display: flex; gap: 10px; }
-        .btn-save { flex: 2; background: #3498db; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-delete { flex: 1; background: #fff; color: #e74c3c; border: 1px solid #e74c3c; padding: 14px; border-radius: 8px; cursor: pointer; }
-        .btn-close { flex: 1; background: #eee; border: none; padding: 14px; border-radius: 8px; cursor: pointer; }
+        /* 입력창 및 레이블 Bold 적용 */
+        label { 
+            font-size: 0.85em; 
+            font-weight: 800; /* 레이블 강조 */
+            color: var(--primary); 
+            margin-bottom: 5px; 
+            margin-left: 2px;
+        }
+        input, select, textarea { 
+            padding: 12px; 
+            border: 2px solid #edf2f7; 
+            border-radius: 12px; /* 입력창도 둥글게 */
+            font-size: 0.95em; 
+            font-weight: 700 !important; /* 입력값 모두 볼드 처리 */
+            background: #fdfdfd;
+            transition: all 0.2s;
+        }
+        input:focus { border-color: #3498db; outline: none; background: #fff; }
+        .btn-group { 
+            margin-top: 30px; 
+            display: flex; 
+            gap: 10px; 
+            justify-content: space-between;
+        }
+        .btn-group button { 
+            flex: 1; /* 모든 버튼의 크기를 동일하게 */
+            padding: 15px 0; 
+            border-radius: 15px; 
+            font-weight: 800; 
+            font-size: 0.95em; 
+            cursor: pointer; 
+            border: none;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        .btn-group button:active { transform: scale(0.96); }
+        .btn-save { background: #3498db; color: white; }
+        .btn-delete { background: #ff7675; color: white; } /* 빨간색 계열을 부드럽게 */
+        .btn-close { background: #dfe6e9; color: #636e72; }
     </style>
 </head>
+    
 <body>
     <div class="wrapper">
         <div class="nav-bar">
@@ -136,11 +185,11 @@
             <div class="form-group"><label>시작시간</label><input type="time" id="edit-start"></div>
             <div class="form-group"><label>종료시간</label><input type="time" id="edit-end"></div>
             <div class="form-group"><label>학년</label><input type="text" id="edit-grade"></div>
-            <div class="form-group"><label>대상인원</label><input type="text" id="edit-students"></div>
+            <div class="form-group"><label>대상인원</label><input type="number" id="edit-students" placeholder="0" min="0"></div>
             <div class="form-group"><label>주강사</label><input type="text" id="edit-main"></div>
             <div class="form-group"><label>보조강사</label><input type="text" id="edit-sub"></div>
             <div class="form-group"><label>교구종류</label><input type="text" id="edit-tool"></div>
-            <div class="form-group"><label>교구수량</label><input type="number" id="edit-count"></div>
+            <div class="form-group"><label>교구수량</label><input type="number" id="edit-count" placeholder="0" min="0"></div>
             <div class="form-group full"><label>비고</label><textarea id="edit-note" rows="2"></textarea></div>
         </div>
         <div class="btn-group">
