@@ -96,6 +96,19 @@
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { background: #f8fbc2; color: var(--primary); font-weight: 800; padding: 12px; border: 1px solid #dee2e6; font-size: 0.9em; }
         td { padding: 10px; border: 1px solid #eee; text-align: center; font-size: 0.9em; }
+        /* 표 내부 본문 Bold 제거 (제목인 th만 Bold 유지) */
+        #report-table-body td { 
+            padding: 10px; 
+            border: 1px solid #eee; 
+            text-align: center; 
+            font-size: 0.9em; 
+            font-weight: normal !important; /* 본문은 일반 굵기로 설정 */
+        }
+        /* 날짜와 시간 항목에 개별적으로 들어갔던 Bold 속성도 해제하기 위해 명시 */
+        #report-table-body td.date-cell,
+        #report-table-body td.hour-cell {
+            font-weight: normal !important;
+        }
         
         /* 비고 입력창 스타일 */
         .note-input { 
@@ -104,17 +117,28 @@
             border-bottom: 1px solid #ccc; 
             background: transparent; 
             text-align: center;
-            font-weight: 800;
+            font-weight: normal;
         }
         .note-input:focus { outline: none; border-bottom: 2px solid var(--accent); }
 
         .total-row { background: #fdfdfe; font-weight: 800; color: var(--accent); font-size: 1.1em; }
 
-        /* 인쇄 시 스타일 조절 */
+        /* 인쇄 시 배경색 및 설정 유지 */
         @media print {
-            body { background: white; padding: 0; }
+            body { 
+                background: white; 
+                padding: 0; 
+                -webkit-print-color-adjust: exact; /* 크롬, 사파리 등에서 배경색 인쇄 강제 */
+                print-color-adjust: exact; 
+            }
             .system-header, .header-box, .btn-home { display: none !important; }
-            #report-area { box-shadow: none; padding: 0; }
+            #report-area { box-shadow: none; padding: 0; width: 100%; }
+            
+            /* 표 제목 배경색(#f8fbc2)이 인쇄되도록 보장 */
+            th { 
+                background-color: #f8fbc2 !important; 
+                -webkit-print-color-adjust: exact;
+            }
             .note-input { border: none; }
         }
     </style>
@@ -208,10 +232,14 @@
             }
         };
 
+        // 날짜 형식을 0000-00-00 (자리수 고정)으로 수정
         function formatDate(isoString) {
             if (!isoString) return "-";
             const d = new Date(isoString);
-            return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0'); // 두 자리로 맞춤
+            const day = String(d.getDate()).padStart(2, '0');        // 두 자리로 맞춤
+            return `${year}-${month}-${day}`;
         }
 
         function calculateHours(startStr, endStr) {
@@ -247,16 +275,17 @@
                 const hours = calculateHours(r['시작시간'], r['종료시간']);
                 total += parseFloat(hours);
                 const role = String(r['주강사']) === name ? "주강사" : "보조강사";
-
+    
+                // 2. 클래스 부여 및 인라인 스타일 제거로 Bold 해제
                 tbody.innerHTML += `
                     <tr>
                         <td>${index + 1}</td>
-                        <td style="font-weight:800;">${formatDate(r['날짜'])}</td>
+                        <td class="date-cell">${formatDate(r['날짜'])}</td>
                         <td>${r['기관명']}</td>
                         <td>${r['프로그램명']}</td>
                         <td>${role}</td>
-                        <td style="font-weight:800;">${hours}</td>
-                        <td><input type="text" class="note-input" value="${r['비고'] || ''}" placeholder="입력 가능"></td>
+                        <td class="hour-cell">${hours}</td>
+                        <td><input type="text" class="note-input" value="${r['비고'] || ''}"></td>
                     </tr>
                 `;
             });
