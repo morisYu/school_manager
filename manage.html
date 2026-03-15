@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <title>강사 정산 대시보드</title>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
@@ -171,7 +172,8 @@
             <div class="button-container">
                 <div class="left-btns">
                     <button class="btn-search" onclick="loadReport()">조회하기</button>
-                    <button class="btn-print" onclick="window.print()">인쇄하기</button>
+                    <button class="btn-print" onclick="window.print()">저장하기(PDF)</button>
+                    <button type="button" onclick="exportToExcel()" style="background-color: #27ae60; color: white;">저장하기(Excel)</button>
                 </div>
                 <button class="btn-home" onclick="location.href='index.html'">홈으로</button>
             </div>
@@ -250,6 +252,23 @@
                 const diff = (parseInt(eMatch[1]) * 60 + parseInt(eMatch[2])) - (parseInt(sMatch[1]) * 60 + parseInt(sMatch[2]));
                 return diff > 0 ? (diff / 60).toFixed(1) : 0;
             } catch (e) { return 0; }
+        }
+
+        // 엑셀 저장
+        function exportToExcel() {
+            // 1. 현재 출력된 표(report-area 안의 table)를 가져옵니다.
+            const table = document.querySelector("#report-area table");
+            
+            // 2. 비고란(input)의 값을 엑셀에 반영하기 위해 임시 처리
+            // (input 태그 안의 값은 일반적인 테이블 추출 시 누락될 수 있어 텍스트로 치환)
+            const wb = XLSX.utils.table_to_book(table, { sheet: "정산내역서", raw: true });
+            
+            // 3. 파일명 설정을 위해 강사명 가져오기
+            const name = document.getElementById('teacherSelect').value || '강사';
+            const dateStr = new Date().toISOString().slice(0, 10); // 오늘 날짜 (YYYY-MM-DD)
+            
+            // 4. 엑셀 파일 생성 및 다운로드
+            XLSX.writeFile(wb, `정산내역서_${name}_${dateStr}.xlsx`);
         }
 
         async function loadReport() {
