@@ -111,22 +111,56 @@
         .form-group.full { grid-column: span 2; }
         /* 입력창 및 레이블 Bold 적용 */
         label { 
-            font-size: 0.85em; 
-            font-weight: 800; /* 레이블 강조 */
-            color: var(--primary); 
-            margin-bottom: 5px; 
+            font-size: 0.88em; 
+            font-weight: 800; 
+            color: #2980b9; /* 깊이 있는 블루톤 */
+            margin-bottom: 6px; 
             margin-left: 2px;
+            display: block;
         }
-        input, select, textarea { 
+        /* 입력창 전체: 날짜, 시간, 비고(textarea) 포함 모든 필드 Bold 적용 */
+        input[type="text"], 
+        input[type="number"], 
+        input[type="date"], 
+        input[type="time"], 
+        input[type="color"],
+        select, 
+        textarea { 
+            width: 100%;
             padding: 12px; 
             border: 2px solid #edf2f7; 
-            border-radius: 12px; /* 입력창도 둥글게 */
-            font-size: 0.95em; 
-            font-weight: 700 !important; /* 입력값 모두 볼드 처리 */
+            border-radius: 12px; 
+            font-size: 1em; 
+            /* 핵심: 모든 입력 요소에 볼드 스타일 강제 적용 */
+            font-family: inherit;
+            font-weight: 800 !important; 
+            color: #2d3436;
             background: #fdfdfd;
-            transition: all 0.2s;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
         }
-        input:focus { border-color: #3498db; outline: none; background: #fff; }
+        /* 비고(textarea) 높이 조절 및 스타일 */
+        /* 바로 위 textarea 하고 이름 같지만 고유 특성을 따로 빼는게 유리함 */
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        /* 날짜 및 시간 입력창 내부 아이콘/글자도 볼드 처리 (브라우저 지원 범위 내) */
+        input::-webkit-datetime-edit,
+        input::-webkit-datetime-edit-fields-wrapper,
+        input::-webkit-datetime-edit-text,
+        input::-webkit-datetime-edit-minute,
+        input::-webkit-datetime-edit-hour,
+        input::-webkit-datetime-edit-day,
+        input::-webkit-datetime-edit-month,
+        input::-webkit-datetime-edit-year {
+            font-weight: 800;
+        }
+        input:focus, textarea:focus { 
+            border-color: #3498db; 
+            background: #ffffff;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.2);
+        }
         .btn-group { 
             margin-top: 30px; 
             display: flex; 
@@ -147,6 +181,12 @@
         .btn-save { background: #3498db; color: white; }
         .btn-delete { background: #ff7675; color: white; } /* 빨간색 계열을 부드럽게 */
         .btn-close { background: #dfe6e9; color: #636e72; }
+        /* 입력창 시간 부분 디자인 */
+        input[type="text"]#edit-start, 
+        input[type="text"]#edit-end {
+            text-align: center; /* 시간 입력을 보기 좋게 가운데로 정렬 */
+            letter-spacing: 1px; /* 글자 간격을 넓혀 가독성 향상 */
+        }
     </style>
 </head>
     
@@ -182,8 +222,8 @@
                     <option value="#34495e">회색</option>
                 </select>
             </div>
-            <div class="form-group"><label>시작시간</label><input type="time" id="edit-start"></div>
-            <div class="form-group"><label>종료시간</label><input type="time" id="edit-end"></div>
+            <div class="form-group"><label>시작시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)"></div>
+            <div class="form-group"><label>종료시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)"></div>
             <div class="form-group"><label>학년</label><input type="text" id="edit-grade"></div>
             <div class="form-group"><label>대상인원</label><input type="number" id="edit-students" placeholder="0" min="0"></div>
             <div class="form-group"><label>주강사</label><input type="text" id="edit-main"></div>
@@ -320,6 +360,18 @@
             return match ? match[0] : "09:00";
         }
 
+        // 숫자를 입력하면 자동으로 14:30 형식을 만들어주는 함수
+        function autoColon(target) {
+            // 숫자만 남기기
+            let val = target.value.replace(/\D/g, "");
+            
+            if (val.length > 2) {
+                target.value = val.substring(0, 2) + ":" + val.substring(2, 4);
+            } else {
+                target.value = val;
+            }
+        }
+        
         // 모달 열기 및 날짜 문자열 고정
         function openModal(p) {
             // 1. 시차 보정을 위해 날짜 객체 생성 (UTC 15:00 -> 한국 00:00 자동 변환)
@@ -335,7 +387,6 @@
             
             // [핵심 수정] 보정된 날짜 입력
             document.getElementById('edit-date').value = localDate;
-            
             document.getElementById('edit-start').value = extractTime(p['시작시간']);
             document.getElementById('edit-end').value = extractTime(p['종료시간']);
             document.getElementById('edit-grade').value = p['학년'] || '';
@@ -356,6 +407,8 @@
         function processData(action) {
             if (action === 'delete' && !confirm("정말 이 일정을 영구 삭제하시겠습니까?")) return;
             
+            const startTime = document.getElementById('edit-start').value;
+            const endTime = document.getElementById('edit-end').value;
             const btn = document.querySelector('.btn-save');
             const originalText = btn.innerText;
             btn.innerText = '처리 중...'; btn.disabled = true;
@@ -387,12 +440,46 @@
             })
             .catch(err => alert('오류가 발생했습니다: ' + err))
             .finally(() => { btn.innerText = originalText; btn.disabled = false; });
+            // [추가] 시작시간 유효성 검사
+            if (!isValidTime(startTime)) {
+                alert("시작 시간을 올바른 형식(00:00 ~ 23:59)으로 입력해주세요.");
+                document.getElementById('edit-start').focus();
+                return; // 함수 종료 (저장 안 됨)
+            }
+        
+            // [추가] 종료시간 유효성 검사
+            if (!isValidTime(endTime)) {
+                alert("종료 시간을 올바른 형식(00:00 ~ 23:59)으로 입력해주세요.");
+                document.getElementById('edit-end').focus();
+                return; // 함수 종료 (저장 안 됨)
+            }
+        
+            // [추가] 시작시간이 종료시간보다 늦은지 검사 (선택 사항)
+            if (startTime >= endTime) {
+                alert("종료 시간은 시작 시간보다 늦어야 합니다.");
+                document.getElementById('edit-end').focus();
+                return;
+            }
         }
 
         function closeModal() {
             document.getElementById('modalOverlay').style.display = 'none';
             document.getElementById('editModal').style.display = 'none';
         }
+        // 입력된 시간이 유효한지 확인하는 함수 (00:00 ~ 23:59)
+        function isValidTime(timeStr) {
+            // 1. HH:mm 형식인지 정규식 검사
+            const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            if (!timeRegex.test(timeStr)) return false;
+        
+            // 2. 시간과 분을 숫자로 분리하여 상세 확인
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            if (hours < 0 || hours > 23) return false;
+            if (minutes < 0 || minutes > 59) return false;
+        
+            return true;
+        }
+        
     </script>
 </body>
 </html>
