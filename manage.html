@@ -7,34 +7,67 @@
     <title>강사 정산 대시보드</title>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
+
+        /* 통합 시스템 헤더 스타일 */
+        .system-header {
+            width: 100%;
+            background: #2c3e50; /* 기존 배경색 유지 */
+            color: white;
+            padding: 12px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            margin-bottom: 25px;
+        }
+        
+        .header-container {
+            max-width: 1100px; /* 전체적인 틀에 맞춰 조절 가능 */
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between; /* 좌우 끝 배치 */
+            align-items: center;
+            padding: 0 20px;
+        }
+        
+        /* 왼쪽 타이틀 스타일 */
+        .header-logo {
+            font-size: 1.3em;
+            font-weight: 800;
+            color: white;
+            text-decoration: none; /* 링크 밑줄 제거 */
+            cursor: pointer;
+        }
+        
+        /* 오른쪽 버튼 그룹 스타일 */
+        .header-right {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .nav-btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+        }
+        
+        /* 버튼별 색상 구분 */
+        .btn-add { background-color: #3498db; color: white; }
+        .btn-manage { background-color: #27ae60; color: white; }
+        
+        .nav-btn:hover {
+            opacity: 0.8;
+            transform: translateY(-1px);
+        }
+        
+        /* 인쇄 시 헤더 숨김 (manage.html 대응) */
+        @media print {
+            .system-header { display: none !important; }
+        }
         
         body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: #333; }
         
-        /* 1. 상단 시스템 헤더 - 왼쪽 정렬 버전 */
-        .system-header {
-            width: 100%;
-            background: #2c3e50;
-            color: white;
-            padding: 18px 0; /* 세로 높이 조절 */
-            font-size: 1.3em;
-            font-weight: 800;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            
-            /* 왼쪽 정렬 설정 */
-            display: flex;
-            justify-content: flex-start; 
-            align-items: center;
-        }
-
-        .system-header .header-content {
-            /* index.html의 컨테이너 위치와 맞추기 위해 좌측 여백 부여 */
-            margin-left: 40px; 
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
         .container { padding: 0 20px 40px 20px; max-width: 1100px; margin: 0 auto; }
 
         .header-box { 
@@ -126,28 +159,57 @@
 
         /* 인쇄 시 배경색 및 설정 유지 */
         @media print {
+            /* 1. 배경색 인쇄를 위한 브라우저 설정 강제 */
             body { 
-                background: white; 
+                background: white !important; 
                 padding: 0; 
-                -webkit-print-color-adjust: exact; /* 크롬, 사파리 등에서 배경색 인쇄 강제 */
+                -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact; 
             }
-            .system-header, .header-box, .btn-home { display: none !important; }
-            #report-area { box-shadow: none; padding: 0; width: 100%; }
-            
-            /* 표 제목 배경색(#f8fbc2)이 인쇄되도록 보장 */
+        
+            /* 2. 인쇄 시 숨길 요소들 (통합 헤더 포함) */
+            .system-header, 
+            .header-box, 
+            .btn-home, 
+            .left-btns,
+            .button-container { 
+                display: none !important; 
+            }
+        
+            /* 3. 출력 영역 디자인 보정 */
+            #report-area { 
+                box-shadow: none !important; 
+                padding: 0 !important; 
+                width: 100% !important; 
+                margin: 0 !important;
+            }
+        
+            /* 4. 표 헤더 배경색 유지 */
             th { 
                 background-color: #f8fbc2 !important; 
                 -webkit-print-color-adjust: exact;
             }
-            .note-input { border: none; }
+        
+            /* 5. 비고 입력창 테두리 제거 (인쇄 시 깔끔하게) */
+            .note-input { 
+                border: none !important; 
+                background: transparent !important;
+            }
         }
     </style>
 </head>
 <body>
 
     <div class="system-header">
-        🚀 스마트 출강 관리 시스템
+        <div class="header-container">
+            <div class="header-left">
+                <a href="index.html" class="header-logo">🏫 출강 관리 시스템</a>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 정산 관리</button>
+            </div>
+        </div>
     </div>
 
     <div class="container">
