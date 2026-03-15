@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    /* 파비콘 이미지 사용*/
     <link rel="shortcut icon" href="./favicon_images/favicon.ico" type="image/x-icon">
     <link rel="icon" href="./favicon_images/favicon.ico" type="image/x-icon">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon_images/favicon-16x16.png">
@@ -247,14 +246,14 @@
             <div class="form-group"><label>날짜</label><input type="date" id="edit-date"></div>
             <div class="form-group"><label>글자 색상</label>
                 <select id="edit-color">
-                    <option value="#2c3e50">● 검정 (기본)</option>
-                    <option value="#3498db">● 파랑</option>
-                    <option value="#e74c3c">● 빨강</option>
-                    <option value="#2ecc71">● 초록</option>
-                    <option value="#f39c12">● 오렌지</option>
-                    <option value="#9b59b6">● 보라</option>
-                    <option value="#1abc9c">● 청록</option>
-                    <option value="#34495e">● 회색</option>
+                    <option value="#2c3e50" style="color: #2c3e50; font-weight: bold;">검정 (기본)</option>
+                    <option value="#3498db" style="color: #3498db; font-weight: bold;">파랑</option>
+                    <option value="#e74c3c" style="color: #e74c3c; font-weight: bold;">빨강</option>
+                    <option value="#2ecc71" style="color: #2ecc71; font-weight: bold;">초록</option>
+                    <option value="#f39c12" style="color: #f39c12; font-weight: bold;">오렌지</option>
+                    <option value="#9b59b6" style="color: #9b59b6; font-weight: bold;">보라</option>
+                    <option value="#1abc9c" style="color: #1abc9c; font-weight: bold;">청록</option>
+                    <option value="#34495e" style="color: #34495e; font-weight: bold;">회색</option>
                 </select>
             </div>
             <div class="form-group"><label>시작시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)" inputmode="numeric"></div>
@@ -432,6 +431,11 @@
             document.getElementById('edit-count').value = p['교구수량'] || 0;
             document.getElementById('edit-note').value = p['비고'] || '';
             document.getElementById('edit-color').value = p['색상'] || '#2c3e50';
+
+            // 선택된 색상으로 글자색 변경
+            const colorSelect = document.getElementById('edit-color');
+            colorSelect.value = p['색상'] || '#2c3e50';
+            colorSelect.style.color = colorSelect.value; 
             
             // 모달 표시
             document.getElementById('modalOverlay').style.display = 'block';
