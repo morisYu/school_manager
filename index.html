@@ -88,6 +88,23 @@
         .fc-event-time, .fc-event-title { display: none !important; }
 
         /* 모달 스타일 */
+        /* 모달 헤더 스타일 추가 */
+        .modal-header {
+            background: #f8fbc2; /* 연한 노란색으로 귀여운 느낌 추가 */
+            margin: -30px -30px 20px -30px;
+            padding: 20px 30px;
+            border-radius: 25px 25px 0 0;
+            border-bottom: 2px solid #edf2f7;
+        }
+        .modal-header h3 {
+            margin: 0;
+            color: #2980b9;
+            font-size: 1.2em;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         #modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; backdrop-filter: blur(2px); }
         #editModal { 
             display: none; 
@@ -156,10 +173,21 @@
         input::-webkit-datetime-edit-year {
             font-weight: 800;
         }
-        input:focus, textarea:focus { 
+        /* 입력창 포커스 시 부드러운 효과 강조 */
+        input:focus, select:focus, textarea:focus { 
             border-color: #3498db; 
             background: #ffffff;
-            box-shadow: 0 0 8px rgba(52, 152, 219, 0.2);
+            box-shadow: 0 0 12px rgba(52, 152, 219, 0.15);
+            transform: translateY(-1px); /* 살짝 떠오르는 효과 */
+        }
+
+        /* 비고란 스크롤바 디자인 */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #dfe6e9;
+            border-radius: 10px;
         }
         .btn-group { 
             margin-top: 30px; 
@@ -178,6 +206,11 @@
             transition: transform 0.1s, opacity 0.2s;
         }
         .btn-group button:active { transform: scale(0.96); }
+        /* 버튼 호버 효과 추가 */
+        .btn-group button:hover {
+            opacity: 0.9;
+            filter: brightness(1.05);
+        }
         .btn-save { background: #3498db; color: white; }
         .btn-delete { background: #ff7675; color: white; } /* 빨간색 계열을 부드럽게 */
         .btn-close { background: #dfe6e9; color: #636e72; }
@@ -204,7 +237,9 @@
 
     <div id="modalOverlay" onclick="closeModal()"></div>
     <div id="editModal">
-        <h3 style="margin:0 0 15px 0; border-bottom: 2px solid #eee; padding-bottom: 10px;">일정 상세 및 수정</h3>
+        <div class="modal-header">
+            <h3>📅 일정 상세 및 수정</h3>
+        </div>
         <input type="hidden" id="edit-row">
         <div class="form-grid">
             <div class="form-group full"><label>기관명</label><input type="text" id="edit-institution"></div>
@@ -212,25 +247,25 @@
             <div class="form-group"><label>날짜</label><input type="date" id="edit-date"></div>
             <div class="form-group"><label>글자 색상</label>
                 <select id="edit-color">
-                    <option value="#2c3e50">검정 (기본)</option>
-                    <option value="#3498db">파랑</option>
-                    <option value="#e74c3c">빨강</option>
-                    <option value="#2ecc71">초록</option>
-                    <option value="#f39c12">오렌지</option>
-                    <option value="#9b59b6">보라</option>
-                    <option value="#1abc9c">청록</option>
-                    <option value="#34495e">회색</option>
+                    <option value="#2c3e50">● 검정 (기본)</option>
+                    <option value="#3498db">● 파랑</option>
+                    <option value="#e74c3c">● 빨강</option>
+                    <option value="#2ecc71">● 초록</option>
+                    <option value="#f39c12">● 오렌지</option>
+                    <option value="#9b59b6">● 보라</option>
+                    <option value="#1abc9c">● 청록</option>
+                    <option value="#34495e">● 회색</option>
                 </select>
             </div>
-            <div class="form-group"><label>시작시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)"></div>
-            <div class="form-group"><label>종료시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)"></div>
+            <div class="form-group"><label>시작시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)" inputmode="numeric"></div>
+            <div class="form-group"><label>종료시간</label><input type="text" id="edit-end" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric"></div>
             <div class="form-group"><label>학년</label><input type="text" id="edit-grade"></div>
             <div class="form-group"><label>대상인원</label><input type="number" id="edit-students" placeholder="0" min="0"></div>
             <div class="form-group"><label>주강사</label><input type="text" id="edit-main"></div>
             <div class="form-group"><label>보조강사</label><input type="text" id="edit-sub"></div>
             <div class="form-group"><label>교구종류</label><input type="text" id="edit-tool"></div>
             <div class="form-group"><label>교구수량</label><input type="number" id="edit-count" placeholder="0" min="0"></div>
-            <div class="form-group full"><label>비고</label><textarea id="edit-note" rows="2"></textarea></div>
+            <div class="form-group full"><label>비고</label><textarea id="edit-note" rows="4" placeholder="참고사항을 입력하세요."></textarea></div>
         </div>
         <div class="btn-group">
             <button class="btn-save" onclick="processData('update')">수정 저장</button>
@@ -407,18 +442,42 @@
         function processData(action) {
             if (action === 'delete' && !confirm("정말 이 일정을 영구 삭제하시겠습니까?")) return;
             
+            // 1. 값 가져오기
             const startTime = document.getElementById('edit-start').value;
             const endTime = document.getElementById('edit-end').value;
+        
+            // 2. [중요] 유효성 검사를 '가장 먼저' 실행 (삭제가 아닐 때만)
+            if (action !== 'delete') {
+                if (!isValidTime(startTime)) {
+                    alert("시작 시간을 올바른 형식(00:00 ~ 23:59)으로 입력해주세요.");
+                    document.getElementById('edit-start').focus();
+                    return;
+                }
+                if (!isValidTime(endTime)) {
+                    alert("종료 시간을 올바른 형식(00:00 ~ 23:59)으로 입력해주세요.");
+                    document.getElementById('edit-end').focus();
+                    return;
+                }
+                if (startTime >= endTime) {
+                    alert("종료 시간은 시작 시간보다 늦어야 합니다.");
+                    document.getElementById('edit-end').focus();
+                    return;
+                }
+            }
+        
+            // 3. 버튼 상태 변경
             const btn = document.querySelector('.btn-save');
             const originalText = btn.innerText;
-            btn.innerText = '처리 중...'; btn.disabled = true;
-
+            btn.innerText = '처리 중...'; 
+            btn.disabled = true;
+        
+            // 4. 서버로 전송
             const payload = {
                 action: action,
                 row: document.getElementById('edit-row').value,
                 date: document.getElementById('edit-date').value,
-                startTime: document.getElementById('edit-start').value,
-                endTime: document.getElementById('edit-end').value,
+                startTime: startTime,
+                endTime: endTime,
                 program: document.getElementById('edit-program').value,
                 institution: document.getElementById('edit-institution').value,
                 grade: document.getElementById('edit-grade').value,
@@ -430,7 +489,7 @@
                 note: document.getElementById('edit-note').value,
                 color: document.getElementById('edit-color').value
             };
-
+        
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
             .then(res => res.json())
             .then(() => {
@@ -439,27 +498,10 @@
                 window.myCalendar.refetchEvents();
             })
             .catch(err => alert('오류가 발생했습니다: ' + err))
-            .finally(() => { btn.innerText = originalText; btn.disabled = false; });
-            // [추가] 시작시간 유효성 검사
-            if (!isValidTime(startTime)) {
-                alert("시작 시간을 올바른 형식(00:00 ~ 23:59)으로 입력해주세요.");
-                document.getElementById('edit-start').focus();
-                return; // 함수 종료 (저장 안 됨)
-            }
-        
-            // [추가] 종료시간 유효성 검사
-            if (!isValidTime(endTime)) {
-                alert("종료 시간을 올바른 형식(00:00 ~ 23:59)으로 입력해주세요.");
-                document.getElementById('edit-end').focus();
-                return; // 함수 종료 (저장 안 됨)
-            }
-        
-            // [추가] 시작시간이 종료시간보다 늦은지 검사 (선택 사항)
-            if (startTime >= endTime) {
-                alert("종료 시간은 시작 시간보다 늦어야 합니다.");
-                document.getElementById('edit-end').focus();
-                return;
-            }
+            .finally(() => { 
+                btn.innerText = originalText; 
+                btn.disabled = false; 
+            });
         }
 
         function closeModal() {
