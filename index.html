@@ -24,57 +24,68 @@
         /* 통합 시스템 헤더 스타일 */
         .system-header {
             width: 100%;
-            background: #2c3e50; /* 기존 배경색 유지 */
+            background: #2c3e50;
             color: white;
-            padding: 12px 0;
+            padding: 15px 0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.15);
             margin-bottom: 25px;
         }
         
         .header-container {
-            max-width: 1100px; /* 전체적인 틀에 맞춰 조절 가능 */
-            margin: 0 auto;
+            /* 너비를 100%로 설정하고 좌우 패딩을 주어 양끝 배치를 구현 */
+            width: 100%;
+            max-width: 100%; /* 창 크기에 따라 끝까지 벌어지도록 설정 */
             display: flex;
-            justify-content: space-between; /* 좌우 끝 배치 */
+            justify-content: space-between; /* 핵심: 요소 사이 공간을 최대화하여 양끝 배치 */
             align-items: center;
-            padding: 0 20px;
+            box-sizing: border-box;
+            padding: 0 40px; /* 양쪽 끝에서 띄울 간격 (조절 가능) */
         }
         
-        /* 왼쪽 타이틀 스타일 */
-        .header-logo {
+        .header-left .header-logo {
             font-size: 1.3em;
             font-weight: 800;
             color: white;
-            text-decoration: none; /* 링크 밑줄 제거 */
+            text-decoration: none;
             cursor: pointer;
+            white-space: nowrap; /* 제목 줄바꿈 방지 */
         }
         
-        /* 오른쪽 버튼 그룹 스타일 */
         .header-right {
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
         
         .nav-btn {
-            padding: 8px 15px;
-            border-radius: 6px;
+            padding: 10px 18px;
+            border-radius: 8px;
             font-weight: 800;
             font-size: 0.9em;
             cursor: pointer;
             border: none;
             transition: 0.2s;
+            white-space: nowrap; /* 버튼 텍스트 줄바꿈 방지 */
         }
         
-        /* 버튼별 색상 구분 */
+        /* 버튼 색상 */
         .btn-add { background-color: #3498db; color: white; }
         .btn-manage { background-color: #27ae60; color: white; }
         
         .nav-btn:hover {
-            opacity: 0.8;
+            opacity: 0.9;
             transform: translateY(-1px);
         }
         
-        /* 인쇄 시 헤더 숨김 (manage.html 대응) */
+        /* 모바일 환경 대응 (창이 아주 작아질 때) */
+        @media (max-width: 600px) {
+            .header-container {
+                padding: 0 15px;
+            }
+            .header-logo { font-size: 1.1em; }
+            .nav-btn { padding: 8px 12px; font-size: 0.8em; }
+        }
+        
+        /* 인쇄 시 헤더 숨김 */
         @media print {
             .system-header { display: none !important; }
         }
