@@ -245,15 +245,15 @@
             <div class="form-group full"><label>프로그램명</label><input type="text" id="edit-program"></div>
             <div class="form-group"><label>날짜</label><input type="date" id="edit-date"></div>
             <div class="form-group"><label>글자 색상</label>
-                <select id="edit-color">
-                    <option value="#2c3e50" style="color: #2c3e50; font-weight: bold;">검정 (기본)</option>
-                    <option value="#3498db" style="color: #3498db; font-weight: bold;">파랑</option>
-                    <option value="#e74c3c" style="color: #e74c3c; font-weight: bold;">빨강</option>
-                    <option value="#2ecc71" style="color: #2ecc71; font-weight: bold;">초록</option>
-                    <option value="#f39c12" style="color: #f39c12; font-weight: bold;">오렌지</option>
-                    <option value="#9b59b6" style="color: #9b59b6; font-weight: bold;">보라</option>
-                    <option value="#1abc9c" style="color: #1abc9c; font-weight: bold;">청록</option>
-                    <option value="#34495e" style="color: #34495e; font-weight: bold;">회색</option>
+                <select id="edit-color" onchange="this.style.color = this.value;" style="font-weight: 800 !important; color: #2c3e50;">
+                    <option value="#2c3e50" style="color: #2c3e50; font-weight: 800;">검정 (기본)</option>
+                    <option value="#3498db" style="color: #3498db; font-weight: 800;">파랑</option>
+                    <option value="#e74c3c" style="color: #e74c3c; font-weight: 800;">빨강</option>
+                    <option value="#2ecc71" style="color: #2ecc71; font-weight: 800;">초록</option>
+                    <option value="#f39c12" style="color: #f39c12; font-weight: 800;">오렌지</option>
+                    <option value="#9b59b6" style="color: #9b59b6; font-weight: 800;">보라</option>
+                    <option value="#1abc9c" style="color: #1abc9c; font-weight: 800;">청록</option>
+                    <option value="#34495e" style="color: #34495e; font-weight: 800;">회색</option>
                 </select>
             </div>
             <div class="form-group"><label>시작시간</label><input type="text" id="edit-start" placeholder="14:30" maxlength="5" oninput="autoColon(this)" inputmode="numeric"></div>
@@ -432,10 +432,12 @@
             document.getElementById('edit-note').value = p['비고'] || '';
             document.getElementById('edit-color').value = p['색상'] || '#2c3e50';
 
-            // 선택된 색상으로 글자색 변경
+            // 색상 값 대입 후, select 박스의 글자색도 즉시 반영
             const colorSelect = document.getElementById('edit-color');
-            colorSelect.value = p['색상'] || '#2c3e50';
-            colorSelect.style.color = colorSelect.value; 
+            const savedColor = p['색상'] || '#2c3e50';
+            colorSelect.value = savedColor;
+            colorSelect.style.color = savedColor;
+            colorSelect.style.fontWeight = "800";
             
             // 모달 표시
             document.getElementById('modalOverlay').style.display = 'block';
