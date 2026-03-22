@@ -1,8 +1,6 @@
-#### 🏫 출강 관리 시스템 통합 명세서
+# 🏫 출강 관리 시스템 통합 명세서
 
-
-
-##### 📂 현재 프로젝트 폴더 구조
+## 📂 현재 프로젝트 폴더 구조
 
 / (Root)
 
@@ -28,9 +26,7 @@
 
 &#x20;   └── input-handler.js    # 입력 로직
 
-
-
-##### 1\. 전역 설정 (Global)
+### 1\. 전역 설정 (Global)
 
 \- 공통 통신 주소: `js/config.js`의 `GAS\_URL` 사용
 
@@ -38,9 +34,7 @@
 
 \- 공통 폰트: Pretendard, 모든 input/select는 굵기 800 적용
 
-
-
-##### 2\. 메인 페이지 (index.html)
+### 2\. 메인 페이지 (index.html)
 
 \- \*\*목적:\*\* 전체 출강 일정을 한눈에 확인하는 캘린더 화면
 
@@ -50,9 +44,7 @@
 
 \- \*\*연결 파일:\*\* `js/calendar-main.js`, `css/calendar.css`
 
-
-
-##### 3\. 일정 추가 페이지 (pages/input.html)
+### 3\. 일정 추가 페이지 (pages/input.html)
 
 \- \*\*목적:\*\* 새로운 출강 정보를 구글 시트에 저장
 
@@ -62,9 +54,7 @@
 
 \- \*\*연결 파일:\*\* `js/input-handler.js`, `css/input.css`
 
-
-
-##### 4\. 정산 관리 페이지 (pages/manage.html)
+### 4\. 정산 관리 페이지 (pages/manage.html)
 
 \- \*\*목적:\*\* 강사별 일정 조회 및 정산 내역서 생성
 
@@ -77,4 +67,3 @@
 &#x20; - PDF 저장(인쇄용) 및 Excel 내보내기 (xlsx 라이브러리)
 
 \- \*\*연결 파일:\*\* `js/manage-handler.js`, `css/manage.css`
-
