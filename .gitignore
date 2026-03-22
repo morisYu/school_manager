@@ -1,0 +1,8 @@
+# AI 분석용 임시 파일 제외
+repomix-output.txt
+repomix-output.xml
+node_modules/
+
+# 로그 및 기타 설정 파일
+*.log
+.DS_Store
