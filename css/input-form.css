@@ -1,0 +1,50 @@
+/* css/input-form.css */
+:root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
+
+body { 
+    font-family: 'Pretendard', sans-serif; 
+    background: var(--bg); 
+    padding: 0; margin: 0;
+    display: flex; flex-direction: column; align-items: center;
+}
+
+.form-card { 
+    background: white; border-radius: 25px; 
+    width: 95%; max-width: 900px; 
+    box-shadow: 0 15px 40px rgba(0,0,0,0.1); 
+    overflow: hidden; border: 1px solid #e0e6ed;
+    margin-bottom: 50px;
+}
+
+.form-header { background: #f8fbc2; padding: 18px; text-align: center; border-bottom: 2px solid #edf2f7; }
+.form-header h2 { margin: 0; color: var(--primary); font-weight: 800; font-size: 1.3em; }
+
+.form-body { padding: 30px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px 30px; }
+.full-width { grid-column: span 2; }
+
+.form-group { display: flex; flex-direction: column; }
+label { font-size: 0.85em; font-weight: 800; color: #2980b9; margin-bottom: 6px; }
+
+input, select, textarea { 
+    width: 100%; padding: 10px 12px; border: 2px solid #edf2f7; border-radius: 10px; 
+    box-sizing: border-box; font-size: 15px; font-weight: 800 !important; 
+    font-family: 'Pretendard', sans-serif; color: #2d3436; background: #fdfdfd;
+}
+
+input[type="date"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-calendar-picker-indicator { font-weight: 800 !important; }
+
+textarea { font-weight: 800 !important; line-height: 1.5; }
+input:focus, textarea:focus { border-color: var(--accent); outline: none; background: #fff; }
+
+.time-group { display: flex; gap: 8px; align-items: center; }
+.time-separator { font-weight: 800; color: #ccc; }
+
+.btn-group { margin-top: 25px; display: flex; gap: 15px; }
+.btn-common { flex: 1; padding: 15px; border-radius: 12px; font-size: 1em; font-weight: 800; cursor: pointer; transition: all 0.2s; border: none; }
+.btn-submit { background: var(--accent); color: white; }
+.btn-submit:hover { background: #2980b9; transform: translateY(-2px); }
+.btn-back { background: #ecf0f1; color: #7f8c8d; }
+.btn-back:hover { background: #bdc3c7; color: #2c3e50; }

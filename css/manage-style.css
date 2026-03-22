@@ -1,0 +1,57 @@
+/* css/manage-style.css */
+:root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
+
+body { font-family: 'Pretendard', sans-serif; background-color: var(--bg); margin: 0; padding: 0; color: #333; }
+.container { padding: 0 20px 40px 20px; max-width: 1100px; margin: 0 auto; }
+
+.header-box { 
+    background: white; padding: 25px; border-radius: 15px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e0e6ed;
+}
+
+.header-row { display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px; }
+.input-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+.input-group label { font-weight: 800; font-size: 0.85em; color: #2980b9; }
+
+input, select { padding: 10px; border: 2px solid #edf2f7; border-radius: 8px; font-weight: 800; font-family: 'Pretendard', sans-serif; }
+
+.button-container { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding-top: 15px; border-top: 1px solid #eee; }
+.left-btns { display: flex; gap: 10px; }
+
+button { padding: 12px 20px; border: none; border-radius: 8px; font-weight: 800; cursor: pointer; transition: 0.2s; }
+.btn-search { background-color: var(--primary); color: white; }
+.btn-print { background-color: var(--accent); color: white; }
+.btn-home { background-color: #ecf0f1; color: #7f8c8d; }
+button:hover { opacity: 0.8; transform: translateY(-1px); }
+
+#report-area {
+    background: white;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    
+    /* 추가 설정 */
+    max-height: 70vh;    /* 화면 높이의 70% 정도로 제한 */
+    overflow-y: auto;    /* 내용이 많아지면 내부 스크롤 생성 */
+}
+#report-title { text-align: center; font-weight: 800; margin-bottom: 30px; color: #2c3e50; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th { background: #f8fbc2; color: var(--primary); font-weight: 800; padding: 12px; border: 1px solid #dee2e6; font-size: 0.9em; }
+td { padding: 10px; border: 1px solid #eee; text-align: center; font-size: 0.9em; }
+
+#report-table-body td { font-weight: normal !important; }
+.total-row { background: #fdfdfe; font-weight: 800; color: #2c3e50; font-size: 1em; }
+.total-final { background: #ebf5fb; color: var(--accent); font-size: 1.1em; }
+
+.lesson-input { width: 50px; border: none; border-bottom: 1px solid #ccc; text-align: center; font-weight: bold; color: var(--accent); }
+.note-input { width: 90%; border: none; border-bottom: 1px solid #ccc; background: transparent; text-align: center; font-weight: normal; }
+.note-input:focus { outline: none; border-bottom: 2px solid var(--accent); }
+
+@media print {
+    body { background: white !important; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .system-header, .header-box, .btn-home, .left-btns, .button-container { display: none !important; }
+    #report-area { box-shadow: none !important; padding: 0 !important; width: 100% !important; margin: 0 !important; }
+    th { background-color: #f8fbc2 !important; }
+    .note-input { border: none !important; background: transparent !important; }
+}
