@@ -28,13 +28,31 @@
 .fc-day-sat .fc-daygrid-day-number { color: #3498db !important; }
 
 .event-wrapper { 
+    font-size: 15px;
     padding: 4px 6px !important; 
     border-radius: 4px !important; 
     border-left: 5px solid !important;
     display: flex !important; 
     flex-direction: column !important;
     background: rgba(0,0,0,0.03);
+    overflow: hidden;
 }
 
-.event-line1 { font-weight: 800 !important; font-size: 15px !important; }
-.event-line2 { font-weight: 600 !important; font-size: 13px !important; opacity: 0.85 !important; }
+.event-line1 { 
+    font-weight: 800 !important; 
+    font-size: 0.9em !important; 
+    white-space: nowrap;      /* 줄바꿈 금지 */
+    overflow: hidden;         /* 넘치는 부분 숨김 */
+    text-overflow: ellipsis;  /* 넘칠 때 '...' 표시 */
+    display: block;           /* 말줄임표 작동을 위한 블록 요소화 */
+}
+.event-line2 { 
+    font-weight: 600 !important; 
+    font-size: 0.8em !important; 
+    opacity: 0.85 !important; 
+    margin-top: 1px;
+    white-space: nowrap;      /* 줄바꿈 금지 */
+    overflow: hidden;         /* 넘치는 부분 숨김 */
+    text-overflow: ellipsis;  /* 넘칠 때 '...' 표시 */
+    display: block;           /* 말줄임표 작동을 위한 블록 요소화 */
+}

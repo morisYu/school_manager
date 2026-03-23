@@ -1,4 +1,13 @@
-#modalOverlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:999; backdrop-filter: blur(2px); }
+#modalOverlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000; /* 모달보다 낮아야 함 */
+}
 
 #editModal { 
     display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); 
@@ -6,33 +15,48 @@
     z-index: 1000; max-height: 85vh; overflow-y: auto; box-shadow: 0 15px 40px rgba(0,0,0,0.15);
 }
 
+/* 1. 헤더 스타일: Navy (#2c3e50) 적용 */
 .modal-header {
-    background: #f8fbc2; margin: -30px -30px 20px -30px; padding: 20px 30px;
-    border-radius: 25px 25px 0 0; border-bottom: 2px solid #edf2f7;
+    background: #2c3e50;
+    color: white;
+    padding: 18px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 /* 1. 모달 전체 크기 및 여백 조정 */
 .modal-content {
-    display: none;      /* 초기에는 숨김 */
+    display: none;
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 1000;
+    width: 90%;
+    max-width: 550px;
     background: white;
-    width: 90%;            /* 화면 대비 너비 */
-    max-width: 950px;      /* 가로로 더 길게 설정 */
-    padding: 20px 30px;    /* 내부 여백 최적화 */
-    border-radius: 12px;
+    border-radius: 15px; /* 현대적인 느낌의 15px */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    z-index: 1001;
+    overflow: hidden; /* 헤더 둥근 모서리 적용을 위해 필수 */
 }
 
-/* 2. 항목명(Label) 디자인: 색상 변경 및 폰트 크기 확대 */
+/* 2. 그리드 레이아웃 (#form-grid) */
+.modal-body {
+    padding: 25px;
+}
+
+/* 기관명, 프로그램명, 비고처럼 길게 쓸 항목 */
+.span-2 {
+    grid-column: span 2;
+}
+
+/* 3. 라벨 및 입력창 스타일 */
 .form-group label {
-    color: #34495e;        /* 눈에 잘 띄는 네이비 블루 */
-    font-size: 1.05rem;    /* 입력창보다 약간 더 크게 */
-    font-weight: 800;
-    margin-bottom: 6px;    /* 라벨과 입력창 사이 간격 */
-    display: block;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 6px;
 }
 
 /* 3. 입력창 스타일: 날짜 포함 모든 글자 Bold 및 크기 확대 */
@@ -43,17 +67,14 @@
     font-weight: 700 !important; /* 모든 입력값 Bold 처리 (날짜 포함) */
     padding: 8px 10px;     /* 위아래 여백을 줄여 콤팩트하게 */
     border: 1px solid #ddd;
-    border-radius: 5px;
-    color: #2c3e50;        /* 기본 글자색 */
-    width: 100%;
-    box-sizing: border-box;
+    border-radius: 6px;
+    color: #333;        /* 기본 글자색 */
 }
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(12, 1fr); /* 12컬럼 시스템 */
-    gap: 12px 20px;        /* 위아래 간격(12px)은 줄이고 좌우 간격(20px)은 유지 */
-    margin-bottom: 20px;
+    grid-template-columns: 1fr 1fr; /* 2열 배치 */
+    gap: 15px 20px; /* 항목 간 간격 */
 }
 
 .form-group {
@@ -67,7 +88,29 @@
     resize: none;          /* 크기 조절 비활성화로 디자인 유지 */
 }
 
-.btn-group { margin-top: 30px; display: flex; gap: 10px; }
-.btn-save { background: #3498db; color: white; border: none; padding: 15px; border-radius: 15px; cursor: pointer; flex: 1; font-weight: 800; }
-.btn-delete { background: #ff7675; color: white; border: none; padding: 15px; border-radius: 15px; cursor: pointer; flex: 1; font-weight: 800; }
-.btn-close { background: #dfe6e9; color: #636e72; border: none; padding: 15px; border-radius: 15px; cursor: pointer; flex: 1; font-weight: 800; }
+.close-btn {
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* 4. 버튼 그룹 스타일 */
+.btn-group {
+    margin-top: 25px;
+    display: flex;
+    gap: 10px;
+}
+.btn-group button {
+    flex: 1; /* 균등 배분 */
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.2s;
+}
+.btn-save { background: #2c3e50; color: white; }
+.btn-delete { background: #e74c3c; color: white; }
+.btn-close { background: #ecf0f1; color: #333; }
+
+.btn-save:hover { background: #34495e; }
