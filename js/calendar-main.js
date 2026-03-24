@@ -65,8 +65,8 @@ document.addEventListener('DOMContentLoaded', function() {
 // 모달 열기 함수 (수정본)
 function openModal(p) {
     // 1. 클래스가 아닌 ID(#editModal)로 명확하게 모달을 찾습니다.
-    const modal = document.getElementById('editModal'); 
-    const overlay = document.getElementById('modalOverlay');
+    const modal = document.getElementById('edit-modal');
+    const overlay = document.getElementById('modal-overlay');
 
     if (!modal || !overlay) {
         console.error("HTML에서 editModal 또는 modalOverlay를 찾을 수 없습니다.");
@@ -77,59 +77,37 @@ function openModal(p) {
         // [상세 보기/수정 모드] 데이터 채우기
         const localDate = new Date(p['날짜']).toLocaleDateString('sv-SE');
         
-        // 요소가 존재할 때만 값을 넣도록 안전하게 처리
-        const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.value = val;
-        };
-
-        setVal('edit-row', p.row);
-        setVal('edit-institution', p['기관명'] || '');
-        setVal('edit-program', p['프로그램명'] || '');
-        setVal('edit-date', localDate);
-        setVal('edit-start', extractTime(p['시작시간']));
-        setVal('edit-end', extractTime(p['종료시간']));
-        setVal('edit-grade', p['학년'] || '');
-        setVal('edit-students', p['대상인원'] || '');
-        setVal('edit-main', p['주강사'] || '');
-        setVal('edit-sub', p['보조강사'] || '');
-        setVal('edit-tool', p['교구종류'] || '');
-        setVal('edit-count', p['교구수량'] || 0);
-        setVal('edit-note', p['비고'] || '');
+        // kebab-case ID로 데이터 매칭
+        document.getElementById('edit-row').value = p.row || '';
+        document.getElementById('edit-institution').value = p['기관명'] || '';
+        document.getElementById('edit-program').value = p['프로그램명'] || '';
+        document.getElementById('edit-date').value = localDate;
+        document.getElementById('edit-start').value = extractTime(p['시작시간']);
+        document.getElementById('edit-end').value = extractTime(p['종료시간']);
+        document.getElementById('edit-main').value = p['주강사'] || '';
+        document.getElementById('edit-sub').value = p['보조강사'] || '';
+        document.getElementById('edit-tool').value = p['교구종류'] || '';
+        document.getElementById('edit-count').value = p['교구수량'] || 0;
+        document.getElementById('edit-note').value = p['비고'] || '';
         
         const colorSelect = document.getElementById('edit-color');
-        if (colorSelect) {
-            colorSelect.value = p['색상'] || '#2c3e50';
-            colorSelect.style.color = colorSelect.value;
-        }
+        colorSelect.value = p['색상'] || '#2c3e50';
+        colorSelect.style.color = colorSelect.value;
         
-        // 헤더 텍스트 변경 (클래스 구조에 맞춰 선택자 수정)
-        const headerTitle = modal.querySelector('.modal-header h2');
-        if (headerTitle) headerTitle.innerText = '⚙️ 일정 상세 및 수정';
-
+        modal.querySelector('.modal-header h2').innerText = '⚙️ 일정 상세 및 수정';
     } else {
-        // [새 일정 추가 모드] 모든 필드 비우기
+        // 새 일정 추가 모드 초기화 로직 (동일)
         const allInputs = modal.querySelectorAll('input, textarea, select');
-        allInputs.forEach(input => {
-            if (input.id !== 'edit-color') input.value = '';
-        });
-        
-        const dateInput = document.getElementById('edit-date');
-        if (dateInput) dateInput.value = new Date().toLocaleDateString('sv-SE');
-        
-        const colorInput = document.getElementById('edit-color');
-        if (colorInput) colorInput.value = '#3498db';
-
-        const headerTitle = modal.querySelector('.modal-header h2');
-        if (headerTitle) headerTitle.innerText = '📅 새 일정 추가';
+        allInputs.forEach(input => { if(input.id !== 'edit-color') input.value = ''; });
+        document.getElementById('edit-date').value = new Date().toLocaleDateString('sv-SE');
+        modal.querySelector('.modal-header h2').innerText = '📅 새 일정 추가';
     }
 
-    // 화면 표시
     overlay.style.display = 'block';
     modal.style.display = 'block';
 }
 
 function closeModal() {
-    document.getElementById('modalOverlay').style.display = 'none';
-    document.getElementById('editModal').style.display = 'none'; // 여기도 ID로 수정
+    document.getElementById('modal-overlay').style.display = 'none';
+    document.getElementById('edit-modal').style.display = 'none';
 }

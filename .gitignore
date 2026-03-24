@@ -2,6 +2,7 @@
 repomix-output.txt
 repomix-output.xml
 node_modules/
+repomix.txt
 
 # 로그 및 기타 설정 파일
 *.log

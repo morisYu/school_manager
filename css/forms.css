@@ -1,4 +1,4 @@
-#modalOverlay {
+#modal-overlay {
     display: none;
     position: fixed;
     top: 0;
@@ -9,7 +9,7 @@
     z-index: 1000; /* 모달보다 낮아야 함 */
 }
 
-#editModal { 
+#edit-modal { 
     display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); 
     background: white; padding: 30px; border-radius: 25px; width: 92%; max-width: 500px; 
     z-index: 1000; max-height: 85vh; overflow-y: auto; box-shadow: 0 15px 40px rgba(0,0,0,0.15);

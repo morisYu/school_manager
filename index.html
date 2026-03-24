@@ -39,90 +39,89 @@
         </div>
     </div>
 
-    <div id="modalOverlay" onclick="closeModal()"></div>
+	<div id="modal-overlay" onclick="closeModal()"></div>
+<div class="modal-content" id="edit-modal">
+    <div class="modal-header">
+        <h2 style="margin: 0; font-size: 1.25rem;">📅 일정 상세 및 수정</h2>
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+    </div>
 
-	<div class="modal-content" id="editModal">
-		<div class="modal-header">
-			<h2 style="margin: 0; font-size: 1.25rem;">📅 일정 상세 및 수정</h2>
-			<span class="close-btn" onclick="closeModal()">&times;</span>
-		</div>
+    <div class="modal-body">
+        <div class="form-grid">
+            <input type="hidden" id="edit-row">
+            
+            <div class="form-group span-2">
+                <label>기관명</label>
+                <input type="text" id="edit-institution">
+            </div>
 
-		<div class="modal-body">
-			<div class="form-grid">
-				<input type="hidden" id="edit-row">
-				
-				<div class="form-group span-2">
-					<label>기관명</label>
-					<input type="text" id="edit-institution" placeholder="기관명을 입력하세요">
-				</div>
+            <div class="form-group span-2">
+                <label>프로그램명</label>
+                <input type="text" id="edit-program">
+            </div>
 
-				<div class="form-group span-2">
-					<label>프로그램명</label>
-					<input type="text" id="edit-program" placeholder="프로그램명을 입력하세요">
-				</div>
+            <div class="form-group">
+                <label>날짜</label>
+                <input type="date" id="edit-date">
+            </div>
 
-				<div class="form-group">
-					<label>날짜</label>
-					<input type="date" id="edit-date">
-				</div>
+            <div class="form-group">
+                <label>색상 테마</label>
+                <select id="edit-color" onchange="this.style.color=this.value">
+                    <option value="#3498db" style="color: #2980b9;">파랑 (대구)</option>
+					<option value="#f39c12" style="color: #f39c12;">주황 (부산)</option>
+					<option value="#2ecc71" style="color: #2ecc71;">초록 (울산)</option>
+					<option value="#e74c3c" style="color: #e74c3c;">빨강 (검토)</option>
+					<option value="#2c3e50" style="color: #2c3e50;">검정</option>                                        
+					<option value="#8e44ad" style="color: #8e44ad;">보라</option>
+					<option value="#e91e63" style="color: #e91e63;">분홍</option>
+					<option value="#795548" style="color: #795548;">갈색</option>
+                </select>
+            </div>
 
-				<div class="form-group">
-					<label>색상 테마</label>
-					<select id="edit-color" onchange="this.style.color=this.value">
-						<option value="#3498db" style="color: #2980b9;">파랑 (대구)</option>
-						<option value="#f39c12" style="color: #f39c12;">주황 (부산)</option>
-						<option value="#2ecc71" style="color: #2ecc71;">초록 (울산)</option>
-						<option value="#e74c3c" style="color: #e74c3c;">빨강 (검토)</option>
-						<option value="#2c3e50" style="color: #2c3e50;">검정</option>                                        
-						<option value="#8e44ad" style="color: #8e44ad;">보라</option>
-						<option value="#e91e63" style="color: #e91e63;">분홍</option>
-						<option value="#795548" style="color: #795548;">갈색</option>
-					</select>
-				</div>
+            <div class="form-group">
+                <label>시작 시간</label>
+                <input type="time" id="edit-start">
+            </div>
 
-				<div class="form-group">
-					<label>시작 시간</label>
-					<input type="time" id="edit-start">
-				</div>
+            <div class="form-group">
+                <label>종료 시간</label>
+                <input type="time" id="edit-end">
+            </div>
 
-				<div class="form-group">
-					<label>종료 시간</label>
-					<input type="time" id="edit-end">
-				</div>
+            <div class="form-group">
+                <label>주강사</label>
+                <input type="text" id="edit-main">
+            </div>
 
-				<div class="form-group">
-					<label>주강사</label>
-					<input type="text" id="edit-main">
-				</div>
+            <div class="form-group">
+                <label>보조강사</label>
+                <input type="text" id="edit-sub">
+            </div>
 
-				<div class="form-group">
-					<label>보조강사</label>
-					<input type="text" id="edit-sub">
-				</div>
+            <div class="form-group">
+                <label>교구 종류</label>
+                <input type="text" id="edit-tool">
+            </div>
 
-				<div class="form-group">
-					<label>교구 종류</label>
-					<input type="text" id="edit-tool">
-				</div>
+            <div class="form-group">
+                <label>교구 수량</label>
+                <input type="number" id="edit-count">
+            </div>
 
-				<div class="form-group">
-					<label>교구 수량</label>
-					<input type="number" id="edit-count">
-				</div>
+            <div class="form-group span-2">
+                <label>비고</label>
+                <textarea id="edit-note" rows="2"></textarea>
+            </div>
+        </div>
 
-				<div class="form-group span-2">
-					<label>비고</label>
-					<textarea id="edit-note" rows="4"></textarea>
-				</div>
-			</div>
-
-			<div class="btn-group">
-				<button class="btn-save" onclick="saveEvent()">저장하기</button>
-				<button class="btn-delete" onclick="deleteEvent()">삭제</button>
-				<button class="btn-close" onclick="closeModal()">닫기</button>
-			</div>
-		</div>
-	</div>
+        <div class="btn-group">
+            <button id="save-btn" class="btn-save" onclick="saveEvent()">저장하기</button>
+            <button id="delete-btn" class="btn-delete" onclick="deleteEvent()">삭제</button>
+            <button class="btn-close" onclick="closeModal()">닫기</button>
+        </div>
+    </div>
+</div>
 
 	<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <script src="js/config.js"></script> 
