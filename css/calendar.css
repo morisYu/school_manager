@@ -56,3 +56,4 @@
     text-overflow: ellipsis;  /* 넘칠 때 '...' 표시 */
     display: block;           /* 말줄임표 작동을 위한 블록 요소화 */
 }
+

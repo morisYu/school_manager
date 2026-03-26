@@ -9,20 +9,37 @@
     z-index: 1000; /* 모달보다 낮아야 함 */
 }
 
-#edit-modal { 
-    display: none; position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); 
-    background: white; padding: 30px; border-radius: 25px; width: 92%; max-width: 500px; 
-    z-index: 1000; max-height: 85vh; overflow-y: auto; box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+#edit-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95%; /* 화면의 95% 사용 */
+    
+    /* [핵심 수정] 가로로 긴 직사각형을 위해 너비 대폭 확장 */
+    width: 90%; 
+    max-width: 1200px; /* input.html과 유사한 와이드 비율 */
+    min-width: 320px;
+    
+    background: white;
+    border-radius: 25px; /* 기획안 25px 유지 */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    z-index: 1001;
+    overflow: hidden; /* 상단 모서리 라운드 유지 */
+    
+    /* [추가] 모달 전체 내용이 너무 길어지면 내부 스크롤 발생 (반응형 대응) */
+    max-height: 90vh; 
+    overflow-y: auto; 
 }
 
 /* 1. 헤더 스타일: Navy (#2c3e50) 적용 */
 .modal-header {
     background: #2c3e50;
     color: white;
-    padding: 18px 25px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 20px 25px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 /* 1. 모달 전체 크기 및 여백 조정 */
@@ -32,8 +49,9 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 550px;
+    width: 95%;
+    max-width: 1100px;
+    box-sizing: border-box; /* 패딩이 폭에 영향을 주지 않도록 */
     background: white;
     border-radius: 15px; /* 현대적인 느낌의 15px */
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
@@ -43,38 +61,45 @@
 
 /* 2. 그리드 레이아웃 (#form-grid) */
 .modal-body {
-    padding: 25px;
+    padding: 20px 25px; /* 내부 여백 미세 조정 */
 }
 
 /* 기관명, 프로그램명, 비고처럼 길게 쓸 항목 */
-.span-2 {
-    grid-column: span 2;
-}
+/* 그리드 배치 제어 */
+.span-2 { grid-column: span 2; }
+.span-4 { grid-column: span 4; }
 
+/* [핵심] 기관명과 프로그램명이 한 줄의 남은 공간을 똑같이 나눠 먹도록 설정 */
+.span-fix {
+    grid-column: span 1.5; /* 이전 줄의 남은 공간을 채우기 위한 설정 */
+}
 /* 3. 라벨 및 입력창 스타일 */
 .form-group label {
-    font-size: 0.9rem;
     font-weight: bold;
     color: #2c3e50;
     margin-bottom: 6px;
+    font-size: 0.9rem;
 }
 
 /* 3. 입력창 스타일: 날짜 포함 모든 글자 Bold 및 크기 확대 */
 .form-group input, 
 .form-group select, 
 .form-group textarea {
-    font-size: 1rem;       /* 글자 크기 키움 */
-    font-weight: 700 !important; /* 모든 입력값 Bold 처리 (날짜 포함) */
-    padding: 8px 10px;     /* 위아래 여백을 줄여 콤팩트하게 */
+    padding: 10px;     
     border: 1px solid #ddd;
-    border-radius: 6px;
+    border-radius: 8px;
+    font-size: 1rem;       /* 글자 크기 키움 */
+    font-weight: 800 !important; /* 모든 입력값 Bold 처리 (날짜 포함) */
     color: #333;        /* 기본 글자색 */
 }
 
+/* [핵심 수정] 4열 그리드 레이아웃 및 반응형 대응 */
 .form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr; /* 2열 배치 */
-    gap: 15px 20px; /* 항목 간 간격 */
+    /* [수정] 4열 구조를 4개(4)로 repeat하되, 각 열의 최소 너비를 설정하여 잘림 방지 */
+    grid-template-columns: 100px repeat(3, 1fr); 
+    gap: 15px 20px;
+    width: 100%; /* 그리드 자체도 부모 너비에 맞춤 */
 }
 
 .form-group {
@@ -96,17 +121,17 @@
 
 /* 4. 버튼 그룹 스타일 */
 .btn-group {
-    margin-top: 25px;
+    margin-top: 30px;
     display: flex;
-    gap: 10px;
+    gap: 12px;
 }
 .btn-group button {
     flex: 1; /* 균등 배분 */
-    padding: 12px;
+    padding: 14px;
     border: none;
-    border-radius: 6px;
+    border-radius: 10px;
     cursor: pointer;
-    font-weight: bold;
+    font-weight: 800;
     transition: 0.2s;
 }
 .btn-save { background: #2c3e50; color: white; }
@@ -114,3 +139,39 @@
 .btn-close { background: #ecf0f1; color: #333; }
 
 .btn-save:hover { background: #34495e; }
+
+/* index.html 모달 내 날짜, 시작시간, 종료시간 Bold 처리 */
+#edit-date, 
+#edit-start, 
+#edit-end {
+    font-weight: 800 !important; /* 입력된 텍스트 굵기 강조 */
+    font-family: 'Pretendard', sans-serif;
+    text-align: center;
+}
+
+/* 날짜 입력창(input type="date")의 내부 텍스트까지 Bold 적용 (input.html 방식 참고) */
+#edit-date::-webkit-datetime-edit,
+#edit-date::-webkit-inner-spin-button,
+#edit-date::-webkit-calendar-picker-indicator {
+    font-weight: 800 !important;
+}
+
+#edit-region {
+    width: 100px; /* 지역 구분 폭 강제 축소 */
+}
+
+/* 만약 위 설정으로도 날짜가 올라온다면, 날짜에 강제로 줄바꿈 부여 */
+#edit-date {
+    grid-column-start: 1; /* 날짜는 무조건 첫 번째 열에서 시작해라 */
+}
+
+/* [핵심 수정] 기관명과 프로그램명이 한 줄의 남은 공간을 똑같이 나눠 먹도록 설정 */
+.span-fill {
+    /* 지역(1칸)을 제외한 나머지 3칸 중 1.5칸씩 차지 (1.5 + 1.5 = 3) */
+    grid-column: span 1.5; 
+}
+
+/* [추가] 날짜가 첫 줄로 밀고 올라오는 것을 방지 (강제 줄바꿈) */
+.break-line {
+    grid-column-start: 1; /* 무조건 첫 번째 열(지역 구분 라인)에서 시작 */
+}

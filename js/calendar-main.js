@@ -79,6 +79,7 @@ function openModal(p) {
         
         // kebab-case ID로 데이터 매칭
         document.getElementById('edit-row').value = p.row || '';
+        document.getElementById('edit-region').value = p['지역구분'] || '대구';
         document.getElementById('edit-institution').value = p['기관명'] || '';
         document.getElementById('edit-program').value = p['프로그램명'] || '';
         document.getElementById('edit-date').value = localDate;

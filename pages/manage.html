@@ -26,8 +26,19 @@
         <div class="header-box">
             <div class="header-row">
                 <div class="input-group">
+                    <div class="input-group">
+                        <label>📍 지역 선택</label>
+                        <select id="region-select" onchange="loadReport()">
+                            <option value="전체">전체 지역</option>
+                            <option value="대구">대구</option>
+                            <option value="부산">부산</option>
+                            <option value="울산">울산</option>
+                            <option value="포항">포항</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
                     <label>👤 강사 선택</label>
-                    <select id="teacherSelect">
+                    <select id="teacherSelect" onchange="loadReport()">
                         <option value="">강사 데이터를 불러오는 중...</option>
                     </select>
                 </div>
@@ -57,6 +68,7 @@
                     <tr>
                         <th>순번</th>
                         <th>날짜</th>
+                        <th>지역</th>
                         <th>기관명</th>
                         <th>프로그램명</th>
                         <th>강사 구분</th>

@@ -37,6 +37,7 @@ function processData(action) {
                 "날짜": getValue('edit-date'),
                 "시작시간": getValue('edit-start'),
                 "종료시간": getValue('edit-end'),
+                "지역구분": getValue('edit-region'),
                 "프로그램명": getValue('edit-program'),
                 "기관명": getValue('edit-institution'),
                 "주강사": getValue('edit-main'),

@@ -54,6 +54,7 @@ function exportToExcel() {
 }
 
 async function loadReport() {
+    const region = document.getElementById('region-select').value; // 지역 값 가져오기
     const name = document.getElementById('teacherSelect').value;
     const start = document.getElementById('startDate').value;
     const end = document.getElementById('endDate').value;
@@ -62,6 +63,8 @@ async function loadReport() {
 
     const filtered = rawData.filter(r => {
         const rDate = new Date(r['날짜']);
+        // 지역 필터 조건 추가: '전체'가 아니면 시트의 '지역구분' 컬럼과 비교
+        const isRegionMatch = region === "전체" || String(r['지역구분']) === region;
         const isNameMatch = String(r['주강사']) === name || String(r['보조강사']) === name;
         const isAfter = !start || rDate >= new Date(start);
         const isBefore = !end || rDate <= new Date(end);
@@ -86,7 +89,7 @@ async function loadReport() {
             <tr>
                 <td>${index + 1}</td>
                 <td class="date-cell">${formatDate(r['날짜'])}</td>
-                <td>${r['기관명']}</td>
+                <td>${r['지역구분'] || '-'}</td> <td>${r['기관명']}</td>
                 <td>${r['프로그램명']}</td>
                 <td>${role}</td>
                 <td class="hour-cell">${hours}</td>
@@ -103,7 +106,7 @@ async function loadReport() {
     if (filtered.length > 0) {
         footer.style.display = 'table-footer-group';
     } else {
-        tbody.innerHTML = '<tr><td colspan="8">내역이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9">내역이 없습니다.</td></tr>';
         footer.style.display = 'none';
     }
 }
