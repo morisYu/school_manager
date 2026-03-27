@@ -2,24 +2,30 @@
 
 // 1. HTML의 onclick="saveEvent()"와 연결
 function saveEvent() {
-    processData('save');
+    processData('save', '#save-btn', '저장 중...');
 }
 
 // 2. HTML의 onclick="deleteEvent()"와 연결
 function deleteEvent() {
-    processData('delete');
+    processData('delete', '#delete-btn', '삭제 중...');
 }
 
-function processData(action) {
+// 3. HTML의 onclick="duplicateEvent()"와 연결
+function duplicateEvent() {
+    processData('insert', '#duplicate-btn', '복제 중...');
+}
+
+function processData(action, btnSelector = '#save-btn', pendingText = '처리 중...') {
     if (action === 'delete' && !confirm("정말 이 일정을 삭제하시겠습니까?")) return;
+    if (action === 'insert' && !confirm("현재 입력값으로 새 일정을 복제 생성할까요?")) return;
 
     if (typeof GAS_URL === 'undefined') {
         alert("GAS_URL이 정의되지 않았습니다. config.js를 확인하세요.");
         return;
     }
 
-    const btn = document.querySelector('.btn-save');
-    const originalText = btn ? btn.innerText : '저장하기';
+    const btn = document.querySelector(btnSelector);
+    const originalText = btn ? btn.innerText : '처리하기';
 
     try {
         const getValue = (id) => {
@@ -30,7 +36,7 @@ function processData(action) {
         // [중요] GAS 서버(Code.gs)의 헤더 명칭과 100% 일치시켜야 합니다.
         const payload = {
             action: action,
-            row: getValue('edit-row'),
+            row: action === 'insert' ? '' : getValue('edit-row'),
             // [추가] 현재 작업 중인 시트명을 명시 (필요시 변수화 가능)
             sheetName: "출강이력", 
             data: {
@@ -50,7 +56,7 @@ function processData(action) {
         };
 
         if (btn) {
-            btn.innerText = '처리 중...';
+            btn.innerText = pendingText;
             btn.disabled = true;
         }
 
@@ -61,7 +67,10 @@ function processData(action) {
         .then(res => res.json())
         .then(data => {
             if (data.result === "success") {
-                alert('정상적으로 처리되었습니다.');
+                const successMsg = action === 'insert'
+                    ? '복제 일정이 추가되었습니다.'
+                    : '정상적으로 처리되었습니다.';
+                alert(successMsg);
                 closeModal();
                 if (window.myCalendar) {
                     window.myCalendar.refetchEvents();

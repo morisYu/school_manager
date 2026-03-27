@@ -158,10 +158,12 @@
     transition: 0.2s;
 }
 .btn-save { background: #2c3e50; color: white; }
+.btn-duplicate { background: #2e86de; color: white; }
 .btn-delete { background: #e74c3c; color: white; }
 .btn-close { background: #ecf0f1; color: #333; }
 
 .btn-save:hover { background: #34495e; }
+.btn-duplicate:hover { background: #1f6fc1; }
 
 /* index.html 모달 내 날짜, 시작시간, 종료시간 Bold 처리 */
 #edit-date, 
