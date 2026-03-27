@@ -34,22 +34,51 @@ document.addEventListener('DOMContentLoaded', function() {
         eventContent: function(arg) {
             const p = arg.event.extendedProps;
             const color = arg.event.textColor;
+            const transparentBg = (() => {
+                if (!color) return 'rgba(0,0,0,0.03)';
+                if (color.startsWith('#')) {
+                    let hex = color.slice(1);
+                    if (hex.length === 3) {
+                        hex = hex.split('').map(ch => ch + ch).join('');
+                    }
+                    if (/^[0-9a-fA-F]{6}$/.test(hex)) {
+                        const r = parseInt(hex.slice(0, 2), 16);
+                        const g = parseInt(hex.slice(2, 4), 16);
+                        const b = parseInt(hex.slice(4, 6), 16);
+                        return `rgba(${r}, ${g}, ${b}, 0.08)`;
+                    }
+                }
+                return color;
+            })();
 
             // 데이터 가공 (비어있을 경우 대비)
             const program = p['프로그램명'] || '프로그램 미정';
-            const teacher = p['주강사'] || '강사 미정';
+            const mainTeacher = p['주강사'] || '강사 미정';
+            const subTeacher = p['보조강사'] || '';
             const toolName = p['교구종류'] || '교구 없음';
+            const institution = p['기관명'] || '기관 미정';
+            const startTime = extractTime(p['시작시간']);
+            const endTime = extractTime(p['종료시간']);
+
+            const [startHour, startMin] = startTime.split(':').map(Number);
+            const [endHour, endMin] = endTime.split(':').map(Number);
+            const durationHours = Number.isFinite(startHour) && Number.isFinite(startMin) && Number.isFinite(endHour) && Number.isFinite(endMin)
+                ? ((endHour * 60 + endMin) - (startHour * 60 + startMin)) / 60
+                : 0;
+            const durationValue = durationHours > 0 ? durationHours.toFixed(1) : '0.0';
+
+            const teacherText = subTeacher ? `${mainTeacher}(${subTeacher})` : `${mainTeacher}`;
             // 수량이 있을 때만 (수량) 표시, 없으면 빈 문자열
             const toolQty = (p['교구수량'] && p['교구수량'] !== 0) ? `(${p['교구수량']})` : '';
 
             return {
                 html: `
-                <div class="event-wrapper" style="border-left-color: ${color}; color: ${color};">
+                <div class="event-wrapper" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
                     <div class="event-line1">
-                        <strong>${extractTime(p['시작시간'])}</strong> | ${p['기관명']}
+                        <strong>${startTime}(${durationValue})</strong> | ${institution}
                     </div>
                     <div class="event-line2" style="font-size: 0.85em; margin-top: 2px;">
-                        ${program} | ${teacher} | ${toolName}${toolQty}
+                        ${program}, ${teacherText}, ${toolName}${toolQty}
                     </div>
                 </div>`
             };

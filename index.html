@@ -50,28 +50,30 @@
             <div class="form-grid">
                 <input type="hidden" id="edit-row">
                 
-                <div class="form-group">
-                    <label>지역 구분</label>
-                    <select id="edit-region">
-                        <option value="대구">대구</option>
-                        <option value="부산">부산</option>
-                        <option value="울산">울산</option>
-                        <option value="포항">포항</option>
-                        <option value="기타">기타</option>
-                    </select>
+                <div class="form-row-1 span-4">
+                    <div class="form-group row1-region">
+                        <label>지역 구분</label>
+                        <select id="edit-region">
+                            <option value="대구">대구</option>
+                            <option value="부산">부산</option>
+                            <option value="울산">울산</option>
+                            <option value="포항">포항</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group row1-institution">
+                        <label>기관명</label>
+                        <input type="text" id="edit-institution">
+                    </div>
+
+                    <div class="form-group row1-program">
+                        <label>프로그램명</label>
+                        <input type="text" id="edit-program">
+                    </div>
                 </div>
 
-                <div class="form-group span-fill">
-                    <label>기관명</label>
-                    <input type="text" id="edit-institution">
-                </div>
-
-                <div class="form-group span-fill">
-                    <label>프로그램명</label>
-                    <input type="text" id="edit-program">
-                </div>
-
-                <div class="form-group break-line">
+                <div class="form-group row-start-2">
                     <label>날짜</label>
                     <input type="date" id="edit-date">
                 </div>
@@ -97,7 +99,7 @@
                     </select>
                 </div>
 
-                <div class="form-group">
+                <div class="form-group row-start-3">
                     <label>교구 종류</label>
                     <input type="text" id="edit-tool">
                 </div>
@@ -116,7 +118,7 @@
 
                 <div class="form-group span-4">
                     <label>비고</label>
-                    <textarea id="edit-note" rows="2"></textarea>
+                    <textarea id="edit-note" rows="4"></textarea>
                 </div>
             </div>
 

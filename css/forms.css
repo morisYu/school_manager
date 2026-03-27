@@ -19,7 +19,7 @@
     
     /* [핵심 수정] 가로로 긴 직사각형을 위해 너비 대폭 확장 */
     width: 90%; 
-    max-width: 1200px; /* input.html과 유사한 와이드 비율 */
+    max-width: 900px; /* input.html과 유사한 와이드 비율 */
     min-width: 320px;
     
     background: white;
@@ -37,7 +37,7 @@
 .modal-header {
     background: #2c3e50;
     color: white;
-    padding: 20px 25px;
+    padding: 15px 25px;
     text-align: left;
     border-bottom: 1px solid #e0e0e0;
 }
@@ -75,10 +75,18 @@
 }
 /* 3. 라벨 및 입력창 스타일 */
 .form-group label {
-    font-weight: bold;
-    color: #2c3e50;
-    margin-bottom: 6px;
-    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 900;
+    color: #1f2d3d;
+    margin-bottom: 8px;
+    font-size: 1.02rem;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    width: fit-content;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #eaf3ff;
 }
 
 /* 3. 입력창 스타일: 날짜 포함 모든 글자 Bold 및 크기 확대 */
@@ -96,8 +104,7 @@
 /* [핵심 수정] 4열 그리드 레이아웃 및 반응형 대응 */
 .form-grid {
     display: grid;
-    /* [수정] 4열 구조를 4개(4)로 repeat하되, 각 열의 최소 너비를 설정하여 잘림 방지 */
-    grid-template-columns: 100px repeat(3, 1fr); 
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 15px 20px;
     width: 100%; /* 그리드 자체도 부모 너비에 맞춤 */
 }
@@ -105,6 +112,22 @@
 .form-group {
     display: flex;
     flex-direction: column;
+}
+
+/* 첫 줄 전용 10그리드: 2(지역) + 4(기관) + 4(프로그램) */
+.form-row-1 {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 15px 20px;
+}
+
+.row1-region {
+    grid-column: span 2;
+}
+
+.row1-institution,
+.row1-program {
+    grid-column: span 4;
 }
 
 /* 5. 비고란 높이 조절 */
@@ -157,7 +180,7 @@
 }
 
 #edit-region {
-    width: 100px; /* 지역 구분 폭 강제 축소 */
+    width: 100%;
 }
 
 /* 만약 위 설정으로도 날짜가 올라온다면, 날짜에 강제로 줄바꿈 부여 */
@@ -174,4 +197,13 @@
 /* [추가] 날짜가 첫 줄로 밀고 올라오는 것을 방지 (강제 줄바꿈) */
 .break-line {
     grid-column-start: 1; /* 무조건 첫 번째 열(지역 구분 라인)에서 시작 */
+}
+
+/* 모달 폼 행 시작 위치 고정 */
+.row-start-2 {
+    grid-column-start: 1;
+}
+
+.row-start-3 {
+    grid-column-start: 1;
 }

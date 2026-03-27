@@ -31,11 +31,24 @@
     font-size: 15px;
     padding: 4px 6px !important; 
     border-radius: 4px !important; 
-    border-left: 5px solid !important;
+    border-left-width: 5px !important;
+    border-left-style: solid !important;
+    border-left-color: var(--event-color, #2c3e50) !important;
     display: flex !important; 
     flex-direction: column !important;
-    background: rgba(0,0,0,0.03);
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--event-bg, rgba(0,0,0,0.03));
     overflow: hidden;
+}
+
+/* FullCalendar 기본 여백을 줄여 이벤트 배경이 셀 가로폭을 최대한 채우도록 정렬 */
+.fc .fc-daygrid-block-event .fc-event-main {
+    padding: 0 !important;
+}
+
+.fc .fc-daygrid-event {
+    margin: 1px 5px !important;
 }
 
 .event-line1 { 

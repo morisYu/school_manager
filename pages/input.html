@@ -29,41 +29,34 @@
     <div class="form-body">
         <form id="lectureForm">
             <div class="form-grid">
-                <div class="form-group"><label>1. 날짜</label><input type="date" id="date" required></div>
-                
-                <div class="form-group">
-                    <label>2. 시간 (24시간 형식)</label>
-                    <div class="time-group">
-                        <input type="text" id="startTime" placeholder="14:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
-                        <span class="time-separator">~</span>
-                        <input type="text" id="endTime" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
+                <div class="form-row-1 span-4">
+                    <div class="form-group row1-region">
+                        <label>지역 구분</label>
+                        <select id="input-region">
+                            <option value="대구">대구</option>
+                            <option value="부산">부산</option>
+                            <option value="울산">울산</option>
+                            <option value="포항">포항</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group row1-institution">
+                        <label>기관명</label>
+                        <input type="text" id="institution" required>
+                    </div>
+
+                    <div class="form-group row1-program">
+                        <label>프로그램명</label>
+                        <input type="text" id="program" required>
                     </div>
                 </div>
 
+                <div class="form-group row-start-2"><label>날짜</label><input type="date" id="date" required></div>
+                <div class="form-group"><label>시작 시간</label><input type="text" id="startTime" placeholder="14:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
+                <div class="form-group"><label>종료 시간</label><input type="text" id="endTime" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
                 <div class="form-group">
-                    <label>지역 구분</label>
-                    <select id="input-region">
-                        <option value="대구">대구</option>
-                        <option value="부산">부산</option>
-                        <option value="울산">울산</option>
-                        <option value="포항">포항</option>
-                        <option value="기타">기타</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>3. 프로그램명</label><input type="text" id="program" required></div>
-                <div class="form-group"><label>4. 기관명(학교)</label><input type="text" id="institution" required></div>
-                
-                <div class="form-group"><label>5. 학년</label><input type="text" id="grade"></div>
-                <div class="form-group"><label>6. 대상인원</label><input type="number" id="students"></div>
-
-                <div class="form-group"><label>7. 주강사</label><input type="text" id="mainTeacher" required></div>
-                <div class="form-group"><label>8. 보조강사</label><input type="text" id="subTeacher"></div>
-
-                <div class="form-group"><label>9. 교구종류</label><input type="text" id="toolType"></div>
-                <div class="form-group"><label>10. 교구수량</label><input type="number" id="toolCount"></div>
-
-                <div class="form-group full-width">
-                    <label>11. 글자 색상</label>
+                    <label>색상</label>
                     <select id="color" onchange="this.style.color = this.value;" style="color: #2c3e50;">
                         <option value="#2c3e50" style="color: #2c3e50;">검정 (기본)</option>
                         <option value="#3498db" style="color: #3498db;">파랑</option>
@@ -78,15 +71,23 @@
                     </select>
                 </div>
 
-                <div class="form-group full-width">
-                    <label>12. 비고</label>
-                    <textarea id="note" rows="3"></textarea>
+                <div class="form-group row-start-3"><label>교구종류</label><input type="text" id="toolType"></div>
+                <div class="form-group"><label>교구수량</label><input type="number" id="toolCount"></div>
+                <div class="form-group"><label>주강사</label><input type="text" id="mainTeacher" required></div>
+                <div class="form-group"><label>보조강사</label><input type="text" id="subTeacher"></div>
+
+                <div class="form-group span-4">
+                    <label>비고</label>
+                    <textarea id="note" rows="4"></textarea>
                 </div>
+
+                <input type="hidden" id="grade" value="">
+                <input type="hidden" id="students" value="">
             </div>
 
             <div class="btn-group">
                 <button type="submit" class="btn-common btn-submit" id="submitBtn">저장하기</button>
-                <button type="button" class="btn-common btn-back" onclick="location.href='index.html'">취소하기</button>
+                <button type="button" class="btn-common btn-back" onclick="location.href='../index.html'">취소하기</button>
             </div>
         </form>
     </div>
