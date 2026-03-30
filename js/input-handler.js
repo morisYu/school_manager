@@ -1,16 +1,5 @@
 /* js/input-handler.js */
 
-// 시간 입력 시 자동 콜론 생성
-function autoColon(target) {
-    let val = target.value.replace(/\D/g, "");
-    if (val.length > 2) { 
-        target.value = val.substring(0, 2) + ":" + val.substring(2, 4); 
-    } else { 
-        target.value = val; 
-    }
-}
-
-/* js/input-handler.js 수정 버전 */
 
 // 폼 제출 핸들러
 document.getElementById('lectureForm').addEventListener('submit', function(e) {

@@ -18,7 +18,21 @@ function autoColon(target) {
     }
 }
 
-function isValidTime(timeStr) {
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    return timeRegex.test(timeStr);
+function formatDate(isoString) {
+    if (!isoString) return "-";
+    const d = new Date(isoString);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function calculateHours(startStr, endStr) {
+    try {
+        const sMatch = String(startStr).match(/(\d{2}):(\d{2})/);
+        const eMatch = String(endStr).match(/(\d{2}):(\d{2})/);
+        if (!sMatch || !eMatch) return 0;
+        const diff = (parseInt(eMatch[1]) * 60 + parseInt(eMatch[2])) - (parseInt(sMatch[1]) * 60 + parseInt(sMatch[2]));
+        return diff > 0 ? (diff / 60).toFixed(1) : 0;
+    } catch (e) { return 0; }
 }
