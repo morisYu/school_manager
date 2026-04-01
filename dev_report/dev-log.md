@@ -140,3 +140,33 @@
 
 
 ### 💡 아이디어 / 다음 할 일
+
+---
+
+## 📅 2026-04-01 개발 내용
+
+### ✅ 완료된 작업
+
+- 학교 관리 페이지(school-manage.html) 신규 구축
+    - '학교관리' 시트 데이터 연동: 학교별 상세 정보(주소, 담당자, 연락처 등) 관리 기능
+    - 지능형 매칭 로직(Regex) 도입: `기관명 (학교명)` 형식에서 괄호 안의 약칭을 추출하여 정식 학교 정보와 자동 매칭
+    - 통합 네비게이션 업데이트: 모든 페이지 헤더에 '학교 관리' 버튼 추가 및 스타일링
+    - 기간별 출강 이력 조회: 특정 학교의 과거 모든 수업 기록을 날짜 범위별로 필터링 및 리스트업
+
+### 🐛 해결 중인 버그
+
+- 학교관리 페이지에 스크롤이 없어서 전체 출강 내역을 보기 어려움
+- 학교관리 페이지에서 오류 발생
+    - 데이터를 불러오는 중 오류가 발생했습니다. 인터넷 연결이나 GAS 설정을 확인하세요.
+    - script.googleusercontent.com/macros/echo?user_content_key=AWDtjMU7abxPiRH3AKYpvOO3lb0YiY0qEFobewbQ8skYZtZvylHHmvVpisNVKWc6HkqXhL7r3dEp0lkfsJ0quPmeNlLYjq9mn0Hj25mvOZ45xBx2RW7CXflKCvBElQmufXWfs86yY8k6DNJq5xWTiaA0pFnv-qKGgJ9ffRzwuRmKlqp6x7SkKFTyUD0nKK6BMjYHDQQ0uKDozckWEGbaHVSNBogT0dzdje6WicseWnBKNXD0Bd0TRUBN2xzSVGhP1xgTVVLj96UEMa3n8ingTru04uu2W8HsFlKcqDf_9C_6JYfagci0O0h_F7DV0awDpf2KL71UgmYlDi9dnm4CrKvHEm4tE3gjXA&lib=MblTe2SPT9X3vUxq4jlGf3zUvRdERJ6Za:1  Failed to load resource: the server responded with a status of 404 ()
+    - school-manage-handler.js:34 Data Load Error: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+
+### 💡 아이디어 / 다음 할 일
+
+- 데이터 입력 편의성 개선: 출강 이력 입력 시 '학교관리' 시트 데이터를 기반으로 한 자동 완성(Autocomplete) 또는 드롭다운 선택 기능 검토
+- 통계 기능 확장: 학교별 총 출강 횟수 및 누적 강사료 요약 정보 표시
+- 관리 페이지에서 데이터를 불러오는 속도 개선
+    - 정산관리 페이지는 강사데이터 불러오는데 10 초 가량 소요됨
+    - 학교관리 페이지는 학교데이터 불러오는데 70 초 이상 소요됨
+- '학교관리' 시트에서 검색용 약칭 정리
+- 학교관리 페이지에서 조회된 학교 데이터를 수정 가능하도록 (삭제는 웹에서는 절대 안되도록)

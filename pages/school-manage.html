@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학교 통합 관리 및 출강 내역 조회</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/school-manage.css">
+</head>
+<body>
+
+    <div class="system-header">
+        <div class="header-container">
+            <div class="header-left">
+                <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
+                <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 정산 관리</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 상단 학교 선택 및 검색 설정 -->
+        <div class="search-header">
+            <div class="search-row">
+                <div class="input-group">
+                    <label>🔍 대상 학교 선택</label>
+                    <select id="school-select">
+                        <option value="">학교 데이터를 로딩 중...</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>📅 시작일</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="input-group">
+                    <label>📅 종료일</label>
+                    <input type="date" id="endDate">
+                </div>
+                <div class="btn-group">
+                    <button class="btn-search" onclick="loadSchoolHistory()">조회하기</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 학교 상세 정보 카드 -->
+        <div id="school-info" class="school-info-card">
+            <div class="school-header">
+                <div class="school-title-box">
+                    <h2 id="info-school-name">학교명</h2>
+                    <span id="info-school-type" class="school-type-tag">초등</span>
+                </div>
+                <div id="info-school-region" style="color: #666; font-size: 0.9rem;">시 / 구</div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">📍 주소</div>
+                    <div id="info-school-address" class="info-value">경상북도 ...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📞 대표번호</div>
+                    <div id="info-school-phone" class="info-value">054-...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">👤 담당자</div>
+                    <div id="info-school-contact" class="info-value">이름 (연락처)</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">🌐 홈페이지</div>
+                    <div id="info-school-home" class="info-value"><a href="#" target="_blank">바로가기</a></div>
+                </div>
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <div class="info-label">📝 비고</div>
+                    <div id="info-school-note" class="info-value">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 출강 이력 목록 테이블 -->
+        <div class="history-section">
+            <h3>📖 최근 출강 이력</h3>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>순번</th>
+                            <th>날짜</th>
+                            <th>기관명</th>
+                            <th>프로그램명</th>
+                            <th>강사 (주/보조)</th>
+                            <th>시간 (h)</th>
+                            <th>비고</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <tr><td colspan="7" class="empty-msg">학교를 선택하고 조회하기 버튼을 눌러주세요.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 스크립트 연결 -->
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/school-manage-handler.js"></script>
+</body>
+</html>
