@@ -6,6 +6,9 @@ let historyData = [];
 // 페이지 로드 시 학교 목록 및 전체 이력 데이터 로드 (캐싱 및 백그라운드 갱신 적용)
 window.onload = () => {
     const schoolSelect = document.getElementById('school-select');
+
+    // 초기 상태: 학교 정보 카드에 placeholder 표시
+    showInfoPlaceholder();
     
     // 1. 학교 관리 데이터 캐싱 로드
     fetchAndCache(`${GAS_URL}?sheet=학교관리`, 'cached_schoolData', (data, isCache) => {
@@ -55,7 +58,8 @@ async function loadSchoolHistory() {
     const endDate = document.getElementById('endDate').value;
 
     if (schoolIndex === "") {
-        alert("조회할 학교를 먼저 선택해주세요.");
+        showInfoPlaceholder();
+        document.getElementById('history-table-body').innerHTML = '<tr><td colspan="7" class="empty-msg">학교를 선택하고 조회하기 버튼을 눌러주세요.</td></tr>';
         return;
     }
 
@@ -72,9 +76,61 @@ async function loadSchoolHistory() {
 /**
  * 선택된 학교의 정보를 상단 카드에 표시
  */
+/**
+ * 학교 미선택 시 정보 카드에 placeholder(안내 문구)를 표시
+ */
+function showInfoPlaceholder() {
+    const infoCard = document.getElementById('school-info');
+    infoCard.innerHTML = `
+        <div class="info-placeholder">
+            <span class="placeholder-icon">🏫</span>
+            <span>조회할 학교를 선택한 후 <strong>조회하기</strong> 버튼을 눌러주세요.</span>
+        </div>
+    `;
+}
+
+/**
+ * 선택된 학교의 정보를 상단 카드에 표시
+ */
 function displaySchoolInfo(school) {
     const infoCard = document.getElementById('school-info');
-    infoCard.style.display = 'block';
+
+    // placeholder를 실제 학교 정보 콘텐츠로 교체
+    infoCard.innerHTML = `
+        <div class="school-header">
+            <div class="school-title-box">
+                <h2 id="info-school-name"></h2>
+                <span id="info-school-type" class="school-type-tag"></span>
+            </div>
+            <div id="info-school-region" style="color: #666; font-size: 0.9rem;"></div>
+        </div>
+        <div class="info-layout">
+            <div class="info-left">
+                <div class="info-item">
+                    <div class="info-label">📍 주소</div>
+                    <div id="info-school-address" class="info-value"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📞 대표번호</div>
+                    <div id="info-school-phone" class="info-value"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">👤 담당자</div>
+                    <div id="info-school-contact" class="info-value"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">🌐 홈페이지</div>
+                    <div id="info-school-home" class="info-value"></div>
+                </div>
+            </div>
+            <div class="info-right">
+                <div class="info-item note-container">
+                    <div class="info-label">📝 비고</div>
+                    <div id="info-school-note" class="info-value note-value"></div>
+                </div>
+            </div>
+        </div>
+    `;
 
     document.getElementById('info-school-name').textContent = school['학교명'] || '-';
     document.getElementById('info-school-type').textContent = school['학교구분'] || '-';
