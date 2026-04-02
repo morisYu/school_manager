@@ -3,37 +3,47 @@
 let schoolData = [];
 let historyData = [];
 
-// 페이지 로드 시 학교 목록 및 전체 이력 데이터 사전 로드
-window.onload = async () => {
-    try {
-        const schoolSelect = document.getElementById('school-select');
+// 페이지 로드 시 학교 목록 및 전체 이력 데이터 로드 (캐싱 및 백그라운드 갱신 적용)
+window.onload = () => {
+    const schoolSelect = document.getElementById('school-select');
+    
+    // 1. 학교 관리 데이터 캐싱 로드
+    fetchAndCache(`${GAS_URL}?sheet=학교관리`, 'cached_schoolData', (data, isCache) => {
+        schoolData = data;
         
-        // 1. 학교 관리 데이터 가져오기
-        const schoolRes = await fetch(`${GAS_URL}?sheet=학교관리`);
-        schoolData = await schoolRes.json();
-
-        // 2. 출강 이력 데이터 가져오기 (메모리 내 필터링을 위해 미리 로드)
-        const historyRes = await fetch(`${GAS_URL}?sheet=출강이력`);
-        historyData = await historyRes.json();
-
-        // 드롭다운 구성
+        // 사용자가 이미 드롭다운을 선택했으면 그 값을 유지
+        const prevVal = schoolSelect.value;
+        
         schoolSelect.innerHTML = '<option value="">-- 학교를 선택하세요 --</option>';
         if (Array.isArray(schoolData)) {
             schoolData.forEach((school, index) => {
                 if (school['학교명']) {
                     const option = document.createElement('option');
-                    option.value = index; // 인덱스를 값으로 사용
+                    option.value = index; 
                     option.textContent = school['학교명'];
                     schoolSelect.appendChild(option);
                 }
             });
         }
+        
+        if (prevVal) schoolSelect.value = prevVal;
+    }).catch(e => {
+        console.error("School Data Load Error:", e);
+    });
 
-        // URL 파라미터가 있을 경우 자동 조회 기능 등 확장 가능
-    } catch (e) {
-        console.error("Data Load Error:", e);
+    // 2. 출강 이력 데이터 캐싱 로드
+    fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (data, isCache) => {
+        historyData = data;
+        
+        // 백그라운드에서 새로운 데이터로 업데이트 시점이면서, 
+        // 사용자가 이미 학교 정보 조회를 한 화면일 경우 자연스럽게 최신 결과 재출력
+        if (!isCache && schoolSelect.value !== "") {
+            loadSchoolHistory(); 
+        }
+    }).catch(e => {
+        console.error("History Data Load Error:", e);
         alert("데이터를 불러오는 중 오류가 발생했습니다. 인터넷 연결이나 GAS 설정을 확인하세요.");
-    }
+    });
 };
 
 /**

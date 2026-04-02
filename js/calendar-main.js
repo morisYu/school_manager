@@ -64,45 +64,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // 첫 번째 소스: 공휴일 (통신이 없으므로 월을 넘기자마자 0초 만에 표시됨)
             STATIC_HOLIDAY_EVENTS,
             
-            // 두 번째 소스: 구글 시트 일정 (데이터 통신으로 인해 약 2~3초 소요됨)
-            async function (info, successCallback, failureCallback) {
-                try {
-                    const midDate = new Date((info.start.getTime() + info.end.getTime()) / 2);
-                    const year = midDate.getFullYear();
-                    const month = midDate.getMonth() + 1;
-
-                    console.log(`[Calendar] Fetching schedule data for ${year}-${month}`);
-
-                    const eventsRes = await fetch(`${GAS_URL}?sheet=출강이력`);
-                    let scheduleEvents = [];
-
-                    if (eventsRes.ok) {
-                        try {
-                            const rawEvents = await eventsRes.json();
-                            const eventsData = Array.isArray(rawEvents) ? rawEvents : (rawEvents.value || []);
-                            console.log(`[Calendar] Schedule fetched: ${eventsData.length} items`);
-
-                            scheduleEvents = eventsData.map(r => {
-                                const localDate = new Date(r['날짜']).toLocaleDateString('sv-SE');
-                                return {
-                                    title: r['프로그램명'] || '일정',
-                                    start: `${localDate}T${extractTime(r['시작시간'])}`,
-                                    end: `${localDate}T${extractTime(r['종료시간'])}`,
-                                    textColor: r['색상'] || '#2c3e50',
-                                    extendedProps: r
-                                };
-                            });
-                        } catch (e) {
-                            console.error("Schedule JSON parse error:", e);
-                        }
-                    }
-
-                    successCallback(scheduleEvents);
-
-                } catch (error) {
-                    console.error('Event fetching error:', error);
-                    successCallback([]); // 실패 시 빈 배열 반환하여 멈춤 방지
-                }
+            // 두 번째 소스: 메모리에 로드된 전체 일정을 즉시 반환 (하이브리드 캐싱 적용됨)
+            function (info, successCallback, failureCallback) {
+                // fetch없이 전역 배열을 0초만에 그대로 전달하므로, 달을 넘길 때 전혀 통신 대기가 없습니다.
+                successCallback(window.currentScheduleEvents || []);
             }
         ],
         eventContent: function (arg) {
@@ -168,6 +133,31 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     calendar.render();
     window.myCalendar = calendar;
+
+    // [하이브리드 캐싱 + 저장소 공유] 
+    // 동일한 API, 동일한 캐시키('cached_historyData')로 출강이력 데이터를 로드합니다.
+    window.currentScheduleEvents = [];
+    fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (rawEvents, isCache) => {
+        const eventsData = Array.isArray(rawEvents) ? rawEvents : (rawEvents.value || []);
+        
+        window.currentScheduleEvents = eventsData.map(r => {
+            const localDate = new Date(r['날짜']).toLocaleDateString('sv-SE');
+            return {
+                title: r['프로그램명'] || '일정',
+                start: `${localDate}T${extractTime(r['시작시간'])}`,
+                end: `${localDate}T${extractTime(r['종료시간'])}`,
+                textColor: r['색상'] || '#2c3e50',
+                extendedProps: r
+            };
+        });
+        
+        // 데이터가 준비되면 캘린더에 즉각 알림 (최초 캐시 즉시출력 + 새로운 갱신 발견 시 자동렌더)
+        if (window.myCalendar) {
+            window.myCalendar.refetchEvents();
+        }
+    }).catch(e => {
+        console.error("Calendar data fetch error:", e);
+    });
 });
 
 // 모달 열기 함수 (수정됨)

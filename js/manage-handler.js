@@ -2,12 +2,14 @@
 
 let rawData = [];
 
-// 페이지 로드 시 강사 목록 추출
-window.onload = async () => {
-    try {
-        // GAS_URL은 config.js에 정의되어 있음
-        const res = await fetch(GAS_URL);
-        rawData = await res.json();
+// 페이지 로드 시 강사 목록 추출 (캐싱 및 백그라운드 갱신 적용)
+window.onload = () => {
+    // 학교 관리 페이지와 동일한 URL 및 캐시키를 사용하여 캐시 데이터 재사용
+    fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (data, isCache) => {
+        rawData = data;
+        
+        const select = document.getElementById('teacherSelect');
+        const prevVal = select.value;
         
         const teachers = new Set();
         rawData.forEach(r => {
@@ -15,15 +17,24 @@ window.onload = async () => {
             if(r['보조강사']) teachers.add(r['보조강사']);
         });
 
-        const select = document.getElementById('teacherSelect');
         select.innerHTML = '<option value="">강사 선택</option>';
         [...teachers].sort().forEach(t => {
             select.innerHTML += `<option value="${t}">${t}</option>`;
         });
-    } catch (e) {
+        
+        // 사용자가 이미 강사를 선택해 놓았다면 값 유지
+        if (prevVal && [...teachers].includes(prevVal)) {
+            select.value = prevVal;
+        }
+        
+        // 백그라운드 갱신 데이터가 들어왔을 때 이미 화면 조회 중이라면 재렌더링
+        if (!isCache && select.value) {
+            loadReport();
+        }
+    }).catch(e => {
         console.error("Data Load Error:", e);
         alert("강사 목록을 불러오지 못했습니다.");
-    }
+    });
 };
 
 
