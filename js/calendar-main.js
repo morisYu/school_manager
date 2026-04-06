@@ -40,7 +40,8 @@ const STATIC_HOLIDAY_EVENTS = Object.entries(KOREAN_HOLIDAYS).map(([dateStr, nam
     extendedProps: { isHoliday: true }
 }));
 
-// 공휴일 날짜 배열만 따로 저장 (빠른 날짜 색상 변경을 위함)
+// 가비지 컬렉션 방지 및 전역 필터 상태 관리
+window.isUnassignedFilterActive = false;
 window.allHolidayDates = Object.keys(KOREAN_HOLIDAYS);
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -53,17 +54,47 @@ document.addEventListener('DOMContentLoaded', function () {
         fixedWeekCount: false,
         expandRows: true,
         headerToolbar: {
-            left: 'prev,next today',
+            left: 'prev,next today unassignedFilter',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,listWeek'
+            right: 'dayGridMonth,listWeek'
         },
-        buttonText: { today: '오늘', month: '월간', week: '주간', list: '목록' },
-        
+        listDayFormat: function(arg) {
+            const d = arg.date.marker;
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const weekday = new Intl.DateTimeFormat('ko-KR', { weekday: 'long' }).format(d);
+            return `${year}년 ${month}월 ${day}일 (${weekday})`;
+        },
+        listDaySideFormat: false,
+        customButtons: {
+            unassignedFilter: {
+                text: '강사 미정',
+                click: function () {
+                    const calendarEl = document.getElementById('calendar');
+                    const btn = document.querySelector('.fc-unassignedFilter-button');
+                    
+                    // 캘린더 컨테이너에 클래스 토글 (CSS로 강조 제어)
+                    calendarEl.classList.toggle('fc-show-unassigned');
+                    
+                    // 버튼 활성화 스타일 토글
+                    if (calendarEl.classList.contains('fc-show-unassigned')) {
+                        btn.classList.add('fc-button-active');
+                    } else {
+                        btn.classList.remove('fc-button-active');
+                    }
+                    
+                    // [기존 refetchEvents 제거] -> 스크롤 튀는 현상 해결
+                }
+            }
+        },
+        buttonText: { today: '오늘', month: '월간', list: '목록' },
+
         // [성능 최적화] eventSources 배열을 사용하여 공휴일과 일정을 분리하여 로딩!
         eventSources: [
             // 첫 번째 소스: 공휴일 (통신이 없으므로 월을 넘기자마자 0초 만에 표시됨)
             STATIC_HOLIDAY_EVENTS,
-            
+
             // 두 번째 소스: 메모리에 로드된 전체 일정을 즉시 반환 (하이브리드 캐싱 적용됨)
             function (info, successCallback, failureCallback) {
                 // fetch없이 전역 배열을 0초만에 그대로 전달하므로, 달을 넘길 때 전혀 통신 대기가 없습니다.
@@ -107,9 +138,39 @@ document.addEventListener('DOMContentLoaded', function () {
             const toolName = p['교구종류'] || '교구 없음';
             const toolQty = (p['교구수량'] && p['교구수량'] !== 0) ? `(${p['교구수량']})` : '';
 
+            // '미정' 일정 클래스 항상 추가
+            const isUnassigned = mainTeacher.includes('미정') || subTeacher.includes('미정');
+            const highlightClass = isUnassigned ? 'unassigned-highlight' : '';
+
+            // 1. 목록 보기 (List View) 처리
+            if (arg.view.type === 'listWeek') {
+                const grade = p['학년'] || '';
+                const count = p['대상인원'] || '';
+                
+                let targetText = '';
+                if (grade && count) targetText = `${grade}(${count})`;
+                else if (grade) targetText = grade;
+                else if (count) targetText = count;
+                
+                const note = p['비고'] || '';
+
+                return {
+                    html: `
+                    <div class="event-list-item ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
+                        <div class="list-col col-inst" title="${institution}">${institution}</div>
+                        <div class="list-col col-prog" title="${program}">${program}</div>
+                        <div class="list-col col-target" title="${targetText}">${targetText}</div>
+                        <div class="list-col col-teacher" title="${teacherText}">${teacherText}</div>
+                        <div class="list-col col-tool" title="${toolName}${toolQty}">${toolName}${toolQty}</div>
+                        <div class="list-col col-note" title="${note}">${note}</div>
+                    </div>`
+                };
+            }
+
+            // 2. 월간 보기 (Month View) 처리 (기존 유지)
             return {
                 html: `
-                <div class="event-wrapper" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
+                <div class="event-wrapper ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
                     <div class="event-line1">
                         <strong>${startTime}(${durationValue})</strong> | ${institution}
                     </div>
@@ -139,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
     window.currentScheduleEvents = [];
     fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (rawEvents, isCache) => {
         const eventsData = Array.isArray(rawEvents) ? rawEvents : (rawEvents.value || []);
-        
+
         window.currentScheduleEvents = eventsData.map(r => {
             const localDate = new Date(r['날짜']).toLocaleDateString('sv-SE');
             return {
@@ -150,11 +211,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 extendedProps: r
             };
         });
-        
+
         // 데이터가 준비되면 캘린더에 즉각 알림 (최초 캐시 즉시출력 + 새로운 갱신 발견 시 자동렌더)
         if (window.myCalendar) {
             window.myCalendar.refetchEvents();
         }
+        
+        // [임시 디버깅 용도] 받아온 데이터 구조 확인 (가장 첫 번째 일정의 데이터)
+        if(eventsData.length > 0) {
+           console.log("🛠️ [데이터 체크] 서버에서 온 첫 번째 일정 정보:", eventsData[0]);
+        }
+        
     }).catch(e => {
         console.error("Calendar data fetch error:", e);
     });
@@ -189,6 +256,10 @@ function openModal(p) {
         document.getElementById('edit-tool').value = p['교구종류'] || '';
         document.getElementById('edit-count').value = p['교구수량'] || 0;
         document.getElementById('edit-note').value = p['비고'] || '';
+
+        // [신규] 학년 및 대상인원 데이터 매핑
+        document.getElementById('edit-grade').value = p['학년'] || '';
+        document.getElementById('edit-students').value = p['대상인원'] || '';
 
         const colorSelect = document.getElementById('edit-color');
         colorSelect.value = p['색상'] || '#2c3e50';

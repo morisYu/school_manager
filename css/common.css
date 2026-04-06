@@ -1,11 +1,12 @@
-:root { 
-    --primary: #2c3e50; 
+:root {
+    --primary: #2c3e50;
     --accent: #3498db;
     --success: #27ae60;
-    --bg: #ffffff; 
+    --bg: #ffffff;
 }
 
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -24,8 +25,9 @@ body {
     background: #2c3e50;
     color: white;
     padding: 15px 0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
     margin-bottom: 25px;
+    /* Reduced from 25px */
 }
 
 .header-container {
@@ -60,16 +62,25 @@ body {
     color: white;
 }
 
-.btn-add { background-color: #3498db; }
-.btn-school { background-color: #667eea; }
-.btn-manage { background-color: #27ae60; }
+.btn-add {
+    background-color: #3498db;
+}
 
-.wrapper { 
+.btn-school {
+    background-color: #667eea;
+}
+
+.btn-manage {
+    background-color: #27ae60;
+}
+
+.wrapper {
     flex-grow: 1;
-    padding: 10px; 
-    display: flex; 
-    flex-direction: column; 
-    box-sizing: border-box; 
+    padding: 0 10px 10px 10px;
+    /* Reduced top padding to 0 */
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
     background: #ffffff;
     overflow: hidden;
 }

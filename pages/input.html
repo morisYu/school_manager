@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,95 +8,97 @@
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/input-form.css">
 </head>
+
 <body>
 
-<div class="system-header">
-    <div class="header-container">
-        <div class="header-left">
-            <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
-        </div>
-        <div class="header-right">
-            <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
-            <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
-            <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 정산 관리</button>
+    <div class="system-header">
+        <div class="header-container">
+            <div class="header-left">
+                <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
+            </div>
+            <div class="header-right">
+                <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
+                <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 정산 관리</button>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="form-card">
-    <div class="form-header">
-        <h2>📝 신규 일정 등록</h2>
-    </div>
-    
-    <div class="form-body">
-        <form id="lectureForm">
-            <div class="form-grid">
-                <div class="form-row-1 span-4">
-                    <div class="form-group row1-region">
-                        <label>지역 구분</label>
-                        <select id="input-region">
-                            <option value="대구">대구</option>
-                            <option value="부산">부산</option>
-                            <option value="울산">울산</option>
-                            <option value="포항">포항</option>
-                            <option value="기타">기타</option>
+    <div class="form-card">
+        <div class="form-header">
+            <h2>📝 신규 일정 등록</h2>
+        </div>
+
+        <div class="form-body">
+            <form id="lectureForm">
+                <div class="form-grid">
+                    <div class="form-row-1 span-4">
+                        <div class="form-group row1-region">
+                            <label>지역 구분</label>
+                            <select id="input-region">
+                                <option value="대구">대구</option>
+                                <option value="부산">부산</option>
+                                <option value="울산">울산</option>
+                                <option value="포항">포항</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group row1-institution">
+                            <label>기관명</label>
+                            <input type="text" id="institution" required>
+                        </div>
+
+                        <div class="form-group row1-program">
+                            <label>프로그램명</label>
+                            <input type="text" id="program" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group row-start-2"><label>날짜</label><input type="date" id="date" required></div>
+                    <div class="form-group"><label>시작 시간</label><input type="text" id="startTime" placeholder="14:00"
+                            maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
+                    <div class="form-group"><label>종료 시간</label><input type="text" id="endTime" placeholder="16:00"
+                            maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
+                    <div class="form-group">
+                        <label>색상</label>
+                        <select id="color" onchange="this.style.color=this.value">
+                            <option value="#3498db" style="color: #2980b9;">파랑</option>
+                            <option value="#f39c12" style="color: #f39c12;">주황</option>
+                            <option value="#2ecc71" style="color: #2ecc71;">초록</option>
+                            <option value="#2c3e50" style="color: #2c3e50;">검정</option>
+                            <option value="#8e44ad" style="color: #8e44ad;">보라</option>
+                            <option value="#795548" style="color: #795548;">갈색</option>
+                            <option value="#e67e22" style="color: #e67e22;">황토</option>
                         </select>
                     </div>
 
-                    <div class="form-group row1-institution">
-                        <label>기관명</label>
-                        <input type="text" id="institution" required>
+                    <div class="form-group row-start-3"><label>교구종류</label><input type="text" id="toolType"></div>
+                    <div class="form-group"><label>교구수량</label><input type="number" id="toolCount"></div>
+                    <div class="form-group"><label>주강사</label><input type="text" id="mainTeacher" required></div>
+                    <div class="form-group"><label>보조강사</label><input type="text" id="subTeacher"></div>
+
+                    <div class="form-group span-4">
+                        <label>비고</label>
+                        <textarea id="note" rows="4"></textarea>
                     </div>
 
-                    <div class="form-group row1-program">
-                        <label>프로그램명</label>
-                        <input type="text" id="program" required>
-                    </div>
+                    <input type="hidden" id="grade" value="">
+                    <input type="hidden" id="students" value="">
                 </div>
 
-                <div class="form-group row-start-2"><label>날짜</label><input type="date" id="date" required></div>
-                <div class="form-group"><label>시작 시간</label><input type="text" id="startTime" placeholder="14:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
-                <div class="form-group"><label>종료 시간</label><input type="text" id="endTime" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
-                <div class="form-group">
-                    <label>색상</label>
-                    <select id="color" onchange="this.style.color = this.value;" style="color: #2c3e50;">
-                        <option value="#2c3e50" style="color: #2c3e50;">검정 (기본)</option>
-                        <option value="#3498db" style="color: #3498db;">파랑</option>
-                        <option value="#e74c3c" style="color: #e74c3c;">빨강</option>
-                        <option value="#2ecc71" style="color: #2ecc71;">초록</option>
-                        <option value="#f39c12" style="color: #f39c12;">오렌지</option>
-                        <option value="#9b59b6" style="color: #9b59b6;">보라</option>
-                        <option value="#1abc9c" style="color: #1abc9c;">청록</option>
-                        <option value="#34495e" style="color: #34495e;">진회색</option>
-                        <option value="#e67e22" style="color: #e67e22;">황토</option>
-                        <option value="#d35400" style="color: #d35400;">진한 주황</option>
-                    </select>
+                <div class="btn-group">
+                    <button type="submit" class="btn-common btn-submit" id="submitBtn">저장하기</button>
+                    <button type="button" class="btn-common btn-back"
+                        onclick="location.href='../index.html'">취소하기</button>
                 </div>
-
-                <div class="form-group row-start-3"><label>교구종류</label><input type="text" id="toolType"></div>
-                <div class="form-group"><label>교구수량</label><input type="number" id="toolCount"></div>
-                <div class="form-group"><label>주강사</label><input type="text" id="mainTeacher" required></div>
-                <div class="form-group"><label>보조강사</label><input type="text" id="subTeacher"></div>
-
-                <div class="form-group span-4">
-                    <label>비고</label>
-                    <textarea id="note" rows="4"></textarea>
-                </div>
-
-                <input type="hidden" id="grade" value="">
-                <input type="hidden" id="students" value="">
-            </div>
-
-            <div class="btn-group">
-                <button type="submit" class="btn-common btn-submit" id="submitBtn">저장하기</button>
-                <button type="button" class="btn-common btn-back" onclick="location.href='../index.html'">취소하기</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
 
-<script src="../js/config.js"></script>
-<script src="../js/utils.js"></script>
-<script src="../js/input-handler.js"></script>
+    <script src="../js/config.js"></script>
+    <script src="../js/utils.js"></script>
+    <script src="../js/input-handler.js"></script>
 </body>
+
 </html>

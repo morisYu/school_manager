@@ -1,6 +1,6 @@
 #calendar-container { 
     background: white; 
-    padding: 10px; 
+    padding: 0 10px 10px 10px; /* Reduced top padding to 0 */
     border-radius: 12px; 
     flex-grow: 1;
     min-height: 0;
@@ -9,17 +9,47 @@
 }
 
 #calendar { height: 100%; }
-
-.fc .fc-button {
-    background-color: #f8f9fa !important;
-    border: 1px solid #dee2e6 !important;
-    color: #495057 !important;
-    font-weight: 800 !important;
+.fc .fc-toolbar.fc-header-toolbar {
+    margin-bottom: 0.8em !important; /* Reduced margin below header */
+    margin-top: 0.2em !important;    /* Reduced margin above header */
+    align-items: center; /* 수직 중앙 정렬 */
 }
 
+/* 캘린더 상단 년/월 텍스트 */
+.fc .fc-toolbar-title {
+    font-size: 2.8rem !important; /* 크기를 약 2배로 강조 */
+    font-weight: 900 !important;
+    color: #2c3e50 !important;
+    letter-spacing: -1.5px;
+}
+
+/* 캘린더 상호작용 버튼(이전/다음, 오늘, 월간, 목록 등) 컬러 버튼 디자인 */
+.fc .fc-button {
+    background-color: #3498db !important; /* 헤더 버튼과 어울리는 쾌활한 파란색 */
+    border: none !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important; /* 버튼들을 각각 독립적인 둥근 버튼으로 분리 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+    margin: 0 3px !important; /* 버튼 사이 띄우기 */
+}
+
+/* 버튼 마우스 오버(Hover) 시 효과 */
+.fc .fc-button:hover {
+    background-color: #2980b9 !important; /* 더 진한 파란색 */
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+    z-index: 2 !important;
+}
+
+/* 현재 선택된(활성화된) 버튼 스타일 (월간, 목록 버튼 등) */
 .fc .fc-button-primary:not(:disabled).fc-button-active {
-    background-color: var(--primary) !important;
-    color: white !important;
+    background-color: #2c3e50 !important; /* 선택 시 헤더 바탕색과 동일한 묵직한 네이비 */
+    color: #ffffff !important;
+    box-shadow: none !important;
+    transform: translateY(0) !important;
 }
 
 .fc-day-sun .fc-col-header-cell-cushion,
@@ -85,4 +115,58 @@
     color: #e74c3c !important;
     font-size: 0.85em !important;
     font-weight: 800 !important;
+}
+
+/* '미정' 필터 버튼 활성화 스타일 */
+.fc .fc-unassignedFilter-button.fc-button-active {
+    background-color: #e74c3c !important;
+    border-color: #c0392b !important;
+    color: white !important;
+}
+
+/* 강사 미정 일정 강조 스타일 - .fc-show-unassigned 클래스가 활성일 때만 적용 */
+.fc-show-unassigned .unassigned-highlight {
+    --event-bg: #fff0f0 !important; /* 연한 빨강 배경 */
+    --event-color: #e74c3c !important; /* 빨강 왼쪽 선 */
+    border: 1px solid #ffcfcf !important;
+}
+
+/* 목록 보기 (List View) 표 형식 스타일 */
+.fc-list-event {
+    cursor: pointer;
+}
+
+.event-list-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 15px;
+    padding: 6px 10px;
+    background: var(--event-bg, rgba(0,0,0,0.03));
+    border-left: 5px solid var(--event-color, #2c3e50);
+    border-radius: 4px;
+    box-sizing: border-box;
+    margin: 2px 0;
+}
+
+.list-col {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.col-inst { flex: 1.2; font-weight: 800; color: #2c3e50; }
+.col-prog { flex: 1.5; font-weight: 600; }
+.col-target { flex: 0.8; text-align: center; }
+.col-teacher { flex: 1.2; }
+.col-tool { flex: 1.2; }
+.col-note { flex: 2; font-size: 0.85em; color: #666; }
+
+/* 목록 보기에서 시간 컬럼 너비 조정 (필요시) */
+.fc .fc-list-event-time {
+    width: 100px;
+    font-weight: 800;
 }

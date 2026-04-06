@@ -51,7 +51,9 @@ function processData(action, btnSelector = '#save-btn', pendingText = '처리 �
                 "교구종류": getValue('edit-tool'),
                 "교구수량": getValue('edit-count'),
                 "비고": getValue('edit-note'),
-                "색상": getValue('edit-color')
+                "색상": getValue('edit-color'),
+                "학년": getValue('edit-grade'),
+                "대상인원": getValue('edit-students')
             }
         };
 

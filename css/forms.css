@@ -101,12 +101,12 @@
     color: #333;        /* 기본 글자색 */
 }
 
-/* [핵심 수정] 4열 그리드 레이아웃 및 반응형 대응 */
+/* [핵심 수정] 20열 그리드 레이아웃: 4분할(5), 5분할(4) 모두 대응 가능 */
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(20, minmax(0, 1fr));
     gap: 15px 20px;
-    width: 100%; /* 그리드 자체도 부모 너비에 맞춤 */
+    width: 100%;
 }
 
 .form-group {
@@ -114,26 +114,32 @@
     flex-direction: column;
 }
 
-/* 첫 줄 전용 10그리드: 2(지역) + 4(기관) + 4(프로그램) */
-.form-row-1 {
-    display: grid;
-    grid-template-columns: repeat(10, minmax(0, 1fr));
-    gap: 15px 20px;
-}
+/* 1행: 색상(3), 지역(3), 기관(7), 프로그램(7) -> 총 20 (비율 약 2:2:4:4) */
+.row1-color { grid-column: span 3; }
+.row1-region { grid-column: span 3; }
+.row1-institution { grid-column: span 7; }
+.row1-program { grid-column: span 7; }
 
-.row1-region {
-    grid-column: span 2;
-}
+/* 2행: 5분할 (20/5 = 4) */
+.row2-date { grid-column: span 4; }
+.row2-start { grid-column: span 4; }
+.row2-end { grid-column: span 4; }
+.row2-grade { grid-column: span 4; }
+.row2-students { grid-column: span 4; }
 
-.row1-institution,
-.row1-program {
-    grid-column: span 4;
-}
+/* 3행: 4분할 (20/4 = 5) */
+.row3-tool { grid-column: span 5; }
+.row3-count { grid-column: span 5; }
+.row3-main { grid-column: span 5; }
+.row3-sub { grid-column: span 5; }
+
+/* 4행: 전체 (20) */
+.span-note { grid-column: span 20; }
 
 /* 5. 비고란 높이 조절 */
 #edit-note {
     line-height: 1.5;
-    resize: none;          /* 크기 조절 비활성화로 디자인 유지 */
+    resize: none;
 }
 
 .close-btn {
@@ -168,13 +174,15 @@
 /* index.html 모달 내 날짜, 시작시간, 종료시간 Bold 처리 */
 #edit-date, 
 #edit-start, 
-#edit-end {
-    font-weight: 800 !important; /* 입력된 텍스트 굵기 강조 */
+#edit-end,
+#edit-grade,
+#edit-students {
+    font-weight: 800 !important;
     font-family: 'Pretendard', sans-serif;
     text-align: center;
 }
 
-/* 날짜 입력창(input type="date")의 내부 텍스트까지 Bold 적용 (input.html 방식 참고) */
+/* 날짜 입력창(input type="date")의 내부 텍스트까지 Bold 적용 */
 #edit-date::-webkit-datetime-edit,
 #edit-date::-webkit-inner-spin-button,
 #edit-date::-webkit-calendar-picker-indicator {
@@ -183,29 +191,4 @@
 
 #edit-region {
     width: 100%;
-}
-
-/* 만약 위 설정으로도 날짜가 올라온다면, 날짜에 강제로 줄바꿈 부여 */
-#edit-date {
-    grid-column-start: 1; /* 날짜는 무조건 첫 번째 열에서 시작해라 */
-}
-
-/* [핵심 수정] 기관명과 프로그램명이 한 줄의 남은 공간을 똑같이 나눠 먹도록 설정 */
-.span-fill {
-    /* 지역(1칸)을 제외한 나머지 3칸 중 1.5칸씩 차지 (1.5 + 1.5 = 3) */
-    grid-column: span 1.5; 
-}
-
-/* [추가] 날짜가 첫 줄로 밀고 올라오는 것을 방지 (강제 줄바꿈) */
-.break-line {
-    grid-column-start: 1; /* 무조건 첫 번째 열(지역 구분 라인)에서 시작 */
-}
-
-/* 모달 폼 행 시작 위치 고정 */
-.row-start-2 {
-    grid-column-start: 1;
-}
-
-.row-start-3 {
-    grid-column-start: 1;
-}
+}

@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>꿈잡끼 출강 관리 시스템</title>
-    
+
     <link rel="shortcut icon" href="./favicon_images/favicon.ico" type="image/x-icon">
     <link rel="icon" href="./favicon_images/favicon.ico" type="image/x-icon">
     <link rel="icon" type="image/png" sizes="16x16" href="./favicon_images/favicon-16x16.png">
@@ -15,11 +16,12 @@
 
     <meta name="msapplication-TileImage" content="./favicon_images/favicon-192x192.png">
     <meta name="msapplication-TileColor" content="#2c3e50">
-    
+
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/calendar.css">
     <link rel="stylesheet" href="css/forms.css">
 </head>
+
 <body>
     <div class="system-header">
         <div class="header-container">
@@ -33,7 +35,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="wrapper">
         <div id="calendar-container">
             <div id="calendar"></div>
@@ -50,74 +52,81 @@
         <div class="modal-body">
             <div class="form-grid">
                 <input type="hidden" id="edit-row">
-                
-                <div class="form-row-1 span-4">
-                    <div class="form-group row1-region">
-                        <label>지역 구분</label>
-                        <select id="edit-region">
-                            <option value="대구">대구</option>
-                            <option value="부산">부산</option>
-                            <option value="울산">울산</option>
-                            <option value="포항">포항</option>
-                            <option value="기타">기타</option>
-                        </select>
-                    </div>
 
-                    <div class="form-group row1-institution">
-                        <label>기관명</label>
-                        <input type="text" id="edit-institution">
-                    </div>
-
-                    <div class="form-group row1-program">
-                        <label>프로그램명</label>
-                        <input type="text" id="edit-program">
-                    </div>
+                <!-- Row 1: 색상(2), 지역구분(2), 기관명(4), 프로그램명(4) -->
+                <div class="form-group row1-color">
+                    <label>색상</label>
+                    <select id="edit-color" onchange="this.style.color=this.value">
+                        <option value="#3498db" style="color: #2980b9;">파랑</option>
+                        <option value="#f39c12" style="color: #f39c12;">주황</option>
+                        <option value="#2ecc71" style="color: #2ecc71;">초록</option>
+                        <option value="#2c3e50" style="color: #2c3e50;">검정</option>
+                        <option value="#8e44ad" style="color: #8e44ad;">보라</option>
+                        <option value="#795548" style="color: #795548;">갈색</option>
+                        <option value="#e67e22" style="color: #e67e22;">황토</option>
+                    </select>
+                </div>
+                <div class="form-group row1-region">
+                    <label>지역 구분</label>
+                    <select id="edit-region">
+                        <option value="대구">대구</option>
+                        <option value="부산">부산</option>
+                        <option value="울산">울산</option>
+                        <option value="포항">포항</option>
+                        <option value="기타">기타</option>
+                    </select>
+                </div>
+                <div class="form-group row1-institution">
+                    <label>기관명</label>
+                    <input type="text" id="edit-institution">
+                </div>
+                <div class="form-group row1-program">
+                    <label>프로그램명</label>
+                    <input type="text" id="edit-program">
                 </div>
 
-                <div class="form-group row-start-2">
+                <!-- Row 2: 날짜, 시작 시간, 종료 시간, 학년, 대상인원 (5분할) -->
+                <div class="form-group row2-date">
                     <label>날짜</label>
                     <input type="date" id="edit-date">
                 </div>
-                <div class="form-group">
+                <div class="form-group row2-start">
                     <label>시작 시간</label>
                     <input type="text" id="edit-start" maxlength="5" placeholder="10:00" oninput="autoColon(this)">
                 </div>
-                <div class="form-group">
+                <div class="form-group row2-end">
                     <label>종료 시간</label>
                     <input type="text" id="edit-end" maxlength="5" placeholder="13:00" oninput="autoColon(this)">
                 </div>
-                <div class="form-group">
-                    <label>색상</label>
-                    <select id="edit-color" onchange="this.style.color=this.value">
-                        <option value="#3498db" style="color: #2980b9;">파랑 (대구)</option>
-                        <option value="#f39c12" style="color: #f39c12;">주황 (부산)</option>
-                        <option value="#2ecc71" style="color: #2ecc71;">초록 (울산)</option>
-                        <option value="#e74c3c" style="color: #e74c3c;">빨강 (검토)</option>
-                        <option value="#2c3e50" style="color: #2c3e50;">검정</option>                                        
-                        <option value="#8e44ad" style="color: #8e44ad;">보라</option>
-                        <option value="#e91e63" style="color: #e91e63;">분홍</option>
-                        <option value="#795548" style="color: #795548;">갈색</option>
-                    </select>
+                <div class="form-group row2-grade">
+                    <label>학년</label>
+                    <input type="text" id="edit-grade" placeholder="예: 1-1">
+                </div>
+                <div class="form-group row2-students">
+                    <label>대상인원</label>
+                    <input type="text" id="edit-students" placeholder="예: 25명">
                 </div>
 
-                <div class="form-group row-start-3">
+                <!-- Row 3: 교구 종류, 교구 수량, 주강사, 보조강사 (4분할) -->
+                <div class="form-group row3-tool">
                     <label>교구 종류</label>
                     <input type="text" id="edit-tool">
                 </div>
-                <div class="form-group">
+                <div class="form-group row3-count">
                     <label>교구 수량</label>
                     <input type="number" id="edit-count">
                 </div>
-                <div class="form-group">
+                <div class="form-group row3-main">
                     <label>주강사</label>
                     <input type="text" id="edit-main">
                 </div>
-                <div class="form-group">
+                <div class="form-group row3-sub">
                     <label>보조강사</label>
                     <input type="text" id="edit-sub">
                 </div>
 
-                <div class="form-group span-4">
+                <!-- Row 4: 비고 (전체) -->
+                <div class="form-group row4-note span-note">
                     <label>비고</label>
                     <textarea id="edit-note" rows="4"></textarea>
                 </div>
@@ -132,10 +141,11 @@
         </div>
     </div>
 
-	<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-    <script src="js/config.js"></script> 
-    <script src="js/utils.js"></script>
-    <script src="js/calendar-main.js"></script>
-    <script src="js/api-handler.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+    <script src="js/config.js?v=2"></script>
+    <script src="js/utils.js?v=2"></script>
+    <script src="js/calendar-main.js?v=2"></script>
+    <script src="js/api-handler.js?v=2"></script>
 </body>
+
 </html>
