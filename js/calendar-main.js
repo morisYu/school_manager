@@ -46,7 +46,12 @@ window.allHolidayDates = Object.keys(KOREAN_HOLIDAYS);
 
 document.addEventListener('DOMContentLoaded', function () {
     const calendarEl = document.getElementById('calendar');
+    
+    // [신규] 이전에 보던 달력을 유지하기 위해 세션 스토리지에서 날짜를 가져옵니다.
+    const savedDate = sessionStorage.getItem('calendarCurrentDate');
+
     const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialDate: savedDate ? new Date(savedDate) : new Date(),
         initialView: 'dayGridMonth',
         locale: 'ko',
         height: '100%',
@@ -190,6 +195,10 @@ document.addEventListener('DOMContentLoaded', function () {
         eventClick: function (info) {
             if (info.event.extendedProps.isHoliday) return; // 공휴일은 클릭 불가
             openModal(info.event.extendedProps);
+        },
+        // [신규] 달력이 렌더링되거나 월이 바뀔 때 현재 날짜를 세션 스토리지에 저장 (새로고침 시 유지하기 위함)
+        datesSet: function (info) {
+            sessionStorage.setItem('calendarCurrentDate', info.view.currentStart.toISOString());
         }
     });
     calendar.render();
