@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "firebase-admin": "^13.8.0"
+  },
+  "scripts": {
+    "start": "npx serve -p 8000"
+  }
+}
