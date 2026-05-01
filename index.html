@@ -107,22 +107,22 @@
                     <input type="text" id="edit-students" placeholder="예: 25명">
                 </div>
 
-                <!-- Row 3: 교구 종류, 교구 수량, 주강사, 보조강사 (4분할) -->
-                <div class="form-group row3-tool">
-                    <label>교구 종류</label>
-                    <input type="text" id="edit-tool">
-                </div>
-                <div class="form-group row3-count">
-                    <label>교구 수량</label>
-                    <input type="number" id="edit-count">
-                </div>
-                <div class="form-group row3-main">
+                <!-- Row 3: 주강사 (고정) + 보조강사 (동적) -->
+                <div class="form-group row3-main" style="grid-column: span 5;">
                     <label>주강사</label>
                     <input type="text" id="edit-main">
                 </div>
-                <div class="form-group row3-sub">
+                <div class="dynamic-list-group" style="grid-column: span 15;">
                     <label>보조강사</label>
-                    <input type="text" id="edit-sub">
+                    <div class="dynamic-list" id="edit-sub-list"></div>
+                    <button type="button" class="btn-add-item" onclick="addSubInstructorRow('edit-sub-list')">+ 보조강사 추가</button>
+                </div>
+
+                <!-- Row 4: 교구 (동적) -->
+                <div class="dynamic-list-group" style="grid-column: span 20;">
+                    <label>교구</label>
+                    <div class="dynamic-list" id="edit-equip-list"></div>
+                    <button type="button" class="btn-add-item" onclick="addEquipmentRow('edit-equip-list')">+ 교구 추가</button>
                 </div>
 
                 <!-- Row 4: 비고 (전체) -->
@@ -142,10 +142,9 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
-    <script src="js/config.js?v=2"></script>
     <script src="js/utils.js?v=2"></script>
-    <script src="js/calendar-main.js?v=2"></script>
-    <script src="js/api-handler.js?v=2"></script>
+    <script type="module" src="js/calendar-main.js?v=2"></script>
+    <script type="module" src="js/api-handler.js?v=2"></script>
 </body>
 
 </html>

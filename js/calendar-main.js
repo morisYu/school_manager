@@ -1,5 +1,6 @@
+import { getSchedulesByDate } from './db_service.js';
+
 // 대한민국 법정공휴일 하드코딩 데이터 (2024~2026년 기준)
-// 향후 임시공휴일이 추가될 경우, 이 객체에 'YYYY-MM-DD': '휴일명' 형식으로 추가하시면 됩니다.
 const KOREAN_HOLIDAYS = {
     "2024-01-01": "신정",
     "2024-02-09": "설날", "2024-02-10": "설날", "2024-02-11": "설날", "2024-02-12": "대체공휴일",
@@ -30,7 +31,6 @@ const KOREAN_HOLIDAYS = {
     "2026-12-25": "크리스마스"
 };
 
-// 1. 공휴일 데이터를 즉시 표시 가능한 형태로 사전 가공 (로딩 시간 0초 달성)
 const STATIC_HOLIDAY_EVENTS = Object.entries(KOREAN_HOLIDAYS).map(([dateStr, name]) => ({
     title: name,
     start: dateStr,
@@ -40,14 +40,11 @@ const STATIC_HOLIDAY_EVENTS = Object.entries(KOREAN_HOLIDAYS).map(([dateStr, nam
     extendedProps: { isHoliday: true }
 }));
 
-// 가비지 컬렉션 방지 및 전역 필터 상태 관리
 window.isUnassignedFilterActive = false;
 window.allHolidayDates = Object.keys(KOREAN_HOLIDAYS);
 
 document.addEventListener('DOMContentLoaded', function () {
     const calendarEl = document.getElementById('calendar');
-    
-    // [신규] 이전에 보던 달력을 유지하기 위해 세션 스토리지에서 날짜를 가져옵니다.
     const savedDate = sessionStorage.getItem('calendarCurrentDate');
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -78,45 +75,69 @@ document.addEventListener('DOMContentLoaded', function () {
                 click: function () {
                     const calendarEl = document.getElementById('calendar');
                     const btn = document.querySelector('.fc-unassignedFilter-button');
-                    
-                    // 캘린더 컨테이너에 클래스 토글 (CSS로 강조 제어)
                     calendarEl.classList.toggle('fc-show-unassigned');
-                    
-                    // 버튼 활성화 스타일 토글
                     if (calendarEl.classList.contains('fc-show-unassigned')) {
                         btn.classList.add('fc-button-active');
                     } else {
                         btn.classList.remove('fc-button-active');
                     }
-                    
-                    // [기존 refetchEvents 제거] -> 스크롤 튀는 현상 해결
                 }
             }
         },
         buttonText: { today: '오늘', month: '월간', list: '목록' },
 
-        // [성능 최적화] eventSources 배열을 사용하여 공휴일과 일정을 분리하여 로딩!
         eventSources: [
-            // 첫 번째 소스: 공휴일 (통신이 없으므로 월을 넘기자마자 0초 만에 표시됨)
             STATIC_HOLIDAY_EVENTS,
-
-            // 두 번째 소스: 메모리에 로드된 전체 일정을 즉시 반환 (하이브리드 캐싱 적용됨)
-            function (info, successCallback, failureCallback) {
-                // fetch없이 전역 배열을 0초만에 그대로 전달하므로, 달을 넘길 때 전혀 통신 대기가 없습니다.
-                successCallback(window.currentScheduleEvents || []);
+            async function (info, successCallback, failureCallback) {
+                try {
+                    // 캘린더의 현재 뷰 시작일과 종료일 가져오기
+                    const startDate = info.startStr.split('T')[0];
+                    const endDate = info.endStr.split('T')[0];
+                    
+                    // Firestore에서 해당 기간 데이터 조회
+                    const rawEvents = await getSchedulesByDate(startDate, endDate);
+                    
+                    // 캘린더 규격에 맞게 매핑
+                    const eventsData = rawEvents.map(r => ({
+                        title: r.schoolName + (r.programName ? ` (${r.programName})` : ''),
+                        start: r.date + 'T' + r.startTime,
+                        end: r.date + 'T' + r.endTime,
+                        backgroundColor: r.color || '#2c3e50',
+                        extendedProps: {
+                            // 모달 상세 보기 및 수정을 위한 원본 데이터 매핑
+                            '날짜': r.date,
+                            '시작시간': r.startTime,
+                            '종료시간': r.endTime,
+                            '지역구분': r.region,
+                            '프로그램명': r.programName,
+                            '기관명': r.schoolName,
+                            '주강사': r.mainInstructor,
+                            '보조강사들': normalizeSubInstructors(r.subInstructors || r.subInstructor),
+                            '교구목록': normalizeEquipments(r.equipments, r.equipType, r.equipCount),
+                            '비고': r.note,
+                            '색상': r.color,
+                            '학년': r.grade,
+                            '대상인원': r.targetCount,
+                            row: r.id // Firestore 문서 ID 전달
+                        }
+                    }));
+                    
+                    successCallback(eventsData);
+                } catch (error) {
+                    console.error('Firestore 데이터 로드 실패:', error);
+                    failureCallback(error);
+                }
             }
         ],
         eventContent: function (arg) {
-            // 공휴일 스타일 처리
             if (arg.event.extendedProps.isHoliday) {
                 return {
                     html: `<div class="holiday-text">${arg.event.title}</div>`
                 };
             }
 
-            // 기존 일정 스타일 처리 (기존 로직 유지)
             const p = arg.event.extendedProps;
-            const color = arg.event.textColor;
+            const color = arg.event.backgroundColor;
             const transparentBg = (() => {
                 if (!color) return 'rgba(0,0,0,0.03)';
                 if (color.startsWith('#')) {
@@ -134,20 +155,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const program = p['프로그램명'] || '프로그램 미정';
             const mainTeacher = p['주강사'] || '강사 미정';
-            const subTeacher = p['보조강사'] || '';
+            const subTeachers = p['보조강사들'] || [];
             const institution = p['기관명'] || '기관 미정';
-            const startTime = extractTime(p['시작시간']);
-            const durationValue = calculateHours(p['시작시간'], p['종료시간']);
+            
+            const startTime = typeof extractTime === 'function' ? extractTime(p['시작시간']) : (p['시작시간'] || '');
+            const durationValue = typeof calculateHours === 'function' ? calculateHours(p['시작시간'], p['종료시간']) : '';
 
-            const teacherText = subTeacher ? `${mainTeacher}(${subTeacher})` : `${mainTeacher}`;
-            const toolName = p['교구종류'] || '교구 없음';
-            const toolQty = (p['교구수량'] && p['교구수량'] !== 0) ? `(${p['교구수량']})` : '';
+            // 보조강사 축약 표시: 첫 번째 + N명
+            let subText = '';
+            if (subTeachers.length === 1) subText = subTeachers[0];
+            else if (subTeachers.length > 1) subText = `${subTeachers[0]} +${subTeachers.length - 1}명`;
+            const teacherText = subText ? `${mainTeacher}(${subText})` : mainTeacher;
 
-            // '미정' 일정 클래스 항상 추가
-            const isUnassigned = mainTeacher.includes('미정') || subTeacher.includes('미정');
+            // 교구 축약 표시
+            const equips = p['교구목록'] || [];
+            let toolText = '교구 없음';
+            if (equips.length === 1) toolText = `${equips[0].type}(${equips[0].count})`;
+            else if (equips.length > 1) toolText = `${equips[0].type}(${equips[0].count}) +${equips.length - 1}종`;
+
+            const isUnassigned = mainTeacher.includes('미정') || subTeachers.some(s => s.includes('미정'));
             const highlightClass = isUnassigned ? 'unassigned-highlight' : '';
 
-            // 1. 목록 보기 (List View) 처리
             if (arg.view.type === 'listWeek') {
                 const grade = p['학년'] || '';
                 const count = p['대상인원'] || '';
@@ -166,13 +194,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="list-col col-prog" title="${program}">${program}</div>
                         <div class="list-col col-target" title="${targetText}">${targetText}</div>
                         <div class="list-col col-teacher" title="${teacherText}">${teacherText}</div>
-                        <div class="list-col col-tool" title="${toolName}${toolQty}">${toolName}${toolQty}</div>
+                        <div class="list-col col-tool" title="${toolText}">${toolText}</div>
                         <div class="list-col col-note" title="${note}">${note}</div>
                     </div>`
                 };
             }
 
-            // 2. 월간 보기 (Month View) 처리 (기존 유지)
             return {
                 html: `
                 <div class="event-wrapper ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
@@ -180,12 +207,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         <strong>${startTime}(${durationValue})</strong> | ${institution}
                     </div>
                     <div class="event-line2">
-                        ${program}, ${teacherText}, ${toolName}${toolQty}
+                        ${program}, ${teacherText}, ${toolText}
                     </div>
                 </div>`
             };
         },
-        // [중요] 날짜 숫자를 빨간색으로 변경 (공휴일 대응)
         dayCellDidMount: function (arg) {
             const dateStr = arg.date.toLocaleDateString('sv-SE');
             if (window.allHolidayDates && window.allHolidayDates.includes(dateStr)) {
@@ -193,80 +219,55 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         },
         eventClick: function (info) {
-            if (info.event.extendedProps.isHoliday) return; // 공휴일은 클릭 불가
-            openModal(info.event.extendedProps);
+            if (info.event.extendedProps.isHoliday) return;
+            window.openModal(info.event.extendedProps);
         },
-        // [신규] 달력이 렌더링되거나 월이 바뀔 때 현재 날짜를 세션 스토리지에 저장 (새로고침 시 유지하기 위함)
         datesSet: function (info) {
             sessionStorage.setItem('calendarCurrentDate', info.view.currentStart.toISOString());
         }
     });
     calendar.render();
     window.myCalendar = calendar;
-
-    // [하이브리드 캐싱 + 저장소 공유] 
-    // 동일한 API, 동일한 캐시키('cached_historyData')로 출강이력 데이터를 로드합니다.
-    window.currentScheduleEvents = [];
-    fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (rawEvents, isCache) => {
-        const eventsData = Array.isArray(rawEvents) ? rawEvents : (rawEvents.value || []);
-
-        window.currentScheduleEvents = eventsData.map(r => {
-            const localDate = new Date(r['날짜']).toLocaleDateString('sv-SE');
-            return {
-                title: r['프로그램명'] || '일정',
-                start: `${localDate}T${extractTime(r['시작시간'])}`,
-                end: `${localDate}T${extractTime(r['종료시간'])}`,
-                textColor: r['색상'] || '#2c3e50',
-                extendedProps: r
-            };
-        });
-
-        // 데이터가 준비되면 캘린더에 즉각 알림 (최초 캐시 즉시출력 + 새로운 갱신 발견 시 자동렌더)
-        if (window.myCalendar) {
-            window.myCalendar.refetchEvents();
-        }
-        
-        // [임시 디버깅 용도] 받아온 데이터 구조 확인 (가장 첫 번째 일정의 데이터)
-        if(eventsData.length > 0) {
-           console.log("🛠️ [데이터 체크] 서버에서 온 첫 번째 일정 정보:", eventsData[0]);
-        }
-        
-    }).catch(e => {
-        console.error("Calendar data fetch error:", e);
-    });
 });
 
-// 모달 열기 함수 (수정됨)
-// 모달 열기 함수 (수정본)
-function openModal(p) {
-    // 1. 클래스가 아닌 ID(#editModal)로 명확하게 모달을 찾습니다.
+// 모달 열기 및 닫기 함수 바인딩 (module 스크립트에서도 동작하도록 window 객체에 할당)
+window.openModal = function(p) {
     const modal = document.getElementById('edit-modal');
     const overlay = document.getElementById('modal-overlay');
 
     if (!modal || !overlay) {
-        console.error("HTML에서 editModal 또는 modalOverlay를 찾을 수 없습니다.");
+        console.error("HTML에서 edit-modal 또는 modal-overlay를 찾을 수 없습니다.");
         return;
     }
 
     if (p) {
-        // [상세 보기/수정 모드] 데이터 채우기
         const localDate = new Date(p['날짜']).toLocaleDateString('sv-SE');
 
-        // kebab-case ID로 데이터 매칭
         document.getElementById('edit-row').value = p.row || '';
         document.getElementById('edit-region').value = p['지역구분'] || '대구';
         document.getElementById('edit-institution').value = p['기관명'] || '';
         document.getElementById('edit-program').value = p['프로그램명'] || '';
         document.getElementById('edit-date').value = localDate;
-        document.getElementById('edit-start').value = extractTime(p['시작시간']);
-        document.getElementById('edit-end').value = extractTime(p['종료시간']);
+        document.getElementById('edit-start').value = typeof extractTime === 'function' ? extractTime(p['시작시간']) : (p['시작시간'] || '');
+        document.getElementById('edit-end').value = typeof extractTime === 'function' ? extractTime(p['종료시간']) : (p['종료시간'] || '');
         document.getElementById('edit-main').value = p['주강사'] || '';
-        document.getElementById('edit-sub').value = p['보조강사'] || '';
-        document.getElementById('edit-tool').value = p['교구종류'] || '';
-        document.getElementById('edit-count').value = p['교구수량'] || 0;
-        document.getElementById('edit-note').value = p['비고'] || '';
 
-        // [신규] 학년 및 대상인원 데이터 매핑
+        // 동적 보조강사 복원
+        const subList = document.getElementById('edit-sub-list');
+        subList.innerHTML = '';
+        const subs = p['보조강사들'] || [];
+        if (subs.length > 0) {
+            subs.forEach(name => addSubInstructorRow('edit-sub-list', name));
+        }
+
+        // 동적 교구 복원
+        const equipList = document.getElementById('edit-equip-list');
+        equipList.innerHTML = '';
+        const equips = p['교구목록'] || [];
+        if (equips.length > 0) {
+            equips.forEach(eq => addEquipmentRow('edit-equip-list', eq.type, eq.count));
+        }
+        document.getElementById('edit-note').value = p['비고'] || '';
         document.getElementById('edit-grade').value = p['학년'] || '';
         document.getElementById('edit-students').value = p['대상인원'] || '';
 
@@ -276,18 +277,20 @@ function openModal(p) {
 
         modal.querySelector('.modal-header h2').innerText = '⚙️ 일정 상세 및 수정';
     } else {
-        // 새 일정 추가 모드 초기화 로직 (동일)
         const allInputs = modal.querySelectorAll('input, textarea, select');
         allInputs.forEach(input => { if (input.id !== 'edit-color') input.value = ''; });
         document.getElementById('edit-date').value = new Date().toLocaleDateString('sv-SE');
+        // 동적 리스트 초기화
+        document.getElementById('edit-sub-list').innerHTML = '';
+        document.getElementById('edit-equip-list').innerHTML = '';
         modal.querySelector('.modal-header h2').innerText = '📅 새 일정 추가';
     }
 
     overlay.style.display = 'block';
     modal.style.display = 'block';
-}
+};
 
-function closeModal() {
+window.closeModal = function() {
     document.getElementById('modal-overlay').style.display = 'none';
     document.getElementById('edit-modal').style.display = 'none';
-}
+};

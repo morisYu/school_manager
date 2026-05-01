@@ -73,10 +73,18 @@
                         </select>
                     </div>
 
-                    <div class="form-group row-start-3"><label>교구종류</label><input type="text" id="toolType"></div>
-                    <div class="form-group"><label>교구수량</label><input type="number" id="toolCount"></div>
-                    <div class="form-group"><label>주강사</label><input type="text" id="mainTeacher" required></div>
-                    <div class="form-group"><label>보조강사</label><input type="text" id="subTeacher"></div>
+                    <div class="form-group row-start-3"><label>주강사</label><input type="text" id="mainTeacher" required></div>
+                    <div class="dynamic-list-group">
+                        <label>보조강사</label>
+                        <div class="dynamic-list" id="input-sub-list"></div>
+                        <button type="button" class="btn-add-item" onclick="addSubInstructorRow('input-sub-list')">+ 보조강사 추가</button>
+                    </div>
+
+                    <div class="dynamic-list-group" style="grid-column: span 4;">
+                        <label>교구</label>
+                        <div class="dynamic-list" id="input-equip-list"></div>
+                        <button type="button" class="btn-add-item" onclick="addEquipmentRow('input-equip-list')">+ 교구 추가</button>
+                    </div>
 
                     <div class="form-group span-4">
                         <label>비고</label>
@@ -96,9 +104,8 @@
         </div>
     </div>
 
-    <script src="../js/config.js"></script>
     <script src="../js/utils.js"></script>
-    <script src="../js/input-handler.js"></script>
+    <script type="module" src="../js/input-handler.js"></script>
 </body>
 
 </html>

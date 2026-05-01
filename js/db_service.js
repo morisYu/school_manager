@@ -81,6 +81,27 @@ export async function getSchedulesByDate(startDate, endDate) {
 }
 
 /**
+ * 전체 일정을 가져와 배열로 반환합니다. (강사 관리/학교 관리 페이지용)
+ * @returns {Promise<Array>} 전체 일정 객체 배열 (date 오름차순 정렬)
+ */
+export async function getAllSchedules() {
+    try {
+        const schedulesRef = collection(db, "schedules");
+        const q = query(schedulesRef, orderBy("date", "asc"));
+        const snapshot = await getDocs(q);
+        
+        const schedules = [];
+        snapshot.forEach((docSnap) => {
+            schedules.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        return schedules;
+    } catch (error) {
+        console.error("📅 getAllSchedules 에러:", error);
+        throw error;
+    }
+}
+
+/**
  * 새로운 일정을 저장합니다.
  * @param {Object} data 저장할 일정 객체
  * @returns {Promise<string>} 생성된 문서의 ID

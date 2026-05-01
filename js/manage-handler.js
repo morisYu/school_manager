@@ -1,54 +1,51 @@
-/* js/manage-handler.js */
+/* js/manage-handler.js - Firebase Firestore 버전 */
+import { getAllSchedules } from './db_service.js';
 
 let rawData = [];
 
-// 페이지 로드 시 강사 목록 추출 (캐싱 및 백그라운드 갱신 적용)
-window.onload = () => {
-    // 학교 관리 페이지와 동일한 URL 및 캐시키를 사용하여 캐시 데이터 재사용
-    fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (data, isCache) => {
-        rawData = data;
+// 페이지 로드 시 Firestore에서 전체 일정 데이터를 가져와 강사 목록 추출
+window.onload = async () => {
+    try {
+        const firestoreData = await getAllSchedules();
         
+        // Firestore 영문 카멜케이스 → 기존 렌더링 로직의 한글 키로 변환
+        rawData = firestoreData.map(r => ({
+            '날짜': r.date,
+            '시작시간': r.startTime,
+            '종료시간': r.endTime,
+            '지역구분': r.region,
+            '프로그램명': r.programName,
+            '기관명': r.schoolName,
+            '주강사': r.mainInstructor,
+            '보조강사들': normalizeSubInstructors(r.subInstructors || r.subInstructor),
+            '교구목록': normalizeEquipments(r.equipments, r.equipType, r.equipCount),
+            '비고': r.note,
+            '색상': r.color,
+            '학년': r.grade,
+            '대상인원': r.targetCount
+        }));
+
         const select = document.getElementById('teacherSelect');
-        const prevVal = select.value;
-        
         const teachers = new Set();
         rawData.forEach(r => {
             if(r['주강사']) teachers.add(r['주강사']);
-            if(r['보조강사']) teachers.add(r['보조강사']);
+            const subs = r['보조강사들'] || [];
+            subs.forEach(s => { if(s) teachers.add(s); });
         });
 
         select.innerHTML = '<option value="">강사 선택</option>';
         [...teachers].sort().forEach(t => {
             select.innerHTML += `<option value="${t}">${t}</option>`;
         });
-        
-        // 사용자가 이미 강사를 선택해 놓았다면 값 유지
-        if (prevVal && [...teachers].includes(prevVal)) {
-            select.value = prevVal;
-        }
-        
-        // 백그라운드 갱신 데이터가 들어왔을 때 이미 화면 조회 중이라면 재렌더링
-        if (!isCache && select.value) {
-            loadReport();
-        }
-    }).catch(e => {
+    } catch (e) {
         console.error("Data Load Error:", e);
         alert("강사 목록을 불러오지 못했습니다.");
-    });
+    }
 };
 
-
-
-function exportToExcel() {
-    const table = document.querySelector("#report-area table");
-    const wb = XLSX.utils.table_to_book(table, { sheet: "정산내역서", raw: true });
-    const name = document.getElementById('teacherSelect').value || '강사';
-    const dateStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `정산내역서_${name}_${dateStr}.xlsx`);
-}
-
-async function loadReport() {
-    const region = document.getElementById('region-select').value; // 지역 값 가져오기
+// window에 바인딩하여 HTML onclick에서 호출 가능하도록 설정
+window.loadReport = function() {
+    const region = document.getElementById('region-select').value;
     const name = document.getElementById('teacherSelect').value;
     const start = document.getElementById('startDate').value;
     const end = document.getElementById('endDate').value;
@@ -57,12 +54,12 @@ async function loadReport() {
 
     const filtered = rawData.filter(r => {
         const rDate = new Date(r['날짜']);
-        // 지역 필터 조건 추가: '전체'가 아니면 시트의 '지역구분' 컬럼과 비교
         const isRegionMatch = region === "전체" || String(r['지역구분']) === region;
-        const isNameMatch = String(r['주강사']) === name || String(r['보조강사']) === name;
+        const subs = r['보조강사들'] || [];
+        const isNameMatch = String(r['주강사']) === name || subs.includes(name);
         const isAfter = !start || rDate >= new Date(start);
         const isBefore = !end || rDate <= new Date(end);
-        return isNameMatch && isAfter && isBefore;
+        return isNameMatch && isAfter && isBefore && isRegionMatch;
     }).sort((a, b) => new Date(a['날짜']) - new Date(b['날짜']));
 
     const tbody = document.getElementById('report-table-body');
@@ -83,7 +80,8 @@ async function loadReport() {
             <tr>
                 <td>${index + 1}</td>
                 <td class="date-cell">${formatDate(r['날짜'])}</td>
-                <td>${r['지역구분'] || '-'}</td> <td>${r['기관명']}</td>
+                <td>${r['지역구분'] || '-'}</td>
+                <td>${r['기관명']}</td>
                 <td>${r['프로그램명']}</td>
                 <td>${role}</td>
                 <td class="hour-cell">${hours}</td>
@@ -103,4 +101,12 @@ async function loadReport() {
         tbody.innerHTML = '<tr><td colspan="9">내역이 없습니다.</td></tr>';
         footer.style.display = 'none';
     }
-}
+};
+
+window.exportToExcel = function() {
+    const table = document.querySelector("#report-area table");
+    const wb = XLSX.utils.table_to_book(table, { sheet: "정산내역서", raw: true });
+    const name = document.getElementById('teacherSelect').value || '강사';
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `정산내역서_${name}_${dateStr}.xlsx`);
+};

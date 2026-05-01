@@ -1,58 +1,60 @@
-/* js/school-manage-handler.js */
+/* js/school-manage-handler.js - Firebase Firestore 버전 */
+import { getSchools, getAllSchedules } from './db_service.js';
 
 let schoolData = [];
 let historyData = [];
 
-// 페이지 로드 시 학교 목록 및 전체 이력 데이터 로드 (캐싱 및 백그라운드 갱신 적용)
-window.onload = () => {
+// 페이지 로드 시 Firestore에서 학교 목록 및 전체 이력 데이터 로드
+window.onload = async () => {
     const schoolSelect = document.getElementById('school-select');
-
-    // 초기 상태: 학교 정보 카드에 placeholder 표시
     showInfoPlaceholder();
-    
-    // 1. 학교 관리 데이터 캐싱 로드
-    fetchAndCache(`${GAS_URL}?sheet=학교관리`, 'cached_schoolData', (data, isCache) => {
-        schoolData = data;
-        
-        // 사용자가 이미 드롭다운을 선택했으면 그 값을 유지
-        const prevVal = schoolSelect.value;
+
+    try {
+        // 1. 학교 데이터 로드
+        schoolData = await getSchools();
         
         schoolSelect.innerHTML = '<option value="">-- 학교를 선택하세요 --</option>';
         if (Array.isArray(schoolData)) {
             schoolData.forEach((school, index) => {
-                if (school['학교명']) {
+                if (school.schoolName) {
                     const option = document.createElement('option');
-                    option.value = index; 
-                    option.textContent = school['학교명'];
+                    option.value = index;
+                    option.textContent = school.schoolName;
                     schoolSelect.appendChild(option);
                 }
             });
         }
-        
-        if (prevVal) schoolSelect.value = prevVal;
-    }).catch(e => {
-        console.error("School Data Load Error:", e);
-    });
 
-    // 2. 출강 이력 데이터 캐싱 로드
-    fetchAndCache(`${GAS_URL}?sheet=출강이력`, 'cached_historyData', (data, isCache) => {
-        historyData = data;
+        // 2. 출강 이력 데이터 로드
+        const firestoreSchedules = await getAllSchedules();
         
-        // 백그라운드에서 새로운 데이터로 업데이트 시점이면서, 
-        // 사용자가 이미 학교 정보 조회를 한 화면일 경우 자연스럽게 최신 결과 재출력
-        if (!isCache && schoolSelect.value !== "") {
-            loadSchoolHistory(); 
-        }
-    }).catch(e => {
-        console.error("History Data Load Error:", e);
-        alert("데이터를 불러오는 중 오류가 발생했습니다. 인터넷 연결이나 GAS 설정을 확인하세요.");
-    });
+        // Firestore 영문 카멜케이스 → 기존 렌더링 로직의 한글 키로 변환
+        historyData = firestoreSchedules.map(r => ({
+            '날짜': r.date,
+            '시작시간': r.startTime,
+            '종료시간': r.endTime,
+            '지역구분': r.region,
+            '프로그램명': r.programName,
+            '기관명': r.schoolName,
+            '주강사': r.mainInstructor,
+            '보조강사들': normalizeSubInstructors(r.subInstructors || r.subInstructor),
+            '교구목록': normalizeEquipments(r.equipments, r.equipType, r.equipCount),
+            '비고': r.note,
+            '색상': r.color,
+            '학년': r.grade,
+            '대상인원': r.targetCount
+        }));
+
+    } catch (e) {
+        console.error("Data Load Error:", e);
+        alert("데이터를 불러오는 중 오류가 발생했습니다.");
+    }
 };
 
 /**
- * 학교를 선택하고 마칠 때 호출되는 조회 함수
+ * 학교를 선택하고 조회할 때 호출되는 함수
  */
-async function loadSchoolHistory() {
+window.loadSchoolHistory = function() {
     const schoolIndex = document.getElementById('school-select').value;
     const startDate = document.getElementById('startDate').value;
     const endDate = document.getElementById('endDate').value;
@@ -64,20 +66,17 @@ async function loadSchoolHistory() {
     }
 
     const selectedSchool = schoolData[schoolIndex];
-    const shortName = selectedSchool['검색용 약칭'];
+    const shortName = selectedSchool.searchAlias;
 
     // 1. 상단 학교 정보 카드 업데이트
     displaySchoolInfo(selectedSchool);
 
     // 2. 하단 출강 이력 필터링 및 출력
     filterAndDisplayHistory(shortName, startDate, endDate);
-}
+};
 
 /**
- * 선택된 학교의 정보를 상단 카드에 표시
- */
-/**
- * 학교 미선택 시 정보 카드에 placeholder(안내 문구)를 표시
+ * 학교 미선택 시 정보 카드에 placeholder 표시
  */
 function showInfoPlaceholder() {
     const infoCard = document.getElementById('school-info');
@@ -90,12 +89,11 @@ function showInfoPlaceholder() {
 }
 
 /**
- * 선택된 학교의 정보를 상단 카드에 표시
+ * 선택된 학교의 정보를 상단 카드에 표시 (Firestore 스키마 기준)
  */
 function displaySchoolInfo(school) {
     const infoCard = document.getElementById('school-info');
 
-    // placeholder를 실제 학교 정보 콘텐츠로 교체
     infoCard.innerHTML = `
         <div class="school-header">
             <div class="school-title-box">
@@ -132,21 +130,22 @@ function displaySchoolInfo(school) {
         </div>
     `;
 
-    document.getElementById('info-school-name').textContent = school['학교명'] || '-';
-    document.getElementById('info-school-type').textContent = school['학교구분'] || '-';
-    document.getElementById('info-school-region').textContent = `${school['시'] || ''} ${school['구'] || ''}`.trim() || '지역 정보 없음';
-    document.getElementById('info-school-address').textContent = `${school['주소'] || '-'} (${school['우편번호'] || '-'})`;
-    document.getElementById('info-school-phone').textContent = school['대표번호'] || '-';
-    document.getElementById('info-school-contact').textContent = `${school['담당자명'] || '-'} (${school['담당자 연락처'] || '-'})`;
+    // Firestore 영문 카멜케이스 필드명으로 접근
+    document.getElementById('info-school-name').textContent = school.schoolName || '-';
+    document.getElementById('info-school-type').textContent = school.schoolType || '-';
+    document.getElementById('info-school-region').textContent = `${school.city || ''} ${school.district || ''}`.trim() || '지역 정보 없음';
+    document.getElementById('info-school-address').textContent = `${school.address || '-'} (${school.zipCode || '-'})`;
+    document.getElementById('info-school-phone').textContent = school.mainPhone || '-';
+    document.getElementById('info-school-contact').textContent = `${school.managerName || '-'} (${school.managerPhone || '-'})`;
     
     const homeLink = document.getElementById('info-school-home');
-    if (school['홈페이지'] && school['홈페이지'] !== '-') {
-        homeLink.innerHTML = `<a href="${school['홈페이지']}" target="_blank">${school['홈페이지']} (이동)</a>`;
+    if (school.website && school.website !== '-') {
+        homeLink.innerHTML = `<a href="${school.website}" target="_blank">${school.website} (이동)</a>`;
     } else {
         homeLink.textContent = '-';
     }
     
-    document.getElementById('info-school-note').textContent = school['비고'] || '-';
+    document.getElementById('info-school-note').textContent = school.note || '-';
 }
 
 /**
@@ -161,22 +160,18 @@ function filterAndDisplayHistory(shortName, start, end) {
         return;
     }
 
-    // 필터링 로직
     const filtered = historyData.filter(row => {
-        // A. 학교칭 매칭 (괄호 안의 이름 추출)
         const institution = String(row['기관명'] || '');
-        const match = institution.match(/\(([^)]+)\)/); // 정규식: (내용) 추출
+        const match = institution.match(/\(([^)]+)\)/);
         let isSchoolMatch = false;
 
         if (match && shortName) {
             const extractedName = match[1].trim();
             isSchoolMatch = extractedName === shortName.trim();
         } else if (!match && shortName) {
-            // 괄호가 없는 경우 기관명 전체에 포함되는지 확인 (폴백 로직)
             isSchoolMatch = institution.includes(shortName.trim());
         }
 
-        // B. 기간 매칭
         const rowDate = new Date(row['날짜']);
         const isAfter = !start || rowDate >= new Date(start);
         const isBefore = !end || rowDate <= new Date(end);
@@ -184,10 +179,8 @@ function filterAndDisplayHistory(shortName, start, end) {
         return isSchoolMatch && isAfter && isBefore;
     });
 
-    // 날짜순 정렬 (최신순)
     filtered.sort((a, b) => new Date(b['날짜']) - new Date(a['날짜']));
 
-    // 테이블 렌더링
     tbody.innerHTML = '';
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">해당 조건에 맞는 출강 이력이 없습니다.</td></tr>';
@@ -197,7 +190,9 @@ function filterAndDisplayHistory(shortName, start, end) {
     filtered.forEach((row, index) => {
         const hours = typeof calculateHours === 'function' ? calculateHours(row['시작시간'], row['종료시간']) : '-';
         const dateStr = typeof formatDate === 'function' ? formatDate(row['날짜']) : row['날짜'];
-        const educators = `${row['주강사'] || '-'}${row['보조강사'] ? ' / ' + row['보조강사'] : ''}`;
+        const subs = row['보조강사들'] || [];
+        const subText = subs.length > 0 ? ' / ' + subs.join(', ') : '';
+        const educators = `${row['주강사'] || '-'}${subText}`;
 
         tbody.innerHTML += `
             <tr>

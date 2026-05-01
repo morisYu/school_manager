@@ -171,3 +171,78 @@ textarea:focus {
         grid-column: span 1;
     }
 }
+
+/* 동적 보조강사 / 교구 리스트 */
+.dynamic-list-group {
+    grid-column: span 4;
+    display: flex;
+    flex-direction: column;
+}
+
+.dynamic-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dynamic-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dynamic-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.dynamic-row .equip-count-input {
+    flex: 0 0 80px;
+    text-align: center;
+}
+
+.btn-add-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 7px 14px;
+    border: 2px dashed #a0c4ff;
+    border-radius: 8px;
+    background: #f0f7ff;
+    color: #2e86de;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-add-item:hover {
+    background: #dceeff;
+    border-color: #2e86de;
+}
+
+.btn-remove-item {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    background: #ffe0e0;
+    color: #e74c3c;
+    font-size: 1.1rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    line-height: 1;
+    padding: 0;
+}
+
+.btn-remove-item:hover {
+    background: #e74c3c;
+    color: white;
+}
