@@ -1,24 +1,38 @@
 # AI 분석용 임시 파일 제외
 repomix-output.txt
 repomix-output.xml
-node_modules/
-# repomix로 생성된 모든 텍스트 파일 무시
 *repomix*.txt
+
+# Node.js
+node_modules/
+package-lock.json
 
 # 로그 및 기타 설정 파일
 *.log
 .DS_Store
 
-# 개발 리포트
+# 개발 리포트 (자동 생성)
 dev_report/implementation_plan*.md
 dev_report/walkthrough*.md
 
 # AI 참고 데이터
 .agent/
 
-# 서비스 계정 키
-json/serviceAccountKey.json
-json/schoolmanage87-serviceAccountKey.json
-json/
-*.json
+# ==============================
+# 🔒 보안 민감 파일
+# ==============================
 
+# Firebase 서비스 계정 키 (절대 업로드 금지)
+json/schoolmanage87-serviceAccountKey.json
+json/serviceAccountKey.json
+*-serviceAccountKey.json
+
+# Firebase 설정 (API Key 포함)
+js/firebase_config.js
+
+# 마이그레이션용 원본 데이터
+json/schools.json
+json/schedules.json
+
+# 마이그레이션 스크립트 (서비스 키 경로 포함)
+js/migrate.js

@@ -24,6 +24,8 @@ body {
     overflow: hidden;
     border: 1px solid rgba(106, 136, 173, 0.22);
     margin-bottom: 50px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
 }
 
 .form-header {
