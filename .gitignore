@@ -28,7 +28,7 @@ json/serviceAccountKey.json
 *-serviceAccountKey.json
 
 # Firebase 설정 (API Key 포함)
-js/firebase_config.js
+# js/firebase_config.js (실제 사이트 작동을 위해 추적 허용)
 
 # 마이그레이션용 원본 데이터
 json/schools.json
