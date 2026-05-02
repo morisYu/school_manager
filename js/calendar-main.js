@@ -1,5 +1,9 @@
 import { getSchedulesByDate } from './db_service.js';
+import { auth } from './firebase_config.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
+// onAuthStateChanged는 auth_handler.js에서 통합 관리하고, 
+// 여기서는 초기화 함수만 전역으로 노출하여 화면이 준비되었을 때 호출하도록 변경합니다.
 // 대한민국 법정공휴일 하드코딩 데이터 (2024~2026년 기준)
 const KOREAN_HOLIDAYS = {
     "2024-01-01": "신정",
@@ -43,8 +47,15 @@ const STATIC_HOLIDAY_EVENTS = Object.entries(KOREAN_HOLIDAYS).map(([dateStr, nam
 window.isUnassignedFilterActive = false;
 window.allHolidayDates = Object.keys(KOREAN_HOLIDAYS);
 
-document.addEventListener('DOMContentLoaded', function () {
+// onAuthStateChanged 리스너가 상단(5라인)에 이미 존재하므로 중복 방지를 위해 여기서는 제거합니다.
+
+window.initCalendar = function() {
     const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return;
+
+    // 이미 초기화된 경우 중복 생성 방지
+    if (window.myCalendar) return;
+
     const savedDate = sessionStorage.getItem('calendarCurrentDate');
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -60,7 +71,7 @@ document.addEventListener('DOMContentLoaded', function () {
             center: 'title',
             right: 'dayGridMonth,listWeek'
         },
-        listDayFormat: function(arg) {
+        listDayFormat: function (arg) {
             const d = arg.date.marker;
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -93,10 +104,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     // 캘린더의 현재 뷰 시작일과 종료일 가져오기
                     const startDate = info.startStr.split('T')[0];
                     const endDate = info.endStr.split('T')[0];
-                    
+
                     // Firestore에서 해당 기간 데이터 조회
                     const rawEvents = await getSchedulesByDate(startDate, endDate);
-                    
+
                     // 캘린더 규격에 맞게 매핑
                     const eventsData = rawEvents.map(r => ({
                         title: r.schoolName + (r.programName ? ` (${r.programName})` : ''),
@@ -121,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             row: r.id // Firestore 문서 ID 전달
                         }
                     }));
-                    
+
                     successCallback(eventsData);
                 } catch (error) {
                     console.error('Firestore 데이터 로드 실패:', error);
@@ -157,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const mainTeacher = p['주강사'] || '강사 미정';
             const subTeachers = p['보조강사들'] || [];
             const institution = p['기관명'] || '기관 미정';
-            
+
             const startTime = typeof extractTime === 'function' ? extractTime(p['시작시간']) : (p['시작시간'] || '');
             const durationValue = typeof calculateHours === 'function' ? calculateHours(p['시작시간'], p['종료시간']) : '';
 
@@ -179,12 +190,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (arg.view.type === 'listWeek') {
                 const grade = p['학년'] || '';
                 const count = p['대상인원'] || '';
-                
+
                 let targetText = '';
                 if (grade && count) targetText = `${grade}(${count})`;
                 else if (grade) targetText = grade;
                 else if (count) targetText = count;
-                
+
                 const note = p['비고'] || '';
 
                 return {
@@ -228,10 +239,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     calendar.render();
     window.myCalendar = calendar;
-});
+}
 
 // 모달 열기 및 닫기 함수 바인딩 (module 스크립트에서도 동작하도록 window 객체에 할당)
-window.openModal = function(p) {
+window.openModal = function (p) {
     const modal = document.getElementById('edit-modal');
     const overlay = document.getElementById('modal-overlay');
 
@@ -290,7 +301,7 @@ window.openModal = function(p) {
     modal.style.display = 'block';
 };
 
-window.closeModal = function() {
+window.closeModal = function () {
     document.getElementById('modal-overlay').style.display = 'none';
     document.getElementById('edit-modal').style.display = 'none';
 };

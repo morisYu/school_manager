@@ -20,129 +20,157 @@
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/calendar.css">
     <link rel="stylesheet" href="css/forms.css">
+    <link rel="stylesheet" href="css/login.css">
 </head>
-
 <body>
-    <div class="system-header">
-        <div class="header-container">
-            <div class="header-left">
-                <a href="index.html" class="header-logo">🏫 출강 관리 시스템</a>
-            </div>
-            <div class="header-right">
-                <button class="nav-btn btn-add" onclick="location.href='pages/input.html'">📅 일정 추가</button>
-                <button class="nav-btn btn-school" onclick="location.href='pages/school-manage.html'">🏫 학교 관리</button>
-                <button class="nav-btn btn-manage" onclick="location.href='pages/manage.html'">📊 강사 관리</button>
-            </div>
+
+    <!-- 로그인 화면 -->
+    <div id="login-screen" class="login-screen">
+        <div class="login-container">
+            <div class="login-logo">🏫</div>
+            <h1 class="login-title">출강 관리 시스템</h1>
+            <p class="login-subtitle">계정 정보를 입력하여 로그인하세요.</p>
+            
+            <form id="login-form">
+                <div class="login-form-group">
+                    <label for="login-email">이메일 주소</label>
+                    <input type="email" id="login-email" class="login-input" placeholder="example@email.com" required>
+                </div>
+                <div class="login-form-group">
+                    <label for="login-password">비밀번호</label>
+                    <input type="password" id="login-password" class="login-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="login-button">시스템 접속하기</button>
+                <div id="login-error" class="login-error"></div>
+            </form>
         </div>
     </div>
 
-    <div class="wrapper">
-        <div id="calendar-container">
-            <div id="calendar"></div>
-        </div>
-    </div>
-
-
-    <div id="modal-overlay" onclick="closeModal()"></div>
-    <div class="modal-content" id="edit-modal">
-        <div class="modal-header">
-            <h2 style="margin: 0; font-size: 1.25rem;">📅 일정 상세 및 수정</h2>
-        </div>
-
-        <div class="modal-body">
-            <div class="form-grid">
-                <input type="hidden" id="edit-row">
-
-                <!-- Row 1: 색상(2), 지역구분(2), 기관명(4), 프로그램명(4) -->
-                <div class="form-group row1-color">
-                    <label>색상</label>
-                    <select id="edit-color" onchange="this.style.color=this.value">
-                        <option value="#3498db" style="color: #2980b9;">파랑</option>
-                        <option value="#f39c12" style="color: #f39c12;">주황</option>
-                        <option value="#2ecc71" style="color: #2ecc71;">초록</option>
-                        <option value="#2c3e50" style="color: #2c3e50;">검정</option>
-                        <option value="#8e44ad" style="color: #8e44ad;">보라</option>
-                        <option value="#795548" style="color: #795548;">갈색</option>
-                        <option value="#e67e22" style="color: #e67e22;">황토</option>
-                    </select>
+    <!-- 메인 시스템 영역 (로그인 후 표시) -->
+    <div id="main-content" style="display: none;">
+        <div class="system-header">
+            <div class="header-container">
+                <div class="header-left">
+                    <a href="index.html" class="header-logo">🏫 출강 관리 시스템</a>
                 </div>
-                <div class="form-group row1-region">
-                    <label>지역 구분</label>
-                    <select id="edit-region">
-                        <option value="대구">대구</option>
-                        <option value="부산">부산</option>
-                        <option value="울산">울산</option>
-                        <option value="포항">포항</option>
-                        <option value="기타">기타</option>
-                    </select>
-                </div>
-                <div class="form-group row1-institution">
-                    <label>기관명</label>
-                    <input type="text" id="edit-institution">
-                </div>
-                <div class="form-group row1-program">
-                    <label>프로그램명</label>
-                    <input type="text" id="edit-program">
-                </div>
-
-                <!-- Row 2: 날짜, 시작 시간, 종료 시간, 학년, 대상인원 (5분할) -->
-                <div class="form-group row2-date">
-                    <label>날짜</label>
-                    <input type="date" id="edit-date">
-                </div>
-                <div class="form-group row2-start">
-                    <label>시작 시간</label>
-                    <input type="text" id="edit-start" maxlength="5" placeholder="10:00" oninput="autoColon(this)">
-                </div>
-                <div class="form-group row2-end">
-                    <label>종료 시간</label>
-                    <input type="text" id="edit-end" maxlength="5" placeholder="13:00" oninput="autoColon(this)">
-                </div>
-                <div class="form-group row2-grade">
-                    <label>학년</label>
-                    <input type="text" id="edit-grade" placeholder="예: 1-1">
-                </div>
-                <div class="form-group row2-students">
-                    <label>대상인원</label>
-                    <input type="text" id="edit-students" placeholder="예: 25명">
-                </div>
-
-                <!-- Row 3: 주강사 (고정) + 보조강사 (동적) -->
-                <div class="form-group row3-main" style="grid-column: span 5;">
-                    <label>주강사</label>
-                    <input type="text" id="edit-main">
-                </div>
-                <div class="dynamic-list-group" style="grid-column: span 15;">
-                    <label>보조강사</label>
-                    <div class="dynamic-list" id="edit-sub-list"></div>
-                    <button type="button" class="btn-add-item" onclick="addSubInstructorRow('edit-sub-list')">+ 보조강사 추가</button>
-                </div>
-
-                <!-- Row 4: 교구 (동적) -->
-                <div class="dynamic-list-group" style="grid-column: span 20;">
-                    <label>교구</label>
-                    <div class="dynamic-list" id="edit-equip-list"></div>
-                    <button type="button" class="btn-add-item" onclick="addEquipmentRow('edit-equip-list')">+ 교구 추가</button>
-                </div>
-
-                <!-- Row 4: 비고 (전체) -->
-                <div class="form-group row4-note span-note">
-                    <label>비고</label>
-                    <textarea id="edit-note" rows="4"></textarea>
+                <div class="header-right">
+                    <button class="nav-btn btn-add" onclick="location.href='pages/input.html'">📅 일정 추가</button>
+                    <button class="nav-btn btn-school" onclick="location.href='pages/school-manage.html'">🏫 학교 관리</button>
+                    <button class="nav-btn btn-manage" onclick="location.href='pages/manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
                 </div>
             </div>
+        </div>
 
-            <div class="btn-group">
-                <button id="save-btn" class="btn-save" onclick="saveEvent()">저장하기</button>
-                <button id="duplicate-btn" class="btn-duplicate" onclick="duplicateEvent()">복제</button>
-                <button id="delete-btn" class="btn-delete" onclick="deleteEvent()">삭제</button>
-                <button class="btn-close" onclick="closeModal()">닫기</button>
+        <div class="wrapper">
+            <div id="calendar-container">
+                <div id="calendar"></div>
+            </div>
+        </div>
+
+        <div id="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-content" id="edit-modal">
+            <div class="modal-header">
+                <h2 style="margin: 0; font-size: 1.25rem;">📅 일정 상세 및 수정</h2>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-grid">
+                    <input type="hidden" id="edit-row">
+
+                    <!-- Row 1: 색상(2), 지역구분(2), 기관명(4), 프로그램명(4) -->
+                    <div class="form-group row1-color">
+                        <label>색상</label>
+                        <select id="edit-color" onchange="this.style.color=this.value">
+                            <option value="#3498db" style="color: #2980b9;">파랑</option>
+                            <option value="#f39c12" style="color: #f39c12;">주황</option>
+                            <option value="#2ecc71" style="color: #2ecc71;">초록</option>
+                            <option value="#2c3e50" style="color: #2c3e50;">검정</option>
+                            <option value="#8e44ad" style="color: #8e44ad;">보라</option>
+                            <option value="#795548" style="color: #795548;">갈색</option>
+                            <option value="#e67e22" style="color: #e67e22;">황토</option>
+                        </select>
+                    </div>
+                    <div class="form-group row1-region">
+                        <label>지역 구분</label>
+                        <select id="edit-region">
+                            <option value="대구">대구</option>
+                            <option value="부산">부산</option>
+                            <option value="울산">울산</option>
+                            <option value="포항">포항</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+                    <div class="form-group row1-institution">
+                        <label>기관명</label>
+                        <input type="text" id="edit-institution">
+                    </div>
+                    <div class="form-group row1-program">
+                        <label>프로그램명</label>
+                        <input type="text" id="edit-program">
+                    </div>
+
+                    <!-- Row 2: 날짜, 시작 시간, 종료 시간, 학년, 대상인원 (5분할) -->
+                    <div class="form-group row2-date">
+                        <label>날짜</label>
+                        <input type="date" id="edit-date">
+                    </div>
+                    <div class="form-group row2-start">
+                        <label>시작 시간</label>
+                        <input type="text" id="edit-start" maxlength="5" placeholder="10:00" oninput="autoColon(this)">
+                    </div>
+                    <div class="form-group row2-end">
+                        <label>종료 시간</label>
+                        <input type="text" id="edit-end" maxlength="5" placeholder="13:00" oninput="autoColon(this)">
+                    </div>
+                    <div class="form-group row2-grade">
+                        <label>학년</label>
+                        <input type="text" id="edit-grade" placeholder="예: 1-1">
+                    </div>
+                    <div class="form-group row2-students">
+                        <label>대상인원</label>
+                        <input type="text" id="edit-students" placeholder="예: 25명">
+                    </div>
+
+                    <!-- Row 3: 주강사 (고정) + 보조강사 (동적) -->
+                    <div class="form-group row3-main" style="grid-column: span 5;">
+                        <label>주강사</label>
+                        <input type="text" id="edit-main">
+                    </div>
+                    <div class="dynamic-list-group" style="grid-column: span 15;">
+                        <label>보조강사</label>
+                        <div class="dynamic-list" id="edit-sub-list"></div>
+                        <button type="button" class="btn-add-item" onclick="addSubInstructorRow('edit-sub-list')">+ 보조강사 추가</button>
+                    </div>
+
+                    <!-- Row 4: 교구 (동적) -->
+                    <div class="dynamic-list-group" style="grid-column: span 20;">
+                        <label>교구</label>
+                        <div class="dynamic-list" id="edit-equip-list"></div>
+                        <button type="button" class="btn-add-item" onclick="addEquipmentRow('edit-equip-list')">+ 교구 추가</button>
+                    </div>
+
+                    <!-- Row 4: 비고 (전체) -->
+                    <div class="form-group row4-note span-note">
+                        <label>비고</label>
+                        <textarea id="edit-note" rows="4"></textarea>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button id="save-btn" class="btn-save" onclick="saveEvent()">저장하기</button>
+                    <button id="duplicate-btn" class="btn-duplicate" onclick="duplicateEvent()">복제</button>
+                    <button id="delete-btn" class="btn-delete" onclick="deleteEvent()">삭제</button>
+                    <button class="btn-close" onclick="closeModal()">닫기</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
     <script src="js/utils.js?v=2"></script>
+    <!-- auth_handler를 먼저 로드하여 화면을 보여준 후 캘린더를 초기화합니다 -->
+    <script type="module" src="js/auth_handler.js?v=2"></script>
     <script type="module" src="js/calendar-main.js?v=2"></script>
     <script type="module" src="js/api-handler.js?v=2"></script>
 </body>

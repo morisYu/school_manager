@@ -8,104 +8,107 @@
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/manage-style.css">
 </head>
-<body>
-
-    <div class="system-header">
-        <div class="header-container">
-            <div class="header-left">
-                <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
-            </div>
-            <div class="header-right">
-                <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
-                <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
-                <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="container">
-        <div class="header-box">
-            <div class="header-row">
-                <div class="input-group">
-                    <label>📍 지역 선택</label>
-                    <select id="region-select">
-                        <option value="전체">전체 지역</option>
-                        <option value="대구">대구</option>
-                        <option value="부산">부산</option>
-                        <option value="울산">울산</option>
-                        <option value="포항">포항</option>
-                        <option value="기타">기타</option>
-                    </select>
+<body style="display: none;">
+    <div id="main-content">
+        <div class="system-header">
+            <div class="header-container">
+                <div class="header-left">
+                    <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
                 </div>
-                <div class="input-group">
-                    <label>👤 강사 선택</label>
-                    <select id="teacherSelect">
-                        <option value="">강사 데이터를 불러오는 중...</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>📅 시작일</label>
-                    <input type="date" id="startDate">
-                </div>
-                <div class="input-group">
-                    <label>📅 종료일</label>
-                    <input type="date" id="endDate">
-                </div>
-                <div class="input-group input-group-btn">
-                    <button class="btn-search" onclick="loadReport()">조회하기</button>
-                </div>
-            </div>
-
-            <div class="button-container">
-                <div class="left-btns">
-                    <button class="btn-print" onclick="window.print()">저장하기(PDF)</button>
-                    <button type="button" onclick="exportToExcel()" style="background-color: #27ae60; color: white;">저장하기(Excel)</button>
+                <div class="header-right">
+                    <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                    <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
+                    <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
                 </div>
             </div>
         </div>
 
-        <div id="report-area">
-            <h2 id="report-title">출강 및 정산 내역서</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>순번</th>
-                        <th>날짜</th>
-                        <th>지역</th>
-                        <th>기관명</th>
-                        <th>프로그램명</th>
-                        <th>강사 구분</th>
-                        <th>시간(h)</th>
-                        <th>차시</th>
-                        <th>비고</th>
-                    </tr>
-                </thead>
+        <div class="container">
+            <div class="header-box">
+                <div class="header-row">
+                    <div class="input-group">
+                        <label>📍 지역 선택</label>
+                        <select id="region-select">
+                            <option value="전체">전체 지역</option>
+                            <option value="대구">대구</option>
+                            <option value="부산">부산</option>
+                            <option value="울산">울산</option>
+                            <option value="포항">포항</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>👤 강사 선택</label>
+                        <select id="teacherSelect">
+                            <option value="">강사 데이터를 불러오는 중...</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>📅 시작일</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="input-group">
+                        <label>📅 종료일</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <div class="input-group input-group-btn">
+                        <button class="btn-search" onclick="loadReport()">조회하기</button>
+                    </div>
+                </div>
 
-                <tbody id="report-table-body">
-                    <tr><td colspan="8">조회 조건을 입력 후 버튼을 눌러주세요.</td></tr>
-                </tbody>
-                <tfoot id="report-footer" style="display:none;">
-                    <tr class="total-row">
-                        <td colspan="5" style="text-align:right; padding-right:20px;">주강사 합계</td>
-                        <td id="main-total-hours">0.0</td>
-                        <td colspan="2"></td>
-                    </tr>
-                    <tr class="total-row">
-                        <td colspan="5" style="text-align:right; padding-right:20px;">보조강사 합계</td>
-                        <td id="sub-total-hours">0.0</td>
-                        <td colspan="2"></td>
-                    </tr>
-                    <tr class="total-row total-final">
-                        <td colspan="5" style="text-align:right; padding-right:20px;">전체 총 합계</td>
-                        <td id="total-hours">0.0</td>
-                        <td colspan="2">-</td>
-                    </tr>
-                </tfoot>
-            </table>
+                <div class="button-container">
+                    <div class="left-btns">
+                        <button class="btn-print" onclick="window.print()">저장하기(PDF)</button>
+                        <button type="button" onclick="exportToExcel()" style="background-color: #27ae60; color: white;">저장하기(Excel)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="report-area">
+                <h2 id="report-title">출강 및 정산 내역서</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>순번</th>
+                            <th>날짜</th>
+                            <th>지역</th>
+                            <th>기관명</th>
+                            <th>프로그램명</th>
+                            <th>강사 구분</th>
+                            <th>시간(h)</th>
+                            <th>차시</th>
+                            <th>비고</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="report-table-body">
+                        <tr><td colspan="8">조회 조건을 입력 후 버튼을 눌러주세요.</td></tr>
+                    </tbody>
+                    <tfoot id="report-footer" style="display:none;">
+                        <tr class="total-row">
+                            <td colspan="5" style="text-align:right; padding-right:20px;">주강사 합계</td>
+                            <td id="main-total-hours">0.0</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="5" style="text-align:right; padding-right:20px;">보조강사 합계</td>
+                            <td id="sub-total-hours">0.0</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        <tr class="total-row total-final">
+                            <td colspan="5" style="text-align:right; padding-right:20px;">전체 총 합계</td>
+                            <td id="total-hours">0.0</td>
+                            <td colspan="2">-</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
     </div>
 
     <script src="../js/utils.js"></script>
     <script type="module" src="../js/manage-handler.js"></script>
+    <script type="module" src="../js/auth-check.js"></script>
 </body>
 </html>

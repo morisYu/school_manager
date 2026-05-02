@@ -2,17 +2,17 @@
 import { db } from './firebase_config.js';
 
 // Firebase v9 Modular SDK (CDN)
-import { 
-    collection, 
-    getDocs, 
-    addDoc, 
-    updateDoc, 
-    deleteDoc, 
-    query, 
-    where, 
-    orderBy, 
-    getDoc, 
-    doc 
+import {
+    collection,
+    getDocs,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy,
+    getDoc,
+    doc
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 /**
@@ -31,7 +31,7 @@ export async function getSchools() {
         const schoolsRef = collection(db, "schools");
         const q = query(schoolsRef, orderBy("schoolName", "asc"));
         const snapshot = await getDocs(q);
-        
+
         const schools = [];
         snapshot.forEach((docSnap) => {
             // 문서 ID를 포함하여 객체 생성
@@ -60,15 +60,15 @@ export async function getSchools() {
 export async function getSchedulesByDate(startDate, endDate) {
     try {
         const schedulesRef = collection(db, "schedules");
-        // date 필드 기준 필터링 (문자열 비교)
         const q = query(
-            schedulesRef, 
-            where("date", ">=", startDate), 
+            schedulesRef,
+            where("date", ">=", startDate),
             where("date", "<=", endDate),
             orderBy("date", "asc")
         );
+
         const snapshot = await getDocs(q);
-        
+
         const schedules = [];
         snapshot.forEach((docSnap) => {
             schedules.push({ id: docSnap.id, ...docSnap.data() });
@@ -80,6 +80,7 @@ export async function getSchedulesByDate(startDate, endDate) {
     }
 }
 
+
 /**
  * 전체 일정을 가져와 배열로 반환합니다. (강사 관리/학교 관리 페이지용)
  * @returns {Promise<Array>} 전체 일정 객체 배열 (date 오름차순 정렬)
@@ -89,7 +90,7 @@ export async function getAllSchedules() {
         const schedulesRef = collection(db, "schedules");
         const q = query(schedulesRef, orderBy("date", "asc"));
         const snapshot = await getDocs(q);
-        
+
         const schedules = [];
         snapshot.forEach((docSnap) => {
             schedules.push({ id: docSnap.id, ...docSnap.data() });
@@ -161,20 +162,20 @@ export async function duplicateSchedule(originalDocId, updatedData = {}) {
         // 1. originalDocId로 원본 데이터를 가져온다.
         const scheduleRef = doc(db, "schedules", originalDocId);
         const docSnap = await getDoc(scheduleRef);
-        
+
         if (!docSnap.exists()) {
             throw new Error(`문서 ID(${originalDocId})에 해당하는 일정이 존재하지 않습니다.`);
         }
-        
+
         // 2. 원본 데이터 추출 (Firestore 시스템 필드인 id는 .data()에 포함되지 않으므로 자연스럽게 제외됨)
         const originalData = docSnap.data();
-        
+
         // 3. updatedData 객체가 전달되면 원본 데이터 위에 덮어쓴다.
         const newData = {
             ...originalData,
             ...updatedData
         };
-        
+
         // 4. 새로운 문서로 컬렉션에 추가하고 새 ID를 반환한다.
         const newDocId = await addSchedule(newData);
         return newDocId;

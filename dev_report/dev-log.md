@@ -23,6 +23,11 @@
     - `forms.css`, `input-form.css`의 셀렉터를 `.dynamic-row input`, `.dynamic-list-group label`로 확장하여 기존 폼과 동일한 스타일 적용
 - **일정 추가 페이지 스크롤 문제 해결**
     - 보조강사/교구 다수 추가 시 비고란이 화면 밖으로 밀리는 현상 → `form-card`에 `max-height: calc(100vh - 100px)` 및 `overflow-y: auto` 적용
+- **Firebase Authentication(이메일 로그인) 전면 도입**
+    - `auth_handler.js`: 메인 페이지(`index.html`)용 로그인/로그아웃 상태 관리 및 프리미엄 로그인 UI 연동
+    - `auth-check.js`: 서브 페이지(`pages/`) 접근 시 비로그인 사용자 리다이렉트 보안 로직 적용
+    - `login.css`: 모던한 글래스모피즘 스타일의 로그인 화면 디자인 적용
+    - 인증 상태에 따른 캘린더 렌더링 레이아웃 붕괴 문제(Flexbox) 해결 및 초기화 로직 최적화 (`window.initCalendar`)
 
 ### 🐛 해결 중인 버그
 
