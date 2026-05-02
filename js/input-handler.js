@@ -1,4 +1,34 @@
-import { addSchedule } from './db_service.js';
+import { addSchedule, getSchools } from './db_service.js';
+import { auth } from './firebase_config.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+// 학교 목록 데이터 로드 및 자동완성 설정
+onAuthStateChanged(auth, async (user) => {
+    if (!user) return;
+
+    try {
+        const schools = await getSchools();
+        const dataList = document.getElementById('school-list');
+        
+        if (dataList && Array.isArray(schools)) {
+            schools.forEach(school => {
+                if (school.searchAlias) {
+                    // 1. 별칭 자체 제안
+                    const option1 = document.createElement('option');
+                    option1.value = school.searchAlias;
+                    dataList.appendChild(option1);
+
+                    // 2. 기관명 (별칭) 형식 제안 (예: 학교 (별칭))
+                    const option2 = document.createElement('option');
+                    option2.value = `${school.schoolName.replace('등학교', '')} (${school.searchAlias})`;
+                    dataList.appendChild(option2);
+                }
+            });
+        }
+    } catch (error) {
+        console.error("Error loading schools for suggestions:", error);
+    }
+});
 
 // 폼 제출 핸들러
 document.getElementById('lectureForm').addEventListener('submit', async function(e) {

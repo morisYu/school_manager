@@ -1,10 +1,14 @@
 /* js/manage-handler.js - Firebase Firestore 버전 */
 import { getAllSchedules } from './db_service.js';
+import { auth } from './firebase_config.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
 let rawData = [];
 
-// 페이지 로드 시 Firestore에서 전체 일정 데이터를 가져와 강사 목록 추출
-window.onload = async () => {
+// 인증 상태가 확인된 후 데이터를 가져오도록 변경
+onAuthStateChanged(auth, async (user) => {
+    if (!user) return; // 비로그인 시 로직 중단 (auth-check.js에서 리다이렉트 처리함)
+
     try {
         const firestoreData = await getAllSchedules();
         
@@ -41,7 +45,7 @@ window.onload = async () => {
         console.error("Data Load Error:", e);
         alert("강사 목록을 불러오지 못했습니다.");
     }
-};
+});
 
 // window에 바인딩하여 HTML onclick에서 호출 가능하도록 설정
 window.loadReport = function() {

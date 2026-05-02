@@ -74,6 +74,27 @@ body {
     background-color: #27ae60;
 }
 
+.btn-logout {
+    background-color: #e74c3c;
+    margin-left: 8px;
+    box-shadow: 0 4px 6px rgba(231, 76, 60, 0.2);
+}
+
+.btn-logout:hover {
+    background-color: #c0392b;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.3);
+}
+
+.btn-logout:active {
+    transform: translateY(0);
+}
+
+.nav-btn:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+}
+
 .wrapper {
     flex-grow: 1;
     padding: 0 10px 10px 10px;

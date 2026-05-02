@@ -34,35 +34,8 @@
             <div class="form-body">
                 <form id="lectureForm">
                     <div class="form-grid">
-                        <div class="form-row-1 span-4">
-                            <div class="form-group row1-region">
-                                <label>지역 구분</label>
-                                <select id="input-region">
-                                    <option value="대구">대구</option>
-                                    <option value="부산">부산</option>
-                                    <option value="울산">울산</option>
-                                    <option value="포항">포항</option>
-                                    <option value="기타">기타</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group row1-institution">
-                                <label>기관명</label>
-                                <input type="text" id="institution" required>
-                            </div>
-
-                            <div class="form-group row1-program">
-                                <label>프로그램명</label>
-                                <input type="text" id="program" required>
-                            </div>
-                        </div>
-
-                        <div class="form-group row-start-2"><label>날짜</label><input type="date" id="date" required></div>
-                        <div class="form-group"><label>시작 시간</label><input type="text" id="startTime" placeholder="14:00"
-                                maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
-                        <div class="form-group"><label>종료 시간</label><input type="text" id="endTime" placeholder="16:00"
-                                maxlength="5" oninput="autoColon(this)" inputmode="numeric" required></div>
-                        <div class="form-group">
+                        <!-- Row 1: 색상, 지역구분, 기관명, 프로그램명 -->
+                        <div class="form-group row1-color">
                             <label>색상</label>
                             <select id="color" onchange="this.style.color=this.value">
                                 <option value="#3498db" style="color: #2980b9;">파랑</option>
@@ -74,28 +47,73 @@
                                 <option value="#e67e22" style="color: #e67e22;">황토</option>
                             </select>
                         </div>
+                        <div class="form-group row1-region">
+                            <label>지역 구분</label>
+                            <select id="input-region">
+                                <option value="대구">대구</option>
+                                <option value="부산">부산</option>
+                                <option value="울산">울산</option>
+                                <option value="포항">포항</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-group row1-institution">
+                            <label>기관명 (별칭 포함 권장)</label>
+                            <input type="text" id="institution" list="school-list" placeholder="남구청 (남대구초)" required>
+                            <datalist id="school-list"></datalist>
+                        </div>
+                        <div class="form-group row1-program">
+                            <label>프로그램명</label>
+                            <input type="text" id="program" required>
+                        </div>
 
-                        <div class="form-group row-start-3"><label>주강사</label><input type="text" id="mainTeacher" required></div>
-                        <div class="dynamic-list-group">
+                        <!-- Row 2: 날짜, 시작시간, 종료시간, 학년, 대상인원 -->
+                        <div class="form-group row2-date">
+                            <label>날짜</label>
+                            <input type="date" id="date" required>
+                        </div>
+                        <div class="form-group row2-start">
+                            <label>시작 시간</label>
+                            <input type="text" id="startTime" placeholder="14:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
+                        </div>
+                        <div class="form-group row2-end">
+                            <label>종료 시간</label>
+                            <input type="text" id="endTime" placeholder="16:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric" required>
+                        </div>
+                        <div class="form-group row2-grade">
+                            <label>학년</label>
+                            <input type="text" id="grade" placeholder="예: 1-1">
+                        </div>
+                        <div class="form-group row2-students">
+                            <label>대상인원</label>
+                            <input type="text" id="students" placeholder="예: 25명">
+                        </div>
+
+                        <!-- Row 3: 주강사 + 보조강사 -->
+                        <div class="form-group row3-main" style="grid-column: span 5;">
+                            <label>주강사</label>
+                            <input type="text" id="mainTeacher" required>
+                        </div>
+                        <div class="dynamic-list-group" style="grid-column: span 15;">
                             <label>보조강사</label>
                             <div class="dynamic-list" id="input-sub-list"></div>
                             <button type="button" class="btn-add-item" onclick="addSubInstructorRow('input-sub-list')">+ 보조강사 추가</button>
                         </div>
 
-                        <div class="dynamic-list-group" style="grid-column: span 4;">
+                        <!-- Row 4: 교구 -->
+                        <div class="dynamic-list-group" style="grid-column: span 20;">
                             <label>교구</label>
                             <div class="dynamic-list" id="input-equip-list"></div>
                             <button type="button" class="btn-add-item" onclick="addEquipmentRow('input-equip-list')">+ 교구 추가</button>
                         </div>
 
-                        <div class="form-group span-4">
+                        <!-- Row 5: 비고 -->
+                        <div class="form-group span-note">
                             <label>비고</label>
                             <textarea id="note" rows="4"></textarea>
                         </div>
-
-                        <input type="hidden" id="grade" value="">
-                        <input type="hidden" id="students" value="">
                     </div>
+
 
                     <div class="btn-group">
                         <button type="submit" class="btn-common btn-submit" id="submitBtn">저장하기</button>

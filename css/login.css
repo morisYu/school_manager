@@ -85,26 +85,27 @@
 .login-button {
     width: 100%;
     padding: 16px;
-    background: #3498db;
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
     color: white;
     border: none;
     border-radius: 12px;
-    font-size: 1rem;
+    font-size: 1.1rem;
     font-weight: 700;
     cursor: pointer;
     margin-top: 10px;
-    transition: all 0.2s;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 10px 20px -5px rgba(52, 152, 219, 0.4);
+    letter-spacing: 0.5px;
 }
 
 .login-button:hover {
-    background: #2980b9;
-    transform: translateY(-2px);
-    box-shadow: 0 15px 25px -5px rgba(52, 152, 219, 0.5);
+    background: linear-gradient(135deg, #4aa3df 0%, #3498db 100%);
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 15px 30px -5px rgba(52, 152, 219, 0.6);
 }
 
 .login-button:active {
-    transform: translateY(0);
+    transform: translateY(-1px) scale(1);
 }
 
 .login-error {
@@ -113,18 +114,10 @@
     margin-top: 15px;
     min-height: 20px;
     display: none;
+    background: rgba(255, 107, 107, 0.1);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 107, 107, 0.2);
 }
 
-/* Logout Button Style in Header */
-.btn-logout {
-    background-color: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: rgba(255, 255, 255, 0.8);
-    margin-left: 10px;
-}
-
-.btn-logout:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-    border-color: white;
-}
+/* Logout Button Style in Header (Moved and Enhanced in common.css) */

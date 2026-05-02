@@ -35,11 +35,11 @@
 
 /* 1. 헤더 스타일: Navy (#2c3e50) 적용 */
 .modal-header {
-    background: #2c3e50;
+    background: linear-gradient(120deg, #1f3a66 0%, #3567a8 55%, #3b82f6 100%);
     color: white;
-    padding: 15px 25px;
+    padding: 18px 25px;
     text-align: left;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: none;
 }
 
 /* 1. 모달 전체 크기 및 여백 조정 */

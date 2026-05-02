@@ -1,11 +1,16 @@
-/* js/school-manage-handler.js - Firebase Firestore 버전 */
 import { getSchools, getAllSchedules } from './db_service.js';
+import { db, auth } from './firebase_config.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 let schoolData = [];
 let historyData = [];
+let currentSchoolId = null; // 현재 선택된 학교의 Firestore ID (또는 매칭용 식별자)
 
-// 페이지 로드 시 Firestore에서 학교 목록 및 전체 이력 데이터 로드
-window.onload = async () => {
+// 인증 상태가 확인된 후 데이터를 가져오도록 변경
+onAuthStateChanged(auth, async (user) => {
+    if (!user) return; // 비로그인 시 로직 중단
+
     const schoolSelect = document.getElementById('school-select');
     showInfoPlaceholder();
 
@@ -13,17 +18,24 @@ window.onload = async () => {
         // 1. 학교 데이터 로드
         schoolData = await getSchools();
         
-        schoolSelect.innerHTML = '<option value="">-- 학교를 선택하세요 --</option>';
-        if (Array.isArray(schoolData)) {
-            schoolData.forEach((school, index) => {
-                if (school.schoolName) {
-                    const option = document.createElement('option');
-                    option.value = index;
-                    option.textContent = school.schoolName;
-                    schoolSelect.appendChild(option);
-                }
-            });
-        }
+        renderSchoolSelect(schoolData); // 초기 렌더링
+
+        // 검색 입력 핸들러 추가
+        const schoolSearch = document.getElementById('school-search');
+        schoolSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            filterSchools(query);
+        });
+
+        // 셀렉트 박스 변경 시 검색창 텍스트 동기화
+        schoolSelect.addEventListener('change', (e) => {
+            const index = e.target.value;
+            if (index !== "") {
+                schoolSearch.value = schoolData[index].schoolName;
+            } else {
+                schoolSearch.value = "";
+            }
+        });
 
         // 2. 출강 이력 데이터 로드
         const firestoreSchedules = await getAllSchedules();
@@ -49,11 +61,52 @@ window.onload = async () => {
         console.error("Data Load Error:", e);
         alert("데이터를 불러오는 중 오류가 발생했습니다.");
     }
-};
+});
 
 /**
- * 학교를 선택하고 조회할 때 호출되는 함수
+ * 학교 셀렉트 박스 렌더링 함수
  */
+function renderSchoolSelect(data) {
+    const schoolSelect = document.getElementById('school-select');
+    schoolSelect.innerHTML = '<option value="">-- 학교를 선택하세요 --</option>';
+    
+    data.forEach((school) => {
+        // 원래 전체 데이터(schoolData)에서의 인덱스를 찾아야 함
+        const originalIndex = schoolData.findIndex(s => s.id === school.id);
+        if (originalIndex !== -1) {
+            const option = document.createElement('option');
+            option.value = originalIndex;
+            option.textContent = school.schoolName;
+            schoolSelect.appendChild(option);
+        }
+    });
+}
+
+/**
+ * 검색어에 따라 학교 목록 필터링
+ */
+function filterSchools(query) {
+    if (!query) {
+        renderSchoolSelect(schoolData);
+        return;
+    }
+
+    const filtered = schoolData.filter(school => {
+        const name = (school.schoolName || '').toLowerCase();
+        const alias = (school.searchAlias || '').toLowerCase();
+        return name.includes(query) || alias.includes(query);
+    });
+
+    renderSchoolSelect(filtered);
+
+    // 검색 결과가 1개뿐이면 자동으로 선택해주기 (사용자 편의성)
+    if (filtered.length === 1) {
+        const schoolSelect = document.getElementById('school-select');
+        const originalIndex = schoolData.findIndex(s => s.id === filtered[0].id);
+        schoolSelect.value = originalIndex;
+        // 정보 업데이트를 위해 수동 호출은 하지 않고 사용자가 '조회하기'를 누르도록 유도하거나 자동 호출
+    }
+}
 window.loadSchoolHistory = function() {
     const schoolIndex = document.getElementById('school-select').value;
     const startDate = document.getElementById('startDate').value;
@@ -72,7 +125,7 @@ window.loadSchoolHistory = function() {
     displaySchoolInfo(selectedSchool);
 
     // 2. 하단 출강 이력 필터링 및 출력
-    filterAndDisplayHistory(shortName, startDate, endDate);
+    filterAndDisplayHistory(selectedSchool, startDate, endDate);
 };
 
 /**
@@ -100,10 +153,20 @@ function displaySchoolInfo(school) {
                 <h2 id="info-school-name"></h2>
                 <span id="info-school-type" class="school-type-tag"></span>
             </div>
-            <div id="info-school-region" style="color: #666; font-size: 0.9rem;"></div>
+            <div class="school-action-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
+                <div id="info-school-region" style="color: #666; font-size: 0.9rem;"></div>
+                <div class="school-action-btns">
+                    <button id="btn-edit-school" class="btn-edit-small" onclick="toggleEditSchoolMode()">수정</button>
+                    <button id="btn-save-school" class="btn-save-small" onclick="saveSchoolChanges()" style="display: none;">저장</button>
+                </div>
+            </div>
         </div>
         <div class="info-layout">
             <div class="info-left">
+                <div class="info-item">
+                    <div class="info-label">🏷️ 별칭 (일정 매칭용)</div>
+                    <div id="info-school-alias" class="info-value"></div>
+                </div>
                 <div class="info-item">
                     <div class="info-label">📍 주소</div>
                     <div id="info-school-address" class="info-value"></div>
@@ -113,8 +176,16 @@ function displaySchoolInfo(school) {
                     <div id="info-school-phone" class="info-value"></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">👤 담당자</div>
-                    <div id="info-school-contact" class="info-value"></div>
+                    <div class="info-label">👤 담당자명</div>
+                    <div id="info-school-manager-name" class="info-value"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📱 담당자 연락처</div>
+                    <div id="info-school-manager-phone" class="info-value"></div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📧 담당자 이메일</div>
+                    <div id="info-school-manager-email" class="info-value"></div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">🌐 홈페이지</div>
@@ -134,9 +205,14 @@ function displaySchoolInfo(school) {
     document.getElementById('info-school-name').textContent = school.schoolName || '-';
     document.getElementById('info-school-type').textContent = school.schoolType || '-';
     document.getElementById('info-school-region').textContent = `${school.city || ''} ${school.district || ''}`.trim() || '지역 정보 없음';
+    document.getElementById('info-school-alias').textContent = school.searchAlias || '-';
     document.getElementById('info-school-address').textContent = `${school.address || '-'} (${school.zipCode || '-'})`;
     document.getElementById('info-school-phone').textContent = school.mainPhone || '-';
-    document.getElementById('info-school-contact').textContent = `${school.managerName || '-'} (${school.managerPhone || '-'})`;
+    
+    // 담당자 정보 분리 표시
+    document.getElementById('info-school-manager-name').textContent = school.managerName || '-';
+    document.getElementById('info-school-manager-phone').textContent = school.managerPhone || '-';
+    document.getElementById('info-school-manager-email').textContent = school.managerEmail || '-';
     
     const homeLink = document.getElementById('info-school-home');
     if (school.website && school.website !== '-') {
@@ -146,12 +222,89 @@ function displaySchoolInfo(school) {
     }
     
     document.getElementById('info-school-note').textContent = school.note || '-';
+
+    // 수정 모드를 위한 현재 데이터 보관
+    currentSchoolId = school.id; // db_service.js에서 가져온 문서 ID
 }
 
 /**
- * 약칭 매칭 및 기간 필터링을 통한 이력 출력
+ * 학교 정보 수정 모드 토글
  */
-function filterAndDisplayHistory(shortName, start, end) {
+window.toggleEditSchoolMode = function() {
+    const aliasArea = document.getElementById('info-school-alias');
+    const noteArea = document.getElementById('info-school-note');
+    const managerNameArea = document.getElementById('info-school-manager-name');
+    const managerPhoneArea = document.getElementById('info-school-manager-phone');
+    const managerEmailArea = document.getElementById('info-school-manager-email');
+
+    const editBtn = document.getElementById('btn-edit-school');
+    const saveBtn = document.getElementById('btn-save-school');
+
+    const currentAlias = aliasArea.textContent === '-' ? '' : aliasArea.textContent;
+    const currentNote = noteArea.textContent === '-' ? '' : noteArea.textContent;
+    const currentMName = managerNameArea.textContent === '-' ? '' : managerNameArea.textContent;
+    const currentMPhone = managerPhoneArea.textContent === '-' ? '' : managerPhoneArea.textContent;
+    const currentMEmail = managerEmailArea.textContent === '-' ? '' : managerEmailArea.textContent;
+
+    // 입력창으로 전환
+    aliasArea.innerHTML = `<input type="text" id="edit-alias-input" class="edit-input-alias" value="${currentAlias}">`;
+    noteArea.innerHTML = `<textarea id="edit-note-input" class="edit-textarea-note">${currentNote}</textarea>`;
+    managerNameArea.innerHTML = `<input type="text" id="edit-mname-input" class="edit-input-alias" value="${currentMName}">`;
+    managerPhoneArea.innerHTML = `<input type="text" id="edit-mphone-input" class="edit-input-alias" value="${currentMPhone}">`;
+    managerEmailArea.innerHTML = `<input type="email" id="edit-memail-input" class="edit-input-alias" value="${currentMEmail}">`;
+
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-block';
+};
+
+/**
+ * 수정된 정보 Firestore에 저장
+ */
+window.saveSchoolChanges = async function() {
+    const newAlias = document.getElementById('edit-alias-input').value.trim();
+    const newNote = document.getElementById('edit-note-input').value.trim();
+    const newMName = document.getElementById('edit-mname-input').value.trim();
+    const newMPhone = document.getElementById('edit-mphone-input').value.trim();
+    const newMEmail = document.getElementById('edit-memail-input').value.trim();
+
+    if (!currentSchoolId) {
+        alert("선택된 학교 정보가 명확하지 않습니다.");
+        return;
+    }
+
+    try {
+        const schoolRef = doc(db, "schools", currentSchoolId);
+        const updateData = {
+            searchAlias: newAlias,
+            note: newNote,
+            managerName: newMName,
+            managerPhone: newMPhone,
+            managerEmail: newMEmail
+        };
+        await updateDoc(schoolRef, updateData);
+
+        alert("학교 정보가 성공적으로 수정되었습니다.");
+
+        // 로컬 데이터 갱신 (다시 로드하지 않고 화면만 업데이트)
+        const schoolIndex = document.getElementById('school-select').value;
+        if (schoolIndex !== "") {
+            Object.assign(schoolData[schoolIndex], updateData);
+            displaySchoolInfo(schoolData[schoolIndex]);
+        }
+
+        document.getElementById('btn-edit-school').style.display = 'inline-block';
+        document.getElementById('btn-save-school').style.display = 'none';
+
+    } catch (error) {
+        console.error("Error updating school:", error);
+        alert("저장 중 오류가 발생했습니다: " + error.message);
+    }
+};
+
+/**
+ * 학교 객체와 기간 필터링을 통한 이력 출력
+ */
+function filterAndDisplayHistory(school, start, end) {
     const tbody = document.getElementById('history-table-body');
     tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">데이터를 분석 중입니다...</td></tr>';
 
@@ -165,11 +318,28 @@ function filterAndDisplayHistory(shortName, start, end) {
         const match = institution.match(/\(([^)]+)\)/);
         let isSchoolMatch = false;
 
-        if (match && shortName) {
-            const extractedName = match[1].trim();
-            isSchoolMatch = extractedName === shortName.trim();
-        } else if (!match && shortName) {
-            isSchoolMatch = institution.includes(shortName.trim());
+        // 선택된 학교의 정보
+        const targetAlias = (school.searchAlias || '').trim();
+        const targetFullName = (school.schoolName || '').trim();
+
+        if (match) {
+            const extractedNameFromSchedule = match[1].trim(); // 예: '남대구초', '시지중'
+            
+            // 1. 별칭이 정확히 일치하는 경우
+            if (targetAlias && extractedNameFromSchedule === targetAlias) {
+                isSchoolMatch = true;
+            } 
+            // 2. 별칭이 없더라도 학교 전체 이름에 포함되는 경우 (예: '시지중학교'에 '시지중' 포함)
+            else if (targetFullName && targetFullName.includes(extractedNameFromSchedule)) {
+                isSchoolMatch = true;
+            }
+        } else {
+            // 괄호가 없는 경우 (직접 입력 등): 기관명 자체가 학교명이나 별칭을 포함하는지 확인
+            if (targetAlias && institution.includes(targetAlias)) {
+                isSchoolMatch = true;
+            } else if (targetFullName && institution.includes(targetFullName)) {
+                isSchoolMatch = true;
+            }
         }
 
         const rowDate = new Date(row['날짜']);
