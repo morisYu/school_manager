@@ -33,7 +33,7 @@ document.getElementById('lectureForm').addEventListener('submit', async function
         // 메인 캘린더 화면으로 돌아갈 때 최신 데이터를 불러오도록 캐시 삭제
         sessionStorage.removeItem('cached_historyData');
 
-        alert('성공적으로 저장되었습니다!'); 
+        // alert('성공적으로 저장되었습니다!'); 
         location.href = '../index.html'; 
     } catch (error) {
         console.error('Error:', error);

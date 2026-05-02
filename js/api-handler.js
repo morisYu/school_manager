@@ -82,7 +82,7 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
         const successMsg = action === 'insert'
             ? '복제 일정이 추가되었습니다.'
             : '정상적으로 처리되었습니다.';
-        alert(successMsg);
+        // alert(successMsg);
 
         // 모달 닫기 함수가 전역에 있다고 가정하고 호출
         if (typeof window.closeModal === 'function') {
