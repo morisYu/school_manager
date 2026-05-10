@@ -254,6 +254,82 @@ td {
     }
 }
 
+/* ============================================================
+   강사 정산 모바일 반응형 - @media max-width: 768px
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* 컨테이너: 여백 축소 */
+    .container {
+        padding: 0 10px 20px 10px;
+    }
+
+    /* 헤더 박스: 여백 축소 */
+    .header-box {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    /* 필터 행: 1열로 스태킹 */
+    .header-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    /* 입력창 최소 너비 해제 */
+    .input-group {
+        min-width: unset;
+    }
+
+    /* 입력/선택창: 터치 최소 높이 확보 */
+    input, select {
+        min-height: 44px;
+        font-size: 0.95rem;
+    }
+
+    /* 버튼: 터치 최소 높이 확보 */
+    button {
+        min-height: 44px;
+        font-size: 0.9rem;
+    }
+
+    /* 액션 버튼 영역: 세로 스태킹 */
+    .button-container {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .left-btns {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .left-btns button {
+        width: 100%;
+    }
+
+    /* 레포트 영역: 가로 스크롤 + 높이 제한 해제 */
+    #report-area {
+        padding: 14px 10px 40px 10px;
+        max-height: none;
+        border-radius: 12px;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    /* 테이블: 최소 너비 그대로 유지하여 가로 스크롤 */
+    table {
+        min-width: 750px;
+    }
+
+    /* 헤더 제목 폰트 축소 */
+    #report-title {
+        font-size: 1rem;
+        margin-bottom: 14px;
+    }
+}
+
 @media print {
     @page {
         size: A4 portrait;

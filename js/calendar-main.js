@@ -215,7 +215,8 @@ window.initCalendar = function() {
                 html: `
                 <div class="event-wrapper ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
                     <div class="event-line1">
-                        <strong>${startTime}(${durationValue})</strong> | ${institution}
+                        <span class="event-time"><strong>${startTime}(${durationValue})</strong> |</span>
+                        <span class="event-institution">${institution}</span>
                     </div>
                     <div class="event-line2">
                         ${program}, ${teacherText}, ${toolText}

@@ -170,3 +170,145 @@
     width: 100px;
     font-weight: 800;
 }
+
+/* ============================================================
+   캘린더 모바일 반응형 - @media max-width: 768px
+   Galaxy S20 Ultra (412px) 기준
+   레이아웃:
+     1행 (전체 너비) : [       2026년 5월       ]
+     2행 (한 줄)     : [◀ 이전/오늘/미정] [월/목록 ▶]
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* ── 캘린더 컨테이너 ── */
+    #calendar-container {
+        padding: 0 2px 8px 2px;
+        border-radius: 8px;
+    }
+
+    #calendar {
+        height: auto;
+        min-height: 460px;
+    }
+
+    /* ── 툴바 전체: 2행 레이아웃 ──
+       flex-wrap + order 조합으로 중앙 제목을 1행, 버튼들을 2행에 배치
+    */
+    .fc .fc-toolbar.fc-header-toolbar {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        padding: 4px 6px 6px !important;
+        gap: 4px 0 !important;
+        margin-bottom: 0.5em !important;
+    }
+
+    /* ── 각 chunk 기본: flex 아이템 ── */
+    .fc .fc-toolbar-chunk {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+    }
+
+    /* ── 1행: center chunk (년/월 제목) ──
+       order: -1 → 가장 먼저 렌더
+       width: 100% → 혼자 한 줄을 꽉 채움
+    */
+    .fc .fc-toolbar-chunk:nth-child(2) {
+        order: -1;
+        width: 100%;
+        justify-content: center;
+        padding-bottom: 2px;
+    }
+
+    /* ── 2행: start chunk (이전/다음/오늘/미정필터) ── 왼쪽 */
+    .fc .fc-toolbar-chunk:first-child {
+        order: 0;
+        flex: 1 1 auto;
+        justify-content: flex-start;
+    }
+
+    /* ── 2행: end chunk (뷰 전환 버튼 그룹) ── 오른쪽 */
+    .fc .fc-toolbar-chunk:last-child {
+        order: 0;
+        flex: 0 0 auto;
+        justify-content: flex-end;
+    }
+
+    /* ── 년/월 제목 텍스트 ── */
+    .fc .fc-toolbar-title {
+        font-size: 1.45rem !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.5px;
+        text-align: center;
+        white-space: nowrap;
+        color: #2c3e50 !important;
+    }
+
+    /* ── 모든 버튼: 터치 최소 높이 ── */
+    .fc .fc-button {
+        padding: 5px 10px !important;
+        font-size: 0.76em !important;
+        min-height: 36px !important;
+        margin: 0 2px !important;
+        border-radius: 7px !important;
+    }
+
+    /* 이전/다음 버튼: 최소 너비 확보 */
+    .fc .fc-prev-button,
+    .fc .fc-next-button {
+        min-width: 36px !important;
+        padding: 5px 8px !important;
+    }
+
+    /* 뷰 전환 버튼 그룹: 각 버튼 독립 라운드 */
+    .fc .fc-button-group {
+        display: flex;
+        gap: 3px;
+    }
+    .fc .fc-button-group .fc-button {
+        border-radius: 7px !important;
+    }
+
+    /* ── 이벤트 텍스트: 모바일에서 기관명만 표시 ── */
+    .event-wrapper {
+        font-size: 11px;
+        padding: 2px 4px !important;
+    }
+
+    /* 시간 정보(시작시간/duration) 숨김 */
+    .event-time {
+        display: none !important;
+    }
+
+    /* 기관명: 굵고 선명하게 */
+    .event-institution {
+        display: block;
+        font-weight: 800;
+        font-size: 0.85em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .event-line1 { font-size: 1em !important; }
+
+    /* 프로그램/강사/교구 행 숨김 */
+    .event-line2 {
+        display: none !important;
+    }
+
+    /* ── 목록 뷰 아이템 ── */
+    .event-list-item {
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 5px 7px;
+    }
+    .list-col { font-size: 0.8em; }
+
+    .fc .fc-list-event-time {
+        width: 65px;
+        font-size: 0.82em;
+    }
+}
+

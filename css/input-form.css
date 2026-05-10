@@ -231,4 +231,96 @@ textarea:focus {
 .btn-remove-item:hover {
     background: #e74c3c;
     color: white;
+}
+
+/* ============================================================
+   일정 입력 폼 모바일 반응형 - @media max-width: 768px
+   (기존 @media (max-width: 960px) 분기보다 더 세밀하게 보완)
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* 폼 카드: 화면 꽉 채우기 + 여백 최소화 */
+    .form-card {
+        width: 100%;
+        border-radius: 0;
+        margin: 0;
+        max-height: none;
+        border-left: none;
+        border-right: none;
+    }
+
+    /* 폼 헤더: 여백 축소 */
+    .form-header {
+        padding: 14px 16px;
+    }
+
+    .form-header h2 {
+        font-size: 1.1em;
+    }
+
+    /* 폼 바디: 여백 축소 */
+    .form-body {
+        padding: 16px 14px;
+    }
+
+    /* 20열 그리드 → 1열로 완전히 풀기 */
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* 모든 span 값 무시하고 전체 너비 차지 */
+    .row1-color,
+    .row1-region,
+    .row1-institution,
+    .row1-program,
+    .row2-date,
+    .row2-start,
+    .row2-end,
+    .row2-grade,
+    .row2-students,
+    .row3-main,
+    .span-note,
+    .dynamic-list-group {
+        grid-column: span 1 !important;
+    }
+
+    /* 라벨 */
+    label {
+        font-size: 0.88em;
+        padding: 3px 8px;
+        margin-bottom: 5px;
+    }
+
+    /* 입력창: 터치 최소 높이 확보 */
+    input, select, textarea {
+        min-height: 44px;
+        font-size: 0.95rem !important;
+        padding: 10px 12px;
+    }
+
+    /* 버튼 그룹: 세로 스태킹 */
+    .btn-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .btn-common {
+        min-height: 50px;
+        font-size: 0.95em;
+    }
+
+    /* 동적 보조강사/교구 추가 버튼 */
+    .btn-add-item {
+        min-height: 44px;
+        font-size: 0.85rem;
+        width: 100%;
+    }
+
+    /* 삭제 버튼 터치 영역 확대 */
+    .btn-remove-item {
+        width: 36px;
+        height: 36px;
+        font-size: 1.2rem;
+    }
 }

@@ -372,3 +372,113 @@ tr:hover {
     .btn-search { width: 100%; }
 }
 
+/* ============================================================
+   학교 관리 모바일 반응형 강화 - @media max-width: 768px
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* 컨테이너: 고정 height 해제, 세로 스크롤 허용 */
+    .container {
+        width: 100%;
+        height: auto;
+        padding: 0 10px 20px 10px;
+        overflow-x: hidden;
+    }
+
+    /* 상단 패널: 가로 → 세로 스태킹 */
+    .top-panels {
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    /* 검색 영역: 전체 너비 */
+    .search-header {
+        min-width: unset;
+        padding: 12px 14px;
+        flex: none;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* 학교 정보 카드: 전체 너비 */
+    .school-info-card {
+        flex: none;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 12px 14px;
+    }
+
+    /* 학교명 폰트 축소 */
+    .school-title-box h2 {
+        font-size: 1.3rem;
+    }
+
+    /* 정보 좌우 레이아웃 → 세로 스태킹 */
+    .info-layout {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .info-left {
+        border-right: none;
+        border-bottom: 1px solid #eee;
+        padding-right: 0;
+        padding-bottom: 10px;
+    }
+
+    .info-right {
+        padding-left: 0;
+    }
+
+    /* 날짜 입력 그룹: 세로 스태킹 */
+    .date-group-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    /* 입력/선택창: 터치 최소 높이 확보 */
+    .input-group select,
+    .input-group input {
+        min-height: 44px;
+        font-size: 0.95rem;
+    }
+
+    /* 조회 버튼: 전체 너비 */
+    .btn-search {
+        width: 100%;
+        min-height: 48px;
+        font-size: 0.95rem;
+    }
+
+    /* 출강 이력 섹션 */
+    .history-section {
+        padding: 14px;
+        border-radius: 8px;
+    }
+
+    /* 테이블 가로 스크롤 래퍼 */
+    .table-wrapper {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 테이블: 최소 너비 고정 → 가로 스크롤 유도 */
+    table {
+        min-width: 600px;
+    }
+
+    th, td {
+        padding: 8px 10px;
+        font-size: 0.85rem;
+    }
+
+    /* 수정/저장 버튼: 터치 영역 확보 */
+    .btn-edit-small,
+    .btn-save-small {
+        min-height: 36px;
+        padding: 6px 14px;
+        font-size: 0.85rem;
+    }
+}

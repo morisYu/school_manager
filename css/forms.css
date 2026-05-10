@@ -273,3 +273,105 @@
     background: #e74c3c;
     color: white;
 }
+
+/* ============================================================
+   모달/폼 모바일 반응형 - @media max-width: 768px
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* 모달: 화면 거의 꽉 채우기 + 상단으로 이동 */
+    #edit-modal,
+    .modal-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: unset !important;
+        top: 0 !important;
+        left: 0 !important;
+        transform: none !important;
+        border-radius: 0 0 20px 20px !important;
+        max-height: 100vh !important;
+        overflow-y: auto !important;
+    }
+
+    /* 모달 헤더: 여백 축소 */
+    .modal-header {
+        padding: 12px 16px;
+    }
+
+    .modal-header h2 {
+        font-size: 1rem !important;
+    }
+
+    /* 모달 바디: 패딩 축소 */
+    .modal-body {
+        padding: 14px 12px;
+    }
+
+    /* 20열 그리드 → 2열로 재정의 */
+    .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px 12px;
+    }
+
+    /* 1행: 각 항목 1열씩 차지 */
+    .row1-color  { grid-column: span 1; }
+    .row1-region { grid-column: span 1; }
+    .row1-institution { grid-column: span 2; }
+    .row1-program     { grid-column: span 2; }
+
+    /* 2행: 날짜/시작/종료 1열, 학년/대상인원 1열 */
+    .row2-date    { grid-column: span 2; }
+    .row2-start   { grid-column: span 1; }
+    .row2-end     { grid-column: span 1; }
+    .row2-grade   { grid-column: span 1; }
+    .row2-students { grid-column: span 1; }
+
+    /* 3행: 주강사 전체, 보조강사 전체 */
+    .row3-main { grid-column: span 2 !important; }
+    .dynamic-list-group { grid-column: span 2 !important; }
+
+    /* 비고: 전체 너비 */
+    .span-note { grid-column: span 2; }
+
+    /* 라벨 폰트 축소 */
+    .form-group label,
+    .dynamic-list-group label {
+        font-size: 0.88rem;
+        padding: 3px 8px;
+    }
+
+    /* 입력창: 터치 최소 높이 확보 */
+    .form-group input,
+    .form-group select,
+    .form-group textarea,
+    .dynamic-row input {
+        min-height: 44px;
+        font-size: 0.95rem;
+        padding: 10px;
+    }
+
+    /* 버튼 그룹: 세로 스태킹 */
+    .btn-group {
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .btn-group button {
+        min-height: 48px;
+        font-size: 0.95rem;
+    }
+
+    /* 동적 추가 버튼 */
+    .btn-add-item {
+        min-height: 40px;
+        font-size: 0.85rem;
+    }
+
+    /* 삭제 버튼 크기 확대 (터치 용이) */
+    .btn-remove-item {
+        width: 36px;
+        height: 36px;
+        font-size: 1.2rem;
+    }
+}

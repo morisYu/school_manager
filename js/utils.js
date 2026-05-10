@@ -142,4 +142,57 @@ function normalizeEquipments(equipments, fallbackType, fallbackCount) {
     }
     return [];
 }
+
+// ============================================================
+// 모바일 햄버거 메뉴 토글 (Mobile Hamburger Navigation)
+// ============================================================
+
+/**
+ * 햄버거 버튼 클릭 시 모바일 네비게이션 드로어를 열고 닫습니다.
+ * DOM이 로드된 후 자동으로 이벤트를 바인딩합니다.
+ */
+(function initMobileNav() {
+    // DOM 준비 후 실행
+    function setup() {
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const mobileNav    = document.getElementById('mobile-nav');
+        const navOverlay   = document.getElementById('nav-overlay');
+
+        if (!hamburgerBtn || !mobileNav) return;
+
+        // 햄버거 버튼 클릭 → 드로어 열기/닫기
+        hamburgerBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const isOpen = mobileNav.classList.toggle('is-open');
+            hamburgerBtn.classList.toggle('is-open', isOpen);
+            hamburgerBtn.setAttribute('aria-expanded', isOpen);
+            if (navOverlay) navOverlay.classList.toggle('is-visible', isOpen);
+        });
+
+        // 오버레이 클릭 → 드로어 닫기
+        if (navOverlay) {
+            navOverlay.addEventListener('click', closeMobileNav);
+        }
+
+        // 메뉴 항목 클릭 시 드로어 닫기 (링크 이동 전)
+        mobileNav.querySelectorAll('.nav-btn').forEach(function (btn) {
+            btn.addEventListener('click', closeMobileNav);
+        });
+    }
+
+    function closeMobileNav() {
+        const hamburgerBtn = document.getElementById('hamburger-btn');
+        const mobileNav    = document.getElementById('mobile-nav');
+        const navOverlay   = document.getElementById('nav-overlay');
+        if (mobileNav)    mobileNav.classList.remove('is-open');
+        if (hamburgerBtn) { hamburgerBtn.classList.remove('is-open'); hamburgerBtn.setAttribute('aria-expanded', 'false'); }
+        if (navOverlay)   navOverlay.classList.remove('is-visible');
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setup);
+    } else {
+        setup();
+    }
+})();
 

@@ -105,3 +105,154 @@ body {
     background: #ffffff;
     overflow: hidden;
 }
+
+/* ============================================================
+   햄버거 버튼 — PC에서는 항상 숨김
+   ============================================================ */
+.hamburger-btn {
+    display: none; /* PC에서는 숨김 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 8px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.hamburger-btn span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: #ffffff;
+    border-radius: 2px;
+    transition: all 0.25s ease;
+    transform-origin: center;
+}
+/* 열린 상태 — X 아이콘 변환 */
+.hamburger-btn.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger-btn.is-open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.hamburger-btn.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ============================================================
+   모바일 메뉴 오버레이 — PC에서는 숨김
+   ============================================================ */
+.nav-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 199;
+    transition: opacity 0.25s ease;
+    opacity: 0;
+}
+.nav-overlay.is-visible {
+    opacity: 1;
+}
+
+/* ============================================================
+   모바일 반응형 (Mobile Responsive) - @media max-width: 768px
+   Galaxy S20 Ultra 기준 (412px 뷰포트)
+   기존 PC 스타일을 건드리지 않고, 모바일 전용으로만 덮어씌웁니다.
+   ============================================================ */
+@media (max-width: 768px) {
+
+    /* body/html의 overflow: hidden 해제 → 모바일에서 스크롤 허용 */
+    html, body {
+        overflow: auto;
+    }
+
+    /* 오버레이: 모바일에서 block으로 활성화 (기본 숨김, is-visible 시 보임) */
+    .nav-overlay {
+        display: block;
+        pointer-events: none;
+    }
+    .nav-overlay.is-visible {
+        pointer-events: auto;
+    }
+
+    /* 헤더: 패딩 조정, margin 축소 */
+    .system-header {
+        padding: 0;
+        margin-bottom: 8px;
+        position: relative; /* 드로어 기준점 */
+        z-index: 200;
+    }
+
+    /* 헤더 컨테이너: 로고 + 햄버거 버튼을 한 줄에 가로 배치 */
+    .header-container {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        gap: 0;
+    }
+
+    /* 로고 폰트 축소 */
+    .header-left .header-logo {
+        font-size: 1.0em;
+    }
+
+    /* 햄버거 버튼: 모바일에서 표시 */
+    .hamburger-btn {
+        display: flex;
+    }
+
+    /* 네비게이션 드로어:
+       PC에서는 flex-row로 보이다가,
+       모바일에서는 헤더 아래 슬라이드-다운 드로어로 변신 */
+    .header-right {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        position: absolute;
+        top: 100%; /* 헤더 바로 아래 */
+        left: 0;
+        right: 0;
+        background: #1a2f44;
+        z-index: 200;
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease, padding 0.3s ease;
+        padding: 0 14px;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+    }
+
+    /* 드로어 열린 상태 */
+    .header-right.is-open {
+        max-height: 320px;
+        padding: 10px 14px 14px;
+    }
+
+    /* 각 네비 버튼: 세로 전체 너비, 터치 최소 높이 */
+    .nav-btn {
+        flex: none;
+        width: 100%;
+        min-height: 48px;
+        font-size: 0.9em;
+        padding: 12px 16px;
+        text-align: left;
+        border-radius: 10px;
+        margin-bottom: 6px;
+    }
+
+    /* 로그아웃 버튼: 구분선 위에 간격 */
+    .btn-logout {
+        margin-left: 0;
+        margin-top: 4px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding-top: 14px;
+        border-radius: 10px;
+    }
+
+    /* wrapper: overflow 해제하여 캘린더가 잘리지 않도록 */
+    .wrapper {
+        overflow: visible;
+        padding: 0 6px 10px 6px;
+    }
+}
