@@ -33,7 +33,7 @@ function calculateHours(startStr, endStr) {
         const eMatch = String(endStr).match(/(\d{2}):(\d{2})/);
         if (!sMatch || !eMatch) return 0;
         const diff = (parseInt(eMatch[1]) * 60 + parseInt(eMatch[2])) - (parseInt(sMatch[1]) * 60 + parseInt(sMatch[2]));
-        return diff > 0 ? (diff / 60).toFixed(1) : 0;
+        return diff > 0 ? diff : 0; // 분 단위 반환 (예: 100분)
     } catch (e) { return 0; }
 }
 
@@ -97,7 +97,9 @@ function collectSubInstructors(containerId) {
     const container = document.getElementById(containerId);
     if (!container) return [];
     const inputs = container.querySelectorAll('.sub-instructor-input');
-    return Array.from(inputs).map(el => el.value.trim()).filter(v => v !== '');
+    if (inputs.length === 0) return []; // 행 자체가 없으면 빈 배열
+    // 행이 추가된 경우: 빈 입력은 '미정'으로 대체
+    return Array.from(inputs).map(el => el.value.trim() || '미정');
 }
 
 /**

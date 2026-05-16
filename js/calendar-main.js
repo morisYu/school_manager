@@ -190,6 +190,7 @@ window.initCalendar = function() {
             if (arg.view.type === 'listWeek') {
                 const grade = p['학년'] || '';
                 const count = p['대상인원'] || '';
+                const endTime = typeof extractTime === 'function' ? extractTime(p['종료시간']) : (p['종료시간'] || '');
 
                 let targetText = '';
                 if (grade && count) targetText = `${grade}(${count})`;
@@ -197,10 +198,12 @@ window.initCalendar = function() {
                 else if (count) targetText = count;
 
                 const note = p['비고'] || '';
+                const timeDisplay = `${startTime}~${endTime}`;
 
                 return {
                     html: `
                     <div class="event-list-item ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
+                        <div class="list-col col-time" title="${timeDisplay}(${durationValue})">${timeDisplay}</div>
                         <div class="list-col col-inst" title="${institution}">${institution}</div>
                         <div class="list-col col-prog" title="${program}">${program}</div>
                         <div class="list-col col-target" title="${targetText}">${targetText}</div>

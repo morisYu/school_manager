@@ -176,15 +176,15 @@ function displaySchoolInfo(school) {
                     <div id="info-school-phone" class="info-value"></div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">👤 담당자명</div>
-                    <div id="info-school-manager-name" class="info-value"></div>
+                    <div class="info-label">👤 담당자</div>
+                    <div class="info-value contact-inline">
+                        <span id="info-school-manager-name"></span>
+                        <span class="contact-separator">|</span>
+                        <span id="info-school-manager-phone"></span>
+                    </div>
                 </div>
                 <div class="info-item">
-                    <div class="info-label">📱 담당자 연락처</div>
-                    <div id="info-school-manager-phone" class="info-value"></div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">📧 담당자 이메일</div>
+                    <div class="info-label">📧 이메일</div>
                     <div id="info-school-manager-email" class="info-value"></div>
                 </div>
                 <div class="info-item">
@@ -249,8 +249,9 @@ window.toggleEditSchoolMode = function() {
     // 입력창으로 전환
     aliasArea.innerHTML = `<input type="text" id="edit-alias-input" class="edit-input-alias" value="${currentAlias}">`;
     noteArea.innerHTML = `<textarea id="edit-note-input" class="edit-textarea-note">${currentNote}</textarea>`;
-    managerNameArea.innerHTML = `<input type="text" id="edit-mname-input" class="edit-input-alias" value="${currentMName}">`;
-    managerPhoneArea.innerHTML = `<input type="text" id="edit-mphone-input" class="edit-input-alias" value="${currentMPhone}">`;
+    // 담당자: 인라인 구조에서 개별 span을 입력창으로 교체
+    managerNameArea.innerHTML = `<input type="text" id="edit-mname-input" class="edit-input-alias" value="${currentMName}" placeholder="담당자명" style="width: auto; min-width: 80px;">`;
+    managerPhoneArea.innerHTML = `<input type="text" id="edit-mphone-input" class="edit-input-alias" value="${currentMPhone}" placeholder="연락처" style="width: auto; min-width: 120px;">`;
     managerEmailArea.innerHTML = `<input type="email" id="edit-memail-input" class="edit-input-alias" value="${currentMEmail}">`;
 
     editBtn.style.display = 'none';
@@ -321,23 +322,28 @@ function filterAndDisplayHistory(school, start, end) {
         // 선택된 학교의 정보
         const targetAlias = (school.searchAlias || '').trim();
         const targetFullName = (school.schoolName || '').trim();
+        // 학교명에서 '등학교', '중학교', '학교' 접미사 제거한 축약명 생성
+        const targetShortName = targetFullName.replace(/등학교$|중학교$|학교$/, '').trim();
 
         if (match) {
-            const extractedNameFromSchedule = match[1].trim(); // 예: '남대구초', '시지중'
+            const extractedName = match[1].trim(); // 예: '대서초', '시지중'
             
-            // 1. 별칭이 정확히 일치하는 경우
-            if (targetAlias && extractedNameFromSchedule === targetAlias) {
+            // 1. 별칭과 정확히 일치
+            if (targetAlias && extractedName === targetAlias) {
                 isSchoolMatch = true;
             } 
-            // 2. 별칭이 없더라도 학교 전체 이름에 포함되는 경우 (예: '시지중학교'에 '시지중' 포함)
-            else if (targetFullName && targetFullName.includes(extractedNameFromSchedule)) {
+            // 2. 축약 학교명과 정확히 일치 (예: '대서초' === '대서초')
+            else if (targetShortName && extractedName === targetShortName) {
                 isSchoolMatch = true;
             }
         } else {
-            // 괄호가 없는 경우 (직접 입력 등): 기관명 자체가 학교명이나 별칭을 포함하는지 확인
-            if (targetAlias && institution.includes(targetAlias)) {
+            // 괄호가 없는 경우: 기관명이 별칭 또는 학교명과 정확히 일치하는지 확인
+            const instTrimmed = institution.trim();
+            if (targetAlias && instTrimmed === targetAlias) {
                 isSchoolMatch = true;
-            } else if (targetFullName && institution.includes(targetFullName)) {
+            } else if (targetFullName && instTrimmed === targetFullName) {
+                isSchoolMatch = true;
+            } else if (targetShortName && instTrimmed === targetShortName) {
                 isSchoolMatch = true;
             }
         }
@@ -349,15 +355,36 @@ function filterAndDisplayHistory(school, start, end) {
         return isSchoolMatch && isAfter && isBefore;
     });
 
-    filtered.sort((a, b) => new Date(b['날짜']) - new Date(a['날짜']));
+    // ── 중복 일정 제거: 같은 날짜+기관명+프로그램에 강사 배정 버전이 있으면 '미정' 버전 제외 ──
+    const deduplicated = filtered.filter(row => {
+        const mainInstructor = (row['주강사'] || '').trim();
+        const isUnassigned = mainInstructor === '미정' || mainInstructor === '';
+
+        if (!isUnassigned) return true; // 강사가 배정된 일정은 항상 유지
+
+        // '미정'인 경우: 같은 날짜+기관명+프로그램에 강사가 배정된 다른 레코드가 있는지 확인
+        const hasDuplicate = filtered.some(other => {
+            if (other === row) return false;
+            const otherInstructor = (other['주강사'] || '').trim();
+            return other['날짜'] === row['날짜']
+                && other['기관명'] === row['기관명']
+                && other['프로그램명'] === row['프로그램명']
+                && otherInstructor !== '미정'
+                && otherInstructor !== '';
+        });
+
+        return !hasDuplicate; // 강사 배정 버전이 있으면 이 '미정' 레코드는 제외
+    });
+
+    deduplicated.sort((a, b) => new Date(b['날짜']) - new Date(a['날짜']));
 
     tbody.innerHTML = '';
-    if (filtered.length === 0) {
+    if (deduplicated.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="empty-msg">해당 조건에 맞는 출강 이력이 없습니다.</td></tr>';
         return;
     }
 
-    filtered.forEach((row, index) => {
+    deduplicated.forEach((row, index) => {
         const hours = typeof calculateHours === 'function' ? calculateHours(row['시작시간'], row['종료시간']) : '-';
         const dateStr = typeof formatDate === 'function' ? formatDate(row['날짜']) : row['날짜'];
         const subs = row['보조강사들'] || [];
@@ -371,7 +398,7 @@ function filterAndDisplayHistory(school, start, end) {
                 <td>${row['기관명']}</td>
                 <td class="program-cell">${row['프로그램명']}</td>
                 <td>${educators}</td>
-                <td class="time-cell">${hours}h</td>
+                <td class="time-cell">${hours}분</td>
                 <td>${row['비고'] || '-'}</td>
             </tr>
         `;

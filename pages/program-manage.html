@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프로그램 관리</title>
+    <!-- Quill.js CSS -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/program-manage.css">
+</head>
+<body style="display: none;">
+    <div id="main-content">
+        <div id="nav-overlay" class="nav-overlay"></div>
+
+        <div class="system-header no-print">
+            <div class="header-container">
+                <div class="header-left">
+                    <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
+                </div>
+                <button id="hamburger-btn" class="hamburger-btn" aria-label="메뉴 열기" aria-expanded="false">
+                    <span></span><span></span><span></span>
+                </button>
+                <div id="mobile-nav" class="header-right">
+                    <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                    <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
+                    <button class="nav-btn btn-program" onclick="location.href='program-manage.html'">📦 프로그램 관리</button>
+                    <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="program-container no-print">
+            <!-- 좌측: 프로그램 목록 -->
+            <div class="program-list-panel">
+                <div class="panel-header">
+                    <h2>📦 프로그램 목록</h2>
+                    <button id="btn-new-program" class="btn-primary">+ 신규 등록</button>
+                </div>
+                
+                <div class="search-filter-box">
+                    <input type="text" id="search-program" placeholder="프로그램명 검색...">
+                    <select id="filter-category">
+                        <option value="">모든 카테고리</option>
+                        <!-- JS에서 동적 채움 -->
+                    </select>
+                </div>
+
+                <div class="list-container" id="program-list">
+                    <!-- JS에서 동적 렌더링 -->
+                    <div class="loading-msg">프로그램 목록을 불러오는 중...</div>
+                </div>
+            </div>
+
+            <!-- 우측: 상세/편집 패널 -->
+            <div class="program-detail-panel">
+                <div class="detail-header">
+                    <h2 id="detail-title">프로그램 상세</h2>
+                    <div class="detail-actions">
+                        <button id="btn-print-pdf" class="btn-outline" style="display: none;">🖨️ PDF 출력</button>
+                        <button id="btn-edit-program" class="btn-primary" style="display: none;">✏️ 수정</button>
+                        <button id="btn-save-program" class="btn-success">💾 저장하기</button>
+                        <button id="btn-delete-program" class="btn-danger" style="display: none;">🗑️ 삭제</button>
+                    </div>
+                </div>
+
+                <!-- 탭 메뉴 -->
+                <div class="tab-menu">
+                    <button class="tab-btn active" data-tab="tab-basic">기본 정보</button>
+                    <button class="tab-btn" data-tab="tab-plan">교육계획안</button>
+                    <button class="tab-btn" data-tab="tab-materials">교구/재료</button>
+                    <button class="tab-btn" data-tab="tab-extra">강사/비고</button>
+                </div>
+
+                <div class="tab-content-container">
+                    <form id="program-form">
+                        <input type="hidden" id="program-id">
+
+                        <!-- 탭 1: 기본 정보 -->
+                        <div id="tab-basic" class="tab-content active">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>프로그램명 <span class="required">*</span></label>
+                                    <input type="text" id="pg-name" required placeholder="예: 감정표현 로봇">
+                                </div>
+                                <div class="form-group">
+                                    <label>카테고리</label>
+                                    <input type="text" id="pg-category" list="category-options" placeholder="카테고리 직접 입력 또는 선택" value="기타">
+                                    <datalist id="category-options">
+                                        <!-- JS에서 동적 채움 -->
+                                    </datalist>
+                                </div>
+                                <div class="form-group">
+                                    <label>상태</label>
+                                    <select id="pg-status">
+                                        <option value="운영중">운영중</option>
+                                        <option value="준비중">준비중</option>
+                                        <option value="종료">종료</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>대상 학년 (복수 선택 가능)</label>
+                                <div class="checkbox-group" id="pg-grades">
+                                    <label><input type="checkbox" value="유치원"> 유치원</label>
+                                    <label><input type="checkbox" value="초등"> 초등</label>
+                                    <label><input type="checkbox" value="중등"> 중등</label>
+                                    <label><input type="checkbox" value="고등"> 고등</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>프로그램 설명</label>
+                                <textarea id="pg-desc" rows="3" placeholder="프로그램에 대한 간단한 설명을 입력하세요."></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>수업 예시 사진</label>
+                                <div class="photo-upload-area">
+                                    <input type="file" id="pg-photo-input" accept="image/*" multiple style="display: none;">
+                                    <button type="button" class="btn-outline btn-sm" onclick="document.getElementById('pg-photo-input').click()">+ 사진 추가</button>
+                                    <div id="pg-photo-preview" class="photo-preview-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 탭 2: 교육계획안 (Quill Editor) -->
+                        <div id="tab-plan" class="tab-content">
+                            <div class="editor-help">수업 목표, 도입-전개-마무리 등 세부 교육계획안을 작성하세요. PDF 출력 시 이 내용이 포함됩니다.</div>
+                            <div id="quill-editor" style="height: 400px; background: white;"></div>
+                        </div>
+
+                        <!-- 탭 3: 교구/재료 -->
+                        <div id="tab-materials" class="tab-content">
+                            <div class="materials-header">
+                                <h3>필요 교구 및 재료 목록</h3>
+                                <button type="button" id="btn-add-material" class="btn-outline btn-sm">+ 항목 추가</button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="materials-table">
+                                    <thead>
+                                        <tr>
+                                            <th>교구/재료명</th>
+                                            <th style="width: 100px;">1인 수량</th>
+                                            <th style="width: 150px;">이미지</th>
+                                            <th>비고</th>
+                                            <th style="width: 60px;">관리</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="materials-tbody">
+                                        <!-- 동적 추가 -->
+                                        <tr class="empty-material-row"><td colspan="5" style="text-align:center;">등록된 교구가 없습니다.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- 탭 4: 강사/비고 -->
+                        <div id="tab-extra" class="tab-content">
+                            <div class="form-group">
+                                <label>담당 가능 강사</label>
+                                <input type="text" id="pg-instructors" placeholder="예: 홍길동, 김철수 (쉼표로 구분)">
+                                <small style="color: #7f8c8d; display: block; margin-top: 5px;">* 향후 강사 관리 페이지와 연동될 수 있습니다.</small>
+                            </div>
+                            <div class="form-group">
+                                <label>운영 메모 / 특이사항</label>
+                                <textarea id="pg-memo" rows="6" placeholder="강사 준비사항이나 유의점을 적어주세요."></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 인쇄 전용 영역 (평소엔 숨김) -->
+    <div id="print-area" class="print-only"></div>
+
+    <!-- 스크립트 -->
+    <!-- Quill.js -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <script src="../js/utils.js"></script>
+    <script type="module" src="../js/auth-check.js"></script>
+    <script type="module" src="../js/program-manage-handler.js"></script>
+</body>
+</html>

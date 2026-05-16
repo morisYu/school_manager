@@ -184,3 +184,62 @@ export async function duplicateSchedule(originalDocId, updatedData = {}) {
         throw error;
     }
 }
+
+/**
+ * =========================================================
+ * [Programs 컬렉션 관련 기능]
+ * =========================================================
+ */
+
+export async function getPrograms() {
+    try {
+        const programsRef = collection(db, "programs");
+        const q = query(programsRef, orderBy("programName", "asc"));
+        const snapshot = await getDocs(q);
+        const programs = [];
+        snapshot.forEach((docSnap) => {
+            programs.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        return programs;
+    } catch (error) {
+        console.error("📦 getPrograms 에러:", error);
+        throw error;
+    }
+}
+
+export async function addProgram(data) {
+    try {
+        const programsRef = collection(db, "programs");
+        const docRef = await addDoc(programsRef, {
+            ...data,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        });
+        return docRef.id;
+    } catch (error) {
+        console.error("➕ addProgram 에러:", error);
+        throw error;
+    }
+}
+
+export async function updateProgram(docId, data) {
+    try {
+        const programRef = doc(db, "programs", docId);
+        await updateDoc(programRef, { ...data, updatedAt: new Date().toISOString() });
+        return true;
+    } catch (error) {
+        console.error("✏️ updateProgram 에러:", error);
+        throw error;
+    }
+}
+
+export async function deleteProgram(docId) {
+    try {
+        const programRef = doc(db, "programs", docId);
+        await deleteDoc(programRef);
+        return true;
+    } catch (error) {
+        console.error("🗑️ deleteProgram 에러:", error);
+        throw error;
+    }
+}

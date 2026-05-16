@@ -39,8 +39,8 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
             region: getValue('edit-region'),
             programName: getValue('edit-program'),
             schoolName: getValue('edit-institution'),
-            mainInstructor: getValue('edit-main'),
-            subInstructors: collectSubInstructors('edit-sub-list'),     // 배열
+            mainInstructor: getValue('edit-main').trim() || '미정',
+            subInstructors: collectSubInstructors('edit-sub-list'),
             equipments: collectEquipments('edit-equip-list'),           // 배열 [{type, count}]
             note: getValue('edit-note'),
             color: getValue('edit-color'),

@@ -5,6 +5,34 @@ import {
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
+// ── 세션 타임아웃 설정 (밀리초) ──
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2시간 (필요 시 조정)
+const SESSION_KEY = 'school_manager_last_activity';
+
+/**
+ * 마지막 활동 시간을 기록합니다.
+ */
+function updateLastActivity() {
+    localStorage.setItem(SESSION_KEY, Date.now().toString());
+}
+
+/**
+ * 세션 만료 여부를 확인합니다.
+ * @returns {boolean} 세션이 만료되었으면 true
+ */
+function isSessionExpired() {
+    const lastActivity = localStorage.getItem(SESSION_KEY);
+    if (!lastActivity) return false; // 최초 접속 시에는 만료 판단하지 않음
+    return (Date.now() - parseInt(lastActivity)) > SESSION_TIMEOUT_MS;
+}
+
+/**
+ * 세션 데이터를 초기화합니다.
+ */
+function clearSession() {
+    localStorage.removeItem(SESSION_KEY);
+}
+
 // DOM Elements
 const loginScreen = document.getElementById('login-screen');
 const mainContent = document.getElementById('main-content');
@@ -16,15 +44,40 @@ const errorMsg = document.getElementById('login-error');
 /**
  * 인증 상태 변경 감지
  */
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     if (user) {
-        // 로그인 상태
+        // 세션 만료 확인
+        if (isSessionExpired()) {
+            console.log("Session expired. Auto logging out...");
+            clearSession();
+            await signOut(auth);
+            return; // signOut 후 onAuthStateChanged가 다시 호출됨
+        }
+
+        // 로그인 상태: 활동 시간 갱신
+        updateLastActivity();
         console.log("Logged in as:", user.email);
         showMainSystem();
     } else {
         // 로그아웃 상태
         console.log("Logged out");
+        clearSession();
         showLoginScreen();
+    }
+});
+
+/**
+ * 페이지 포커스/가시성 변경 시 세션 만료 체크 (탭 전환 후 복귀 시)
+ */
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && auth.currentUser) {
+        if (isSessionExpired()) {
+            console.log("Session expired on tab return. Auto logging out...");
+            clearSession();
+            await signOut(auth);
+        } else {
+            updateLastActivity();
+        }
     }
 });
 
@@ -45,6 +98,7 @@ async function handleLogin(e) {
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
+        updateLastActivity(); // 로그인 성공 시 활동 시간 기록
     } catch (error) {
         console.error("Login Error:", error.code, error.message);
         errorMsg.style.display = 'block';
@@ -65,6 +119,7 @@ async function handleLogin(e) {
 window.handleLogout = async function () {
     if (confirm("로그아웃 하시겠습니까?")) {
         try {
+            clearSession();
             await signOut(auth);
             location.reload(); // 상태 초기화를 위해 새로고침
         } catch (error) {
@@ -106,3 +161,4 @@ function showLoginScreen() {
 if (loginForm) {
     loginForm.addEventListener('submit', handleLogin);
 }
+

@@ -49,8 +49,8 @@ document.getElementById('lectureForm').addEventListener('submit', async function
             schoolName: document.getElementById('institution').value,
             grade: document.getElementById('grade').value,
             targetCount: Number(document.getElementById('students').value) || 0,
-            mainInstructor: document.getElementById('mainTeacher').value,
-            subInstructors: collectSubInstructors('input-sub-list'),     // 배열
+            mainInstructor: document.getElementById('mainTeacher').value.trim() || '미정',
+            subInstructors: collectSubInstructors('input-sub-list'),
             equipments: collectEquipments('input-equip-list'),           // 배열 [{type, count}]
             color: document.getElementById('color').value,
             note: document.getElementById('note').value,
