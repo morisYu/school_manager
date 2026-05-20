@@ -7,6 +7,415 @@
     --text: #1f2d3d;
 }
 
+/* ============================================================
+   강사 검색 + 프로필 카드 상단 레이아웃
+   ============================================================ */
+
+.top-layout {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    margin-bottom: 20px;
+}
+
+.instructor-search-box {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(8px);
+    padding: 24px;
+    border-radius: 20px;
+    box-shadow: 0 14px 30px rgba(34, 62, 97, 0.12);
+    border: 1px solid rgba(97, 134, 177, 0.25);
+    flex: 0 0 240px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 160px;
+    box-sizing: border-box;
+}
+
+.profile-card {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    box-shadow: 0 14px 30px rgba(34, 62, 97, 0.14);
+    border: 1px solid rgba(97, 134, 177, 0.25);
+    padding: 24px 28px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    animation: fadeInCard 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    min-height: 160px;
+    box-sizing: border-box;
+}
+
+.profile-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary), var(--accent), var(--mint));
+    border-radius: 20px 20px 0 0;
+}
+
+@keyframes fadeInCard {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.profile-photo-wrap {
+    flex: 0 0 110px;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid rgba(59, 130, 246, 0.35);
+    box-shadow: 0 4px 16px rgba(31, 58, 102, 0.18);
+    position: relative;
+    background: #eef3fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.profile-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.profile-photo-placeholder {
+    font-size: 3.2rem;
+    color: #a0b4cc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.profile-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.profile-name {
+    font-size: 1.45rem;
+    font-weight: 900;
+    color: var(--primary);
+    letter-spacing: -0.5px;
+    border-bottom: 2px solid #e8eff8;
+    padding-bottom: 8px;
+    margin-bottom: 2px;
+}
+
+.profile-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 20px;
+}
+
+.profile-row {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.88rem;
+}
+
+.profile-label {
+    font-weight: 800;
+    color: #264875;
+    background: #eaf2ff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.profile-value {
+    color: #3a4f6a;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.btn-profile-edit {
+    align-self: flex-end;
+    margin-top: 4px;
+    padding: 8px 18px;
+    background: linear-gradient(90deg, var(--primary), #315f9f);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 900;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+}
+
+.btn-profile-edit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(31, 58, 102, 0.28);
+}
+
+/* ============================================================
+   강사 프로필 수정 모달
+   ============================================================ */
+
+.profile-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 30, 60, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+}
+
+.profile-modal {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+    width: min(680px, 94vw);
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(20, 45, 90, 0.28);
+    overflow: hidden;
+    animation: modalPop 0.25s ease;
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: translate(-50%, -54%); }
+    to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.profile-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 24px;
+    background: linear-gradient(90deg, var(--primary), #315f9f);
+    color: white;
+}
+
+.profile-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 900;
+}
+
+.profile-modal-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.8);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+.profile-modal-close:hover {
+    background: rgba(255,255,255,0.15);
+    transform: none;
+    box-shadow: none;
+}
+
+.profile-modal-body {
+    display: flex;
+    gap: 28px;
+    padding: 28px 28px 16px 28px;
+    align-items: flex-start;
+}
+
+.modal-photo-section {
+    flex: 0 0 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.modal-photo-wrap {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 3px solid #cddcf0;
+    background: #eef3fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.modal-photo-wrap:hover { border-color: var(--accent); }
+
+.modal-photo-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.modal-photo-placeholder {
+    text-align: center;
+    color: #a0b4cc;
+    font-size: 2.4rem;
+    line-height: 1.3;
+}
+
+.modal-photo-placeholder span {
+    font-size: 0.7rem;
+    display: block;
+    color: #b0c0d8;
+}
+
+.btn-photo-select {
+    padding: 8px 14px;
+    background: #eaf2ff;
+    color: var(--primary);
+    border: 1px solid #cddcf0;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 0.82rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.15s;
+}
+
+.btn-photo-select:hover {
+    background: #d5e8ff;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-photo-delete {
+    padding: 8px 14px;
+    background: #fff0f0;
+    color: #e74c3c;
+    border: 1px solid #ffd3d3;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 0.82rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.15s;
+}
+
+.btn-photo-delete:hover {
+    background: #ffe3e3;
+    transform: none;
+    box-shadow: none;
+}
+
+.modal-form-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.modal-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.modal-form-group label {
+    font-weight: 900;
+    font-size: 0.82rem;
+    color: #264875;
+    background: #eaf2ff;
+    border-radius: 999px;
+    padding: 3px 10px;
+    width: fit-content;
+}
+
+.modal-form-group input,
+.modal-form-group textarea {
+    padding: 10px 12px;
+    border: 1px solid #cfddf0;
+    border-radius: 11px;
+    font-weight: 600;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 0.9rem;
+    background: #fcfdff;
+    resize: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.modal-form-group input:focus,
+.modal-form-group textarea:focus {
+    outline: none;
+    border-color: #5b8fd9;
+    box-shadow: 0 0 0 4px rgba(91, 143, 217, 0.15);
+    transform: none;
+}
+
+.input-readonly {
+    background: #f4f7fc !important;
+    color: #6b8aab !important;
+    cursor: not-allowed;
+}
+
+.profile-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 28px 22px 28px;
+    border-top: 1px solid #e8eff8;
+}
+
+.btn-modal-save {
+    padding: 11px 28px;
+    background: linear-gradient(90deg, var(--primary), #315f9f);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+}
+
+.btn-modal-save:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(31, 58, 102, 0.3);
+}
+
+.btn-modal-cancel {
+    padding: 11px 20px;
+    background: #f0f4fa;
+    color: #6b8aab;
+    border: 1px solid #d8e3f2;
+    border-radius: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.btn-modal-cancel:hover {
+    background: #e5ecf7;
+    transform: none;
+    box-shadow: none;
+}
+
+
+/* manage 페이지: common.css의 overflow:hidden을 해제하여 전체 창 스크롤 활성화 */
+html,
+body {
+    overflow: auto !important;
+    height: auto !important;
+}
+
 body {
     font-family: 'Pretendard', sans-serif;
     background:
@@ -244,6 +653,24 @@ td {
 }
 
 @media (max-width: 920px) {
+    .top-layout {
+        flex-direction: column;
+    }
+
+    .instructor-search-box {
+        flex: none;
+    }
+
+    .profile-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .profile-details {
+        grid-template-columns: 1fr;
+    }
+
     .header-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -251,6 +678,15 @@ td {
     .header-box,
     #report-area {
         min-width: 0;
+    }
+
+    .profile-modal-body {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .modal-photo-section {
+        flex: none;
     }
 }
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강사 정산 대시보드</title>
+    <title>강사 관리 대시보드</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/manage-style.css">
@@ -31,6 +31,54 @@
         </div>
 
         <div class="container">
+
+            <!-- ① 강사 검색 + 프로필 카드 영역 -->
+            <div class="top-layout">
+
+                <!-- 강사 선택 드롭다운 -->
+                <div class="instructor-search-box">
+                    <div class="input-group">
+                        <label>👤 강사 검색</label>
+                        <select id="teacherSelect" onchange="onInstructorChange()">
+                            <option value="">강사 데이터를 불러오는 중...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 강사 프로필 카드 (항상 표시, 강사 미선택 시 빈 상태) -->
+                <div id="instructor-profile-card" class="profile-card" style="display:flex;">
+                    <!-- 왼쪽: 사진 -->
+                    <div class="profile-photo-wrap">
+                        <img id="profile-photo-img" src="" alt="프로필 사진" class="profile-photo" style="display:none;">
+                        <div id="profile-photo-placeholder" class="profile-photo-placeholder">👤</div>
+                    </div>
+                    <!-- 오른쪽: 정보 -->
+                    <div class="profile-info">
+                        <div class="profile-name" id="profile-name">-</div>
+                        <div class="profile-details">
+                            <div class="profile-row">
+                                <span class="profile-label">생년월일</span>
+                                <span class="profile-value" id="profile-birth">-</span>
+                            </div>
+                            <div class="profile-row">
+                                <span class="profile-label">입사일자</span>
+                                <span class="profile-value" id="profile-hire">-</span>
+                            </div>
+                            <div class="profile-row">
+                                <span class="profile-label">수업 프로그램</span>
+                                <span class="profile-value" id="profile-programs">-</span>
+                            </div>
+                            <div class="profile-row">
+                                <span class="profile-label">비고</span>
+                                <span class="profile-value" id="profile-note">강사를 선택하면 프로필이 표시됩니다.</span>
+                            </div>
+                        </div>
+                        <button class="btn-profile-edit" onclick="openProfileModal()">✏️ 정보 수정</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ② 출강 이력 조회 박스 -->
             <div class="header-box">
                 <div class="header-row">
                     <div class="input-group">
@@ -42,12 +90,6 @@
                             <option value="울산">울산</option>
                             <option value="포항">포항</option>
                             <option value="기타">기타</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>👤 강사 선택</label>
-                        <select id="teacherSelect">
-                            <option value="">강사 데이터를 불러오는 중...</option>
                         </select>
                     </div>
                     <div class="input-group">
@@ -89,7 +131,7 @@
                     </thead>
 
                     <tbody id="report-table-body">
-                        <tr><td colspan="8">조회 조건을 입력 후 버튼을 눌러주세요.</td></tr>
+                        <tr><td colspan="9">강사를 선택하고 조회 조건을 설정하세요.</td></tr>
                     </tbody>
                     <tfoot id="report-footer" style="display:none;">
                         <tr class="total-row">
@@ -110,6 +152,57 @@
                     </tfoot>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- 강사 프로필 수정 모달 -->
+    <div id="profile-modal-overlay" class="profile-modal-overlay" onclick="closeProfileModal()"></div>
+    <div id="profile-modal" class="profile-modal">
+        <div class="profile-modal-header">
+            <h3>✏️ 강사 정보 수정</h3>
+            <button class="profile-modal-close" onclick="closeProfileModal()">✕</button>
+        </div>
+        <div class="profile-modal-body">
+            <!-- 사진 업로드 -->
+            <div class="modal-photo-section">
+                <div class="modal-photo-wrap">
+                    <img id="modal-photo-preview" src="" alt="미리보기" style="display:none;">
+                    <div id="modal-photo-placeholder" class="modal-photo-placeholder">👤<br><span>클릭하여 사진 선택</span></div>
+                </div>
+                <input type="file" id="modal-photo-input" accept="image/*" style="display:none;" onchange="onPhotoSelected(this)">
+                <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                    <button class="btn-photo-select" onclick="document.getElementById('modal-photo-input').click()">📷 사진 변경</button>
+                    <button class="btn-photo-delete" onclick="deletePhoto()">🗑️ 사진 삭제</button>
+                </div>
+            </div>
+
+            <!-- 정보 입력 폼 -->
+            <div class="modal-form-section">
+                <div class="modal-form-group">
+                    <label>강사명</label>
+                    <input type="text" id="modal-name" readonly class="input-readonly">
+                </div>
+                <div class="modal-form-group">
+                    <label>생년월일</label>
+                    <input type="date" id="modal-birth">
+                </div>
+                <div class="modal-form-group">
+                    <label>입사일자</label>
+                    <input type="date" id="modal-hire">
+                </div>
+                <div class="modal-form-group">
+                    <label>수업 가능 프로그램</label>
+                    <input type="text" id="modal-programs" placeholder="예: 드론, 로봇, 3D프린팅">
+                </div>
+                <div class="modal-form-group">
+                    <label>비고</label>
+                    <textarea id="modal-note" rows="3" placeholder="기타 특이사항"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="profile-modal-footer">
+            <button class="btn-modal-save" onclick="saveProfile()">💾 저장</button>
+            <button class="btn-modal-cancel" onclick="closeProfileModal()">취소</button>
         </div>
     </div>
 

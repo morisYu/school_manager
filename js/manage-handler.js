@@ -1,17 +1,20 @@
 /* js/manage-handler.js - Firebase Firestore 버전 */
-import { getAllSchedules } from './db_service.js';
+import { getAllSchedules, getInstructorProfile, saveInstructorProfile } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
 let rawData = [];
+// 모달에서 현재 선택된 사진의 Base64 문자열 (null이면 변경 없음)
+let pendingPhotoBase64 = null;
 
-// 인증 상태가 확인된 후 데이터를 가져오도록 변경
+// ─── 인증 후 전체 일정 데이터 로드 ───────────────────────────────────────────
+
 onAuthStateChanged(auth, async (user) => {
-    if (!user) return; // 비로그인 시 로직 중단 (auth-check.js에서 리다이렉트 처리함)
+    if (!user) return;
 
     try {
         const firestoreData = await getAllSchedules();
-        
+
         // Firestore 영문 카멜케이스 → 기존 렌더링 로직의 한글 키로 변환
         rawData = firestoreData.map(r => ({
             '날짜': r.date,
@@ -29,12 +32,13 @@ onAuthStateChanged(auth, async (user) => {
             '대상인원': r.targetCount
         }));
 
+        // 강사 목록을 드롭다운에 채우기
         const select = document.getElementById('teacherSelect');
         const teachers = new Set();
         rawData.forEach(r => {
-            if(r['주강사']) teachers.add(r['주강사']);
+            if (r['주강사']) teachers.add(r['주강사']);
             const subs = r['보조강사들'] || [];
-            subs.forEach(s => { if(s) teachers.add(s); });
+            subs.forEach(s => { if (s) teachers.add(s); });
         });
 
         select.innerHTML = '<option value="">강사 선택</option>';
@@ -47,12 +51,224 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// window에 바인딩하여 HTML onclick에서 호출 가능하도록 설정
-window.loadReport = function() {
-    const region = document.getElementById('region-select').value;
+// ─── 강사 선택 시 프로필 카드 표시 ────────────────────────────────────────────
+
+window.onInstructorChange = async function () {
     const name = document.getElementById('teacherSelect').value;
-    const start = document.getElementById('startDate').value;
-    const end = document.getElementById('endDate').value;
+    const card = document.getElementById('instructor-profile-card');
+
+    if (!name) {
+        // 강사 미선택 시 카드는 빈 상태로 유지
+        card.style.display = 'flex';
+        document.getElementById('profile-name').textContent = '-';
+        document.getElementById('profile-birth').textContent = '-';
+        document.getElementById('profile-hire').textContent = '-';
+        document.getElementById('profile-programs').textContent = '-';
+        document.getElementById('profile-note').textContent = '강사를 선택하면 프로필이 표시됩니다.';
+        document.getElementById('profile-photo-img').style.display = 'none';
+        document.getElementById('profile-photo-placeholder').style.display = 'flex';
+        return;
+    }
+
+    card.style.display = 'flex';
+
+    // 카드 초기화
+    document.getElementById('profile-name').textContent = name;
+    document.getElementById('profile-birth').textContent = '조회 중...';
+    document.getElementById('profile-hire').textContent = '조회 중...';
+    document.getElementById('profile-programs').textContent = '조회 중...';
+    document.getElementById('profile-note').textContent = '조회 중...';
+    document.getElementById('profile-photo-img').style.display = 'none';
+    document.getElementById('profile-photo-placeholder').style.display = 'flex';
+
+    // Firestore에서 프로필 가져오기
+    try {
+        const profile = await getInstructorProfile(name);
+        renderProfileCard(name, profile);
+    } catch (e) {
+        console.error("프로필 로드 실패:", e);
+        renderProfileCard(name, null);
+    }
+};
+
+/**
+ * 가져온 프로필 데이터를 카드에 렌더링합니다.
+ * @param {string} name 강사명
+ * @param {Object|null} profile Firestore 프로필 데이터 (없으면 null)
+ */
+function renderProfileCard(name, profile) {
+    document.getElementById('profile-name').textContent = name;
+
+    if (profile) {
+        document.getElementById('profile-birth').textContent = formatDate(profile.birthDate) || '-';
+        document.getElementById('profile-hire').textContent  = formatDate(profile.hireDate)  || '-';
+        document.getElementById('profile-programs').textContent = profile.programs || '-';
+        document.getElementById('profile-note').textContent    = profile.note     || '-';
+
+        // 사진 표시
+        const img = document.getElementById('profile-photo-img');
+        const placeholder = document.getElementById('profile-photo-placeholder');
+        if (profile.photoBase64) {
+            img.src = profile.photoBase64;
+            img.style.display = 'block';
+            placeholder.style.display = 'none';
+        } else {
+            img.style.display = 'none';
+            placeholder.style.display = 'flex';
+        }
+    } else {
+        document.getElementById('profile-birth').textContent    = '-';
+        document.getElementById('profile-hire').textContent     = '-';
+        document.getElementById('profile-programs').textContent = '-';
+        document.getElementById('profile-note').textContent     = '정보가 없습니다. 수정 버튼으로 등록하세요.';
+        document.getElementById('profile-photo-img').style.display = 'none';
+        document.getElementById('profile-photo-placeholder').style.display = 'flex';
+    }
+}
+
+// ─── 프로필 수정 모달 열기/닫기 ──────────────────────────────────────────────
+
+window.openProfileModal = async function () {
+    const name = document.getElementById('teacherSelect').value;
+    if (!name) return;
+
+    pendingPhotoBase64 = null;
+
+    // 모달 폼에 현재 값 채우기
+    document.getElementById('modal-name').value = name;
+    document.getElementById('modal-birth').value = '';
+    document.getElementById('modal-hire').value = '';
+    document.getElementById('modal-programs').value = '';
+    document.getElementById('modal-note').value = '';
+
+    // 모달 사진 미리보기 초기화
+    const previewImg = document.getElementById('modal-photo-preview');
+    const previewPlaceholder = document.getElementById('modal-photo-placeholder');
+    previewImg.style.display = 'none';
+    previewPlaceholder.style.display = 'flex';
+
+    // 기존 저장된 프로필 불러와서 폼 채우기
+    try {
+        const profile = await getInstructorProfile(name);
+        if (profile) {
+            document.getElementById('modal-birth').value    = profile.birthDate || '';
+            document.getElementById('modal-hire').value     = profile.hireDate  || '';
+            document.getElementById('modal-programs').value = profile.programs  || '';
+            document.getElementById('modal-note').value     = profile.note      || '';
+
+            if (profile.photoBase64) {
+                previewImg.src = profile.photoBase64;
+                previewImg.style.display = 'block';
+                previewPlaceholder.style.display = 'none';
+                // 기존 사진을 유지하기 위해 pendingPhotoBase64에 기존 값 저장
+                pendingPhotoBase64 = profile.photoBase64;
+            }
+        }
+    } catch (e) {
+        console.error("프로필 로드 실패:", e);
+    }
+
+    document.getElementById('profile-modal-overlay').style.display = 'block';
+    document.getElementById('profile-modal').style.display = 'block';
+};
+
+window.closeProfileModal = function () {
+    document.getElementById('profile-modal-overlay').style.display = 'none';
+    document.getElementById('profile-modal').style.display = 'none';
+    document.getElementById('modal-photo-input').value = '';
+    pendingPhotoBase64 = null;
+};
+
+// ─── 사진 선택 이벤트 ─────────────────────────────────────────────────────────
+
+window.onPhotoSelected = function (input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        // 이미지를 리사이징하여 Base64로 변환 (최대 600x600px, 화면에서는 140px로 표시)
+        const img = new Image();
+        img.onload = function () {
+            const maxSize = 600; // 저장 크기 (px) - 충분한 화질 유지
+            let { width, height } = img;
+            if (width > maxSize || height > maxSize) {
+                const ratio = Math.min(maxSize / width, maxSize / height);
+                width  = Math.round(width  * ratio);
+                height = Math.round(height * ratio);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width  = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+            // JPEG 품질 0.88로 저장 (용량 절감 + 충분한 화질)
+            pendingPhotoBase64 = canvas.toDataURL('image/jpeg', 0.88);
+
+            // 미리보기 업데이트
+            const previewImg = document.getElementById('modal-photo-preview');
+            previewImg.src = pendingPhotoBase64;
+            previewImg.style.display = 'block';
+            document.getElementById('modal-photo-placeholder').style.display = 'none';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.deletePhoto = function () {
+    pendingPhotoBase64 = null;
+    const previewImg = document.getElementById('modal-photo-preview');
+    previewImg.src = '';
+    previewImg.style.display = 'none';
+    document.getElementById('modal-photo-placeholder').style.display = 'flex';
+    document.getElementById('modal-photo-input').value = '';
+};
+
+// ─── 프로필 저장 ──────────────────────────────────────────────────────────────
+
+window.saveProfile = async function () {
+    const name = document.getElementById('modal-name').value;
+    if (!name) return;
+
+    const saveBtn = document.querySelector('.btn-modal-save');
+    saveBtn.disabled = true;
+    saveBtn.textContent = '저장 중...';
+
+    const profileData = {
+        name:       name,
+        birthDate:  document.getElementById('modal-birth').value,
+        hireDate:   document.getElementById('modal-hire').value,
+        programs:   document.getElementById('modal-programs').value,
+        note:       document.getElementById('modal-note').value,
+        photoBase64: pendingPhotoBase64 || null
+    };
+
+    try {
+        await saveInstructorProfile(name, profileData);
+
+        // 카드 즉시 갱신 (DB 재조회 없이 UI 업데이트)
+        renderProfileCard(name, profileData);
+
+        closeProfileModal();
+        alert('✅ 강사 정보가 저장되었습니다.');
+    } catch (e) {
+        console.error("프로필 저장 실패:", e);
+        alert('⚠️ 저장에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 저장';
+    }
+};
+
+// ─── 출강 이력 조회 ───────────────────────────────────────────────────────────
+
+window.loadReport = function () {
+    const region = document.getElementById('region-select').value;
+    const name   = document.getElementById('teacherSelect').value;
+    const start  = document.getElementById('startDate').value;
+    const end    = document.getElementById('endDate').value;
 
     if (!name) { alert("강사를 선택해주세요."); return; }
 
@@ -61,24 +277,24 @@ window.loadReport = function() {
         const isRegionMatch = region === "전체" || String(r['지역구분']) === region;
         const subs = r['보조강사들'] || [];
         const isNameMatch = String(r['주강사']) === name || subs.includes(name);
-        const isAfter = !start || rDate >= new Date(start);
-        const isBefore = !end || rDate <= new Date(end);
+        const isAfter  = !start || rDate >= new Date(start);
+        const isBefore = !end   || rDate <= new Date(end);
         return isNameMatch && isAfter && isBefore && isRegionMatch;
     }).sort((a, b) => new Date(a['날짜']) - new Date(b['날짜']));
 
-    const tbody = document.getElementById('report-table-body');
+    const tbody  = document.getElementById('report-table-body');
     const footer = document.getElementById('report-footer');
     tbody.innerHTML = '';
-    
+
     let mainTotal = 0;
-    let subTotal = 0;
+    let subTotal  = 0;
 
     filtered.forEach((r, index) => {
         const hours = calculateHours(r['시작시간'], r['종료시간']);
-        const role = String(r['주강사']) === name ? "주강사" : "보조강사";
-        
-        if(role === "주강사") mainTotal += parseFloat(hours);
-        else subTotal += parseFloat(hours);
+        const role  = String(r['주강사']) === name ? "주강사" : "보조강사";
+
+        if (role === "주강사") mainTotal += parseFloat(hours);
+        else                   subTotal  += parseFloat(hours);
 
         tbody.innerHTML += `
             <tr>
@@ -96,8 +312,8 @@ window.loadReport = function() {
     });
 
     document.getElementById('main-total-hours').innerText = mainTotal.toFixed(1);
-    document.getElementById('sub-total-hours').innerText = subTotal.toFixed(1);
-    document.getElementById('total-hours').innerText = (mainTotal + subTotal).toFixed(1);
+    document.getElementById('sub-total-hours').innerText  = subTotal.toFixed(1);
+    document.getElementById('total-hours').innerText      = (mainTotal + subTotal).toFixed(1);
 
     if (filtered.length > 0) {
         footer.style.display = 'table-footer-group';
@@ -107,10 +323,12 @@ window.loadReport = function() {
     }
 };
 
-window.exportToExcel = function() {
-    const table = document.querySelector("#report-area table");
-    const wb = XLSX.utils.table_to_book(table, { sheet: "정산내역서", raw: true });
-    const name = document.getElementById('teacherSelect').value || '강사';
+// ─── Excel 내보내기 ───────────────────────────────────────────────────────────
+
+window.exportToExcel = function () {
+    const table   = document.querySelector("#report-area table");
+    const wb      = XLSX.utils.table_to_book(table, { sheet: "정산내역서", raw: true });
+    const name    = document.getElementById('teacherSelect').value || '강사';
     const dateStr = new Date().toISOString().slice(0, 10);
     XLSX.writeFile(wb, `정산내역서_${name}_${dateStr}.xlsx`);
 };

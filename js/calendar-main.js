@@ -47,6 +47,32 @@ const STATIC_HOLIDAY_EVENTS = Object.entries(KOREAN_HOLIDAYS).map(([dateStr, nam
 window.isUnassignedFilterActive = false;
 window.allHolidayDates = Object.keys(KOREAN_HOLIDAYS);
 
+// 동적 CSS 필터 스타일 업데이트 함수
+function updateFilterStyle(filterName) {
+    let styleEl = document.getElementById('fc-filter-dynamic-style');
+    if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'fc-filter-dynamic-style';
+        document.head.appendChild(styleEl);
+    }
+    
+    if (filterName === null) {
+        styleEl.innerHTML = '';
+        return;
+    }
+    
+    const target = filterName.trim() === '' ? '미정' : filterName.trim();
+    
+    styleEl.innerHTML = `
+        .fc-show-unassigned .event-wrapper[data-teachers*="${target}"],
+        .fc-show-unassigned .event-list-item[data-teachers*="${target}"] {
+            --event-bg: #fff0f0 !important;
+            --event-color: #e74c3c !important;
+            border: 1px solid #ffcfcf !important;
+        }
+    `;
+}
+
 // onAuthStateChanged 리스너가 상단(5라인)에 이미 존재하므로 중복 방지를 위해 여기서는 제거합니다.
 
 window.initCalendar = function() {
@@ -82,15 +108,28 @@ window.initCalendar = function() {
         listDaySideFormat: false,
         customButtons: {
             unassignedFilter: {
-                text: '강사 미정',
+                text: '강사 검색',
                 click: function () {
                     const calendarEl = document.getElementById('calendar');
                     const btn = document.querySelector('.fc-unassignedFilter-button');
-                    calendarEl.classList.toggle('fc-show-unassigned');
-                    if (calendarEl.classList.contains('fc-show-unassigned')) {
-                        btn.classList.add('fc-button-active');
-                    } else {
+                    const input = document.getElementById('instructor-search-input');
+                    const searchName = input ? input.value.trim() : '';
+                    
+                    if (calendarEl.classList.contains('fc-show-unassigned') && window.instructorFilterName === searchName) {
+                        // 검색어가 같을 때 클릭하면 필터 해제
+                        calendarEl.classList.remove('fc-show-unassigned');
                         btn.classList.remove('fc-button-active');
+                        btn.innerText = '강사 검색';
+                        if (input) input.value = '';
+                        window.instructorFilterName = '';
+                        updateFilterStyle(null);
+                    } else {
+                        // 필터 적용 (빈칸이면 '미정' 검색)
+                        window.instructorFilterName = searchName;
+                        calendarEl.classList.add('fc-show-unassigned');
+                        btn.classList.add('fc-button-active');
+                        btn.innerText = '필터 해제';
+                        updateFilterStyle(searchName);
                     }
                 }
             }
@@ -184,8 +223,7 @@ window.initCalendar = function() {
             if (equips.length === 1) toolText = `${equips[0].type}(${equips[0].count})`;
             else if (equips.length > 1) toolText = `${equips[0].type}(${equips[0].count}) +${equips.length - 1}종`;
 
-            const isUnassigned = mainTeacher.includes('미정') || subTeachers.some(s => s.includes('미정'));
-            const highlightClass = isUnassigned ? 'unassigned-highlight' : '';
+            const teachersData = [mainTeacher, ...subTeachers].join(',');
 
             if (arg.view.type === 'listWeek') {
                 const grade = p['학년'] || '';
@@ -202,7 +240,7 @@ window.initCalendar = function() {
 
                 return {
                     html: `
-                    <div class="event-list-item ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
+                    <div class="event-list-item" data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
                         <div class="list-col col-time" title="${timeDisplay}(${durationValue})">${timeDisplay}</div>
                         <div class="list-col col-inst" title="${institution}">${institution}</div>
                         <div class="list-col col-prog" title="${program}">${program}</div>
@@ -216,7 +254,7 @@ window.initCalendar = function() {
 
             return {
                 html: `
-                <div class="event-wrapper ${highlightClass}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
+                <div class="event-wrapper" data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
                     <div class="event-line1">
                         <span class="event-time"><strong>${startTime}(${durationValue})</strong> |</span>
                         <span class="event-institution">${institution}</span>
@@ -239,6 +277,26 @@ window.initCalendar = function() {
         },
         datesSet: function (info) {
             sessionStorage.setItem('calendarCurrentDate', info.view.currentStart.toISOString());
+            
+            // 툴바 렌더링 시 검색 입력창 추가 보장
+            const filterBtn = document.querySelector('.fc-unassignedFilter-button');
+            if (filterBtn && !document.getElementById('instructor-search-input')) {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'instructor-search-input';
+                input.placeholder = '강사명(빈칸:미정)';
+                input.className = 'instructor-search-input';
+                
+                // Enter 키 입력 시 검색 실행
+                input.addEventListener('keyup', function(e) {
+                    if (e.key === 'Enter') {
+                        filterBtn.click();
+                    }
+                });
+                
+                // 버튼의 바로 앞에 입력창 추가
+                filterBtn.parentNode.insertBefore(input, filterBtn);
+            }
         }
     });
     calendar.render();

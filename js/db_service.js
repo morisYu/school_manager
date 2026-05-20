@@ -12,8 +12,51 @@ import {
     where,
     orderBy,
     getDoc,
-    doc
+    doc,
+    setDoc
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+/**
+ * =========================================================
+ * [Instructors 컬렉션 관련 기능]
+ * Schema: { name, birthDate, hireDate, programs, note, photoBase64 }
+ * 문서 ID = 강사명 (name)을 그대로 사용하여 검색 용이
+ * =========================================================
+ */
+
+/**
+ * 강사명으로 프로필을 조회합니다.
+ * @param {string} name 강사명
+ * @returns {Promise<Object|null>} 강사 프로필 객체 또는 null
+ */
+export async function getInstructorProfile(name) {
+    try {
+        const docRef = doc(db, "instructors", name);
+        const docSnap = await getDoc(docRef);
+        return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    } catch (error) {
+        console.error("👤 getInstructorProfile 에러:", error);
+        throw error;
+    }
+}
+
+/**
+ * 강사 프로필을 저장하거나 업데이트합니다.
+ * @param {string} name 강사명 (문서 ID로 사용)
+ * @param {Object} data 저장할 프로필 데이터
+ * @returns {Promise<void>}
+ */
+export async function saveInstructorProfile(name, data) {
+    try {
+        const docRef = doc(db, "instructors", name);
+        await setDoc(docRef, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+    } catch (error) {
+        console.error("👤 saveInstructorProfile 에러:", error);
+        throw error;
+    }
+}
+
+
 
 /**
  * =========================================================

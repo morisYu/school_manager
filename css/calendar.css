@@ -117,6 +117,26 @@
     font-weight: 800 !important;
 }
 
+/* 강사명 검색 입력창 스타일 */
+.instructor-search-input {
+    padding: 8px 12px;
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    width: 150px;
+    margin: 0 3px;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    height: 38px;
+}
+.instructor-search-input:focus {
+    border-color: #2980b9;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+}
+
 /* '미정' 필터 버튼 활성화 스타일 */
 .fc .fc-unassignedFilter-button.fc-button-active {
     background-color: #e74c3c !important;
@@ -253,6 +273,14 @@
         min-height: 36px !important;
         margin: 0 2px !important;
         border-radius: 7px !important;
+    }
+
+    /* 강사명 검색 입력창 모바일 크기 조정 */
+    .instructor-search-input {
+        width: 120px;
+        padding: 5px 8px;
+        font-size: 12px;
+        height: 36px;
     }
 
     /* 이전/다음 버튼: 최소 너비 확보 */
