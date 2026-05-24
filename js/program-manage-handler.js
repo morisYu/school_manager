@@ -21,7 +21,8 @@ const filterCategory = document.getElementById('filter-category');
 // Form Elements
 const formId = document.getElementById('program-id');
 const formName = document.getElementById('pg-name');
-const formCategory = document.getElementById('pg-category');
+const formCategorySelect = document.getElementById('pg-category-select');
+const formCategoryInput = document.getElementById('pg-category-input');
 const formStatus = document.getElementById('pg-status');
 const formDesc = document.getElementById('pg-desc');
 const formInstructors = document.getElementById('pg-instructors');
@@ -82,6 +83,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     searchInput.addEventListener('input', renderProgramList);
     filterCategory.addEventListener('change', renderProgramList);
     
+    // 카테고리 선택 변경 핸들러
+    if (formCategorySelect && formCategoryInput) {
+        formCategorySelect.addEventListener('change', () => {
+            if (formCategorySelect.value === '__direct__') {
+                formCategoryInput.style.display = 'block';
+                formCategoryInput.value = '';
+                formCategoryInput.focus();
+            } else {
+                formCategoryInput.style.display = 'none';
+            }
+        });
+    }
+
     // 교구 추가 버튼
     btnAddMaterial.addEventListener('click', () => addMaterialRow());
 
@@ -140,15 +154,26 @@ function renderCategoryOptions() {
         filterCategory.value = currentFilter;
     }
 
-    // 입력 폼 datalist 갱신
-    const dataList = document.getElementById('category-options');
-    if (dataList) {
-        dataList.innerHTML = '';
+    // 입력 폼 select 갱신
+    if (formCategorySelect) {
+        const prevVal = formCategorySelect.value;
+        formCategorySelect.innerHTML = '';
         categories.forEach(cat => {
             const option = document.createElement('option');
             option.value = cat;
-            dataList.appendChild(option);
+            option.textContent = cat;
+            formCategorySelect.appendChild(option);
         });
+
+        // 직접 입력 옵션 추가
+        const directOption = document.createElement('option');
+        directOption.value = '__direct__';
+        directOption.textContent = '✏️ 직접 입력 (새로 추가)';
+        formCategorySelect.appendChild(directOption);
+
+        if (prevVal && Array.from(formCategorySelect.options).some(o => o.value === prevVal)) {
+            formCategorySelect.value = prevVal;
+        }
     }
 }
 
@@ -237,7 +262,18 @@ function selectProgram(id) {
 
         formId.value = program.id;
         formName.value = program.programName || '';
-        formCategory.value = program.category || '기타';
+        
+        const categoryVal = program.category || '기타';
+        const options = Array.from(formCategorySelect.options).map(opt => opt.value);
+        if (options.includes(categoryVal)) {
+            formCategorySelect.value = categoryVal;
+            formCategoryInput.style.display = 'none';
+        } else {
+            formCategorySelect.value = '__direct__';
+            formCategoryInput.style.display = 'block';
+            formCategoryInput.value = categoryVal;
+        }
+
         formStatus.value = program.status || '운영중';
         formDesc.value = program.description || '';
         formInstructors.value = (program.assignableInstructors || []).join(', ');
@@ -251,7 +287,11 @@ function selectProgram(id) {
         }
 
         // 에디터
-        quillEditor.root.innerHTML = program.educationPlan || '';
+        if (program.educationPlan) {
+            quillEditor.clipboard.dangerouslyPasteHTML(program.educationPlan);
+        } else {
+            quillEditor.setText('');
+        }
 
         // 사진
         if (program.examplePhotos) {
@@ -279,12 +319,14 @@ function selectProgram(id) {
 
         formId.value = '';
         formName.value = '';
-        formCategory.value = '기타';
+        formCategorySelect.value = '기타';
+        formCategoryInput.style.display = 'none';
+        formCategoryInput.value = '';
         formStatus.value = '준비중';
         formDesc.value = '';
         formInstructors.value = '';
         formMemo.value = '';
-        quillEditor.root.innerHTML = '';
+        quillEditor.setText('');
         
         // 기본 탭으로 이동
         document.querySelector('.tab-btn[data-tab="tab-basic"]').click();
@@ -423,6 +465,24 @@ async function handleSaveProgram() {
     }
 
     const isUpdate = !!formId.value;
+
+    // 프로그램명 중복 검사 (신규 등록이거나, 수정 시 이름이 변경된 경우)
+    const isDuplicate = programsData.some(p => p.programName.trim() === name && p.id !== formId.value);
+    if (isDuplicate) {
+        alert(`❌ "${name}"은(는) 이미 등록된 프로그램명입니다.\n중복된 이름은 사용할 수 없습니다.`);
+        return;
+    }
+
+    // 카테고리 값 구하기
+    let categoryVal = formCategorySelect.value;
+    if (categoryVal === '__direct__') {
+        categoryVal = formCategoryInput.value.trim();
+        if (!categoryVal) {
+            alert("새로운 카테고리명을 입력해주세요.");
+            return;
+        }
+    }
+
     btnSaveProgram.textContent = "저장 중...";
     btnSaveProgram.disabled = true;
 
@@ -468,7 +528,7 @@ async function handleSaveProgram() {
         // 5. DB 저장용 데이터 구성
         const programData = {
             programName: name,
-            category: formCategory.value,
+            category: categoryVal,
             targetGrades: targetGrades,
             status: formStatus.value,
             description: formDesc.value,

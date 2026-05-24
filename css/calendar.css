@@ -302,7 +302,7 @@
     /* ── 이벤트 텍스트: 모바일에서 기관명만 표시 ── */
     .event-wrapper {
         font-size: 11px;
-        padding: 2px 4px !important;
+        padding: 1px 2px !important;
     }
 
     /* 시간 정보(시작시간/duration) 숨김 */
@@ -310,17 +310,20 @@
         display: none !important;
     }
 
-    /* 기관명: 굵고 선명하게 */
+    /* 기관명: 자동 줄바꿈 허용으로 글자가 잘리지 않게 변경 */
     .event-institution {
         display: block;
         font-weight: 800;
         font-size: 0.85em;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        word-break: keep-all;
+        line-height: 1.2;
     }
 
-    .event-line1 { font-size: 1em !important; }
+    .event-line1 { 
+        font-size: 1em !important; 
+        white-space: normal !important;
+    }
 
     /* 프로그램/강사/교구 행 숨김 */
     .event-line2 {

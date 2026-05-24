@@ -280,22 +280,43 @@ window.initCalendar = function() {
             
             // 툴바 렌더링 시 검색 입력창 추가 보장
             const filterBtn = document.querySelector('.fc-unassignedFilter-button');
-            if (filterBtn && !document.getElementById('instructor-search-input')) {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.id = 'instructor-search-input';
-                input.placeholder = '강사명(빈칸:미정)';
-                input.className = 'instructor-search-input';
-                
-                // Enter 키 입력 시 검색 실행
-                input.addEventListener('keyup', function(e) {
-                    if (e.key === 'Enter') {
-                        filterBtn.click();
+            if (filterBtn) {
+                // FullCalendar가 월 이동 시 툴바를 재렌더링하면 버튼 텍스트가 초기값으로 돌아옴.
+                // 검색창이 없을 때만 새로 생성하고, 이후 필터 상태를 항상 동기화.
+                if (!document.getElementById('instructor-search-input')) {
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.id = 'instructor-search-input';
+                    input.placeholder = '강사명(빈칸:미정)';
+                    input.className = 'instructor-search-input';
+                    
+                    // Enter 키 입력 시 검색 실행
+                    input.addEventListener('keyup', function(e) {
+                        if (e.key === 'Enter') {
+                            filterBtn.click();
+                        }
+                    });
+                    
+                    // 버튼의 바로 앞에 입력창 추가
+                    filterBtn.parentNode.insertBefore(input, filterBtn);
+                }
+
+                // 필터 활성화 상태라면 버튼 텍스트와 스타일을 복원
+                // (FullCalendar 재렌더링으로 인해 리셋될 수 있으므로 항상 동기화)
+                const calendarEl = document.getElementById('calendar');
+                const isFilterActive = calendarEl && calendarEl.classList.contains('fc-show-unassigned');
+                if (isFilterActive) {
+                    filterBtn.innerText = '필터 해제';
+                    filterBtn.classList.add('fc-button-active');
+                    // 검색창에 현재 필터명 복원
+                    const input = document.getElementById('instructor-search-input');
+                    if (input && window.instructorFilterName !== undefined) {
+                        input.value = window.instructorFilterName;
                     }
-                });
-                
-                // 버튼의 바로 앞에 입력창 추가
-                filterBtn.parentNode.insertBefore(input, filterBtn);
+                } else {
+                    filterBtn.innerText = '강사 검색';
+                    filterBtn.classList.remove('fc-button-active');
+                }
             }
         }
     });

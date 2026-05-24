@@ -1,5 +1,5 @@
 /* js/manage-handler.js - Firebase Firestore 버전 */
-import { getAllSchedules, getInstructorProfile, saveInstructorProfile } from './db_service.js';
+import { getAllSchedules, getAllInstructors, getInstructorProfile, saveInstructorProfile, deleteInstructor as dbDeleteInstructor } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -7,15 +7,21 @@ let rawData = [];
 // 모달에서 현재 선택된 사진의 Base64 문자열 (null이면 변경 없음)
 let pendingPhotoBase64 = null;
 
-// ─── 인증 후 전체 일정 데이터 로드 ───────────────────────────────────────────
+// 등록된 강사 목록 (모듈 전역 상태)
+let registeredInstructors = [];
+
+// ─── 인증 후 데이터 로드 ────────────────────────────────────────────────────────
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
 
     try {
-        const firestoreData = await getAllSchedules();
+        // 두 컬렉션을 병렬로 동시 조회하여 초기 로딩 시간 단축
+        const [firestoreData] = await Promise.all([
+            getAllSchedules(),
+            loadInstructorList()
+        ]);
 
-        // Firestore 영문 카멜케이스 → 기존 렌더링 로직의 한글 키로 변환
         rawData = firestoreData.map(r => ({
             '날짜': r.date,
             '시작시간': r.startTime,
@@ -32,24 +38,28 @@ onAuthStateChanged(auth, async (user) => {
             '대상인원': r.targetCount
         }));
 
-        // 강사 목록을 드롭다운에 채우기
-        const select = document.getElementById('teacherSelect');
-        const teachers = new Set();
-        rawData.forEach(r => {
-            if (r['주강사']) teachers.add(r['주강사']);
-            const subs = r['보조강사들'] || [];
-            subs.forEach(s => { if (s) teachers.add(s); });
-        });
-
-        select.innerHTML = '<option value="">강사 선택</option>';
-        [...teachers].sort().forEach(t => {
-            select.innerHTML += `<option value="${t}">${t}</option>`;
-        });
     } catch (e) {
         console.error("Data Load Error:", e);
-        alert("강사 목록을 불러오지 못했습니다.");
+        alert("데이터를 불러오지 못했습니다.");
     }
 });
+
+/**
+ * instructors 컬렉션에서 강사 목록을 불러와 드롭다운에 만듭니다.
+ */
+async function loadInstructorList() {
+    const select = document.getElementById('teacherSelect');
+    try {
+        registeredInstructors = await getAllInstructors();
+        select.innerHTML = '<option value="">강사 선택</option>';
+        registeredInstructors.forEach(inst => {
+            select.innerHTML += `<option value="${inst.name}">${inst.name}</option>`;
+        });
+    } catch (e) {
+        console.error("강사 목록 로드 실패:", e);
+        select.innerHTML = '<option value="">로드 실패</option>';
+    }
+}
 
 // ─── 강사 선택 시 프로필 카드 표시 ────────────────────────────────────────────
 
@@ -168,15 +178,149 @@ window.openProfileModal = async function () {
         console.error("프로필 로드 실패:", e);
     }
 
-    document.getElementById('profile-modal-overlay').style.display = 'block';
-    document.getElementById('profile-modal').style.display = 'block';
+    const overlay = document.getElementById('profile-modal-overlay');
+    const modal   = document.getElementById('profile-modal');
+    overlay.style.display = 'block';
+    modal.style.display   = 'block';
+    requestAnimationFrame(() => {
+        overlay.classList.add('is-open');
+        modal.classList.add('is-open');
+    });
 };
 
 window.closeProfileModal = function () {
-    document.getElementById('profile-modal-overlay').style.display = 'none';
-    document.getElementById('profile-modal').style.display = 'none';
+    const overlay = document.getElementById('profile-modal-overlay');
+    const modal   = document.getElementById('profile-modal');
+
+    overlay.classList.remove('is-open');
+    modal.classList.remove('is-open');
     document.getElementById('modal-photo-input').value = '';
     pendingPhotoBase64 = null;
+
+    modal.addEventListener('transitionend', () => {
+        overlay.style.display = 'none';
+        modal.style.display   = 'none';
+    }, { once: true });
+};
+
+// ─── 강사 추가 모달 ──────────────────────────────────────────────────────────────
+
+window.openAddInstructorModal = function () {
+    const overlay = document.getElementById('add-instructor-modal-overlay');
+    const modal   = document.getElementById('add-instructor-modal');
+    const input   = document.getElementById('new-instructor-name');
+
+    input.value = '';
+    input.style.borderColor = '';
+
+    // display:block을 한 번에 설정한 뒤 requestAnimationFrame으로 클래스 추가
+    // → 브라우저가 레이아웃을 한 번만 계산하고 GPU 전환 애니메이션 실행
+    overlay.style.display = 'block';
+    modal.style.display   = 'block';
+    requestAnimationFrame(() => {
+        overlay.classList.add('is-open');
+        modal.classList.add('is-open');
+        input.focus();
+    });
+};
+
+window.closeAddInstructorModal = function () {
+    const overlay = document.getElementById('add-instructor-modal-overlay');
+    const modal   = document.getElementById('add-instructor-modal');
+
+    overlay.classList.remove('is-open');
+    modal.classList.remove('is-open');
+
+    // transition이 끝난 후 display:none 처리
+    modal.addEventListener('transitionend', () => {
+        overlay.style.display = 'none';
+        modal.style.display   = 'none';
+    }, { once: true });
+};
+
+window.confirmAddInstructor = async function () {
+    const nameInput = document.getElementById('new-instructor-name');
+    const name = nameInput.value.trim();
+
+    if (!name) {
+        nameInput.focus();
+        nameInput.style.borderColor = '#e74c3c';
+        return;
+    }
+    nameInput.style.borderColor = '';
+
+    // 중복 이름 확인 (로컬 배열로 체크 - 네트워크 불필요)
+    if (registeredInstructors.some(inst => inst.name === name)) {
+        alert(`"​${name}"은(는) 이미 등록된 강사입니다.`);
+        nameInput.focus();
+        return;
+    }
+
+    const addBtn = document.querySelector('#add-instructor-modal .btn-modal-save');
+    addBtn.disabled = true;
+    addBtn.textContent = '추가 중...';
+
+    try {
+        // Firestore에 저장
+        await saveInstructorProfile(name, { name });
+
+        // ✅ 재조회 없이 로컬 배열과 드롭다운에 직접 추가 (네트워크 왕복 1회 절약)
+        const newInstructor = { id: name, name };
+        registeredInstructors.push(newInstructor);
+        registeredInstructors.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+        const select = document.getElementById('teacherSelect');
+        select.innerHTML = '<option value="">강사 선택</option>';
+        registeredInstructors.forEach(inst => {
+            select.innerHTML += `<option value="${inst.name}">${inst.name}</option>`;
+        });
+
+        // 추가한 강사를 자동 선택
+        select.value = name;
+        await window.onInstructorChange();
+
+        closeAddInstructorModal();
+    } catch (e) {
+        console.error('강사 추가 실패:', e);
+        alert('⚠️ 등록에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+        addBtn.disabled = false;
+        addBtn.textContent = '➕ 추가하기';
+    }
+};
+
+// ─── 강사 삭제 ─────────────────────────────────────────────────────────────────
+
+window.deleteInstructor = async function () {
+    const name = document.getElementById('teacherSelect').value;
+    if (!name) {
+        alert('삭제할 강사를 먼저 선택해주세요.');
+        return;
+    }
+
+    const confirmed = confirm(`"​${name}" 강사를 목록에서 삭제하시겠습니까?\n(일정 데이터는 유지됩니다)`);
+    if (!confirmed) return;
+
+    const delBtn = document.querySelector('.btn-delete-instructor');
+    delBtn.disabled = true;
+    delBtn.textContent = '삭제 중...';
+
+    try {
+        await dbDeleteInstructor(name);
+
+        // 목록 재로드 후 카드 초기화
+        await loadInstructorList();
+        document.getElementById('teacherSelect').value = '';
+        window.onInstructorChange();
+
+        alert(`✅ "​${name}" 강사가 목록에서 삭제되었습니다.`);
+    } catch (e) {
+        console.error('강사 삭제 실패:', e);
+        alert('⚠️ 삭제에 실패했습니다. 다시 시도해주세요.');
+    } finally {
+        delBtn.disabled = false;
+        delBtn.textContent = '🗑️ 삭제';
+    }
 };
 
 // ─── 사진 선택 이벤트 ─────────────────────────────────────────────────────────

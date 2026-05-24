@@ -38,10 +38,12 @@
                 <!-- 강사 선택 드롭다운 -->
                 <div class="instructor-search-box">
                     <div class="input-group">
-                        <label>👤 강사 검색</label>
-                        <select id="teacherSelect" onchange="onInstructorChange()">
-                            <option value="">강사 데이터를 불러오는 중...</option>
-                        </select>
+                        <label>👤 강사 선택</label>
+                        <select id="teacherSelect" onchange="onInstructorChange()"></select>
+                    </div>
+                    <div class="instructor-action-btns">
+                        <button class="btn-add-instructor" onclick="openAddInstructorModal()">➕ 강사 추가</button>
+                        <button class="btn-delete-instructor" onclick="deleteInstructor()">🗑️ 삭제</button>
                     </div>
                 </div>
 
@@ -159,7 +161,7 @@
     <div id="profile-modal-overlay" class="profile-modal-overlay" onclick="closeProfileModal()"></div>
     <div id="profile-modal" class="profile-modal">
         <div class="profile-modal-header">
-            <h3>✏️ 강사 정보 수정</h3>
+            <h3 id="profile-modal-title">✏️ 강사 정보 수정</h3>
             <button class="profile-modal-close" onclick="closeProfileModal()">✕</button>
         </div>
         <div class="profile-modal-body">
@@ -203,6 +205,27 @@
         <div class="profile-modal-footer">
             <button class="btn-modal-save" onclick="saveProfile()">💾 저장</button>
             <button class="btn-modal-cancel" onclick="closeProfileModal()">취소</button>
+        </div>
+    </div>
+
+    <!-- 강사 추가 모달 -->
+    <div id="add-instructor-modal-overlay" class="profile-modal-overlay" onclick="closeAddInstructorModal()"></div>
+    <div id="add-instructor-modal" class="profile-modal add-instructor-modal">
+        <div class="profile-modal-header">
+            <h3>➕ 새 강사 추가</h3>
+            <button class="profile-modal-close" onclick="closeAddInstructorModal()">✕</button>
+        </div>
+        <div class="add-instructor-modal-body">
+            <p class="add-instructor-desc">추가할 강사의 이름을 입력하세요.<br><span>기본 정보는 추가 후 '✏️ 정보 수정'에서 등록할 수 있습니다.</span></p>
+            <div class="modal-form-group">
+                <label>강사명 <span style="color:#e74c3c;">*</span></label>
+                <input type="text" id="new-instructor-name" placeholder="예: 홍길동" maxlength="20"
+                    onkeyup="if(event.key==='Enter') confirmAddInstructor()">
+            </div>
+        </div>
+        <div class="profile-modal-footer">
+            <button class="btn-modal-save" onclick="confirmAddInstructor()">➕ 추가하기</button>
+            <button class="btn-modal-cancel" onclick="closeAddInstructorModal()">취소</button>
         </div>
     </div>
 

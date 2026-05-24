@@ -56,6 +56,41 @@ export async function saveInstructorProfile(name, data) {
     }
 }
 
+/**
+ * instructors 컬렉션에서 모든 강사 목록을 가져옵니다.
+ * @returns {Promise<Array>} 강사 프로필 객체 배열 (name 오름차순)
+ */
+export async function getAllInstructors() {
+    try {
+        const instructorsRef = collection(db, "instructors");
+        const q = query(instructorsRef, orderBy("name", "asc"));
+        const snapshot = await getDocs(q);
+        const instructors = [];
+        snapshot.forEach((docSnap) => {
+            instructors.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        return instructors;
+    } catch (error) {
+        console.error("👤 getAllInstructors 에러:", error);
+        throw error;
+    }
+}
+
+/**
+ * 강사명(문서 ID)으로 강사 프로필을 삭제합니다.
+ * @param {string} name 강사명 (문서 ID)
+ * @returns {Promise<void>}
+ */
+export async function deleteInstructor(name) {
+    try {
+        const docRef = doc(db, "instructors", name);
+        await deleteDoc(docRef);
+    } catch (error) {
+        console.error("🗑️ deleteInstructor 에러:", error);
+        throw error;
+    }
+}
+
 
 
 /**
