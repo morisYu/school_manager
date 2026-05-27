@@ -5,12 +5,24 @@
     --bg: #ffffff;
 }
 
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 html,
 body {
     height: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
+}
+
+#main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-width: 0; /* Flex blowout 방지 */
 }
 
 body {

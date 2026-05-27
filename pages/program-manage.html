@@ -71,6 +71,7 @@
                     <button class="tab-btn" data-tab="tab-plan">교육계획안</button>
                     <button class="tab-btn" data-tab="tab-materials">교구/재료</button>
                     <button class="tab-btn" data-tab="tab-extra">강사/비고</button>
+                    <button class="tab-btn" data-tab="tab-history">📊 수업 현황</button>
                 </div>
 
                 <div class="tab-content-container">
@@ -169,6 +170,75 @@
                             <div class="form-group">
                                 <label>운영 메모 / 특이사항</label>
                                 <textarea id="pg-memo" rows="6" placeholder="강사 준비사항이나 유의점을 적어주세요."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- 탭 5: 수업 현황 -->
+                        <div id="tab-history" class="tab-content">
+                            <!-- 통계 요약 카드 -->
+                            <div class="history-stats-row" id="history-stats-row">
+                                <div class="stat-card">
+                                    <div class="stat-icon">📅</div>
+                                    <div class="stat-value" id="stat-total-count">-</div>
+                                    <div class="stat-label">총 수업 횟수</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">🏫</div>
+                                    <div class="stat-value" id="stat-school-count">-</div>
+                                    <div class="stat-label">기관 수</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">👤</div>
+                                    <div class="stat-value" id="stat-instructor-count">-</div>
+                                    <div class="stat-label">참여 강사 수</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-icon">🎯</div>
+                                    <div class="stat-value" id="stat-total-students">-</div>
+                                    <div class="stat-label">총 대상 인원</div>
+                                </div>
+                            </div>
+
+                            <!-- 분석 차트 영역 -->
+                            <div class="history-charts-row" id="history-charts-row">
+                                <div class="chart-card">
+                                    <h4>🎤 주강사별 수업 횟수</h4>
+                                    <div class="bar-chart-container" id="chart-by-instructor"></div>
+                                </div>
+                                <div class="chart-card">
+                                    <h4>🤝 보조강사별 수업 횟수</h4>
+                                    <div class="bar-chart-container" id="chart-by-sub-instructor"></div>
+                                </div>
+                            </div>
+
+                            <!-- 수업 내역 테이블 -->
+                            <div class="history-table-section">
+                                <div class="history-table-header">
+                                    <h4>📋 수업 내역</h4>
+                                    <div class="history-filter-row">
+                                        <input type="text" id="history-search" placeholder="기관명 / 강사명 검색...">
+                                        <select id="history-year-filter">
+                                            <option value="">전체 연도</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="history-table">
+                                        <thead>
+                                            <tr>
+                                                <th>수업일자</th>
+                                                <th>기관명</th>
+                                                <th>주강사</th>
+                                                <th>보조강사</th>
+                                                <th>학년</th>
+                                                <th>대상인원</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="history-tbody">
+                                            <tr><td colspan="6" style="text-align:center; color:#aaa;">프로그램을 선택하면 수업 내역이 표시됩니다.</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </form>

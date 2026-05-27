@@ -56,7 +56,10 @@
                     </div>
                     <!-- 오른쪽: 정보 -->
                     <div class="profile-info">
-                        <div class="profile-name" id="profile-name">-</div>
+                        <div class="profile-name-row">
+                            <div class="profile-name" id="profile-name">-</div>
+                            <button class="btn-profile-edit" onclick="openProfileModal()">✏️ 정보 수정</button>
+                        </div>
                         <div class="profile-details">
                             <div class="profile-row">
                                 <span class="profile-label">생년월일</span>
@@ -75,7 +78,6 @@
                                 <span class="profile-value" id="profile-note">강사를 선택하면 프로필이 표시됩니다.</span>
                             </div>
                         </div>
-                        <button class="btn-profile-edit" onclick="openProfileModal()">✏️ 정보 수정</button>
                     </div>
                 </div>
             </div>

@@ -269,6 +269,34 @@ export async function duplicateSchedule(originalDocId, updatedData = {}) {
  * =========================================================
  */
 
+/**
+ * 특정 프로그램명과 연관된 모든 수업 일정을 가져옵니다.
+ * schedules 컬렉션의 programName 필드로 필터링합니다.
+ * @param {string} programName 프로그램명
+ * @returns {Promise<Array>} 해당 프로그램의 일정 배열 (date 오름차순)
+ */
+export async function getSchedulesByProgramName(programName) {
+    try {
+        const schedulesRef = collection(db, "schedules");
+        // orderBy 없이 where만 사용하여 복합 인덱스 요구 없이 동작
+        const q = query(
+            schedulesRef,
+            where("programName", "==", programName)
+        );
+        const snapshot = await getDocs(q);
+        const schedules = [];
+        snapshot.forEach((docSnap) => {
+            schedules.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        // 클라이언트에서 날짜 오름차순 정렬
+        schedules.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        return schedules;
+    } catch (error) {
+        console.error("📅 getSchedulesByProgramName 에러:", error);
+        throw error;
+    }
+}
+
 export async function getPrograms() {
     try {
         const programsRef = collection(db, "programs");

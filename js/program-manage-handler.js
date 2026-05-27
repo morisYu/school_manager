@@ -2,7 +2,8 @@ import {
     getPrograms, 
     addProgram, 
     updateProgram, 
-    deleteProgram 
+    deleteProgram,
+    getSchedulesByProgramName
 } from './db_service.js';
 import { uploadImage, deleteImage } from './storage-service.js';
 import { printProgramAsPDF } from './program-pdf.js';
@@ -41,6 +42,7 @@ let quillEditor = null;
 let currentPhotos = []; // { file: File, url: string, isExisting: boolean }
 let materialsData = []; // [{ id: string, name: string, quantityPerStudent: number, imageUrl: string, note: string, photoFile: File }]
 let isEditMode = false;
+let classHistoryData = []; // 현재 선택된 프로그램의 수업 내역
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
@@ -71,6 +73,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 선택된 탭 활성화
             btn.classList.add('active');
             document.getElementById(btn.dataset.tab).classList.add('active');
+            
+            // 수업 현황 탭 클릭 시 자동 로드
+            if (btn.dataset.tab === 'tab-history' && currentSelectedId) {
+                loadClassHistory();
+            }
         });
     });
 
@@ -209,6 +216,12 @@ function renderProgramList() {
         const matchName = p.programName.toLowerCase().includes(term);
         const matchCat = cat === "" || p.category === cat;
         return matchName && matchCat;
+    }).sort((a, b) => {
+        // 1순위: 카테고리 오름차순
+        const catA = (a.category || '').localeCompare(b.category || '', 'ko');
+        if (catA !== 0) return catA;
+        // 2순위: 프로그램명 오름차순
+        return (a.programName || '').localeCompare(b.programName || '', 'ko');
     });
 
     programListContainer.innerHTML = '';
@@ -335,6 +348,12 @@ function selectProgram(id) {
 
     renderPhotoPreviews();
     renderMaterialsTable();
+
+    // 수업 현황 탭이 활성화된 상태에서 프로그램을 변경하면 즉시 갱신
+    const activeTabBtn = document.querySelector('.tab-btn.active');
+    if (activeTabBtn && activeTabBtn.dataset.tab === 'tab-history' && id) {
+        loadClassHistory();
+    }
 }
 
 function setEditMode(mode) {
@@ -585,4 +604,236 @@ function handlePrintPDF() {
     if (!program) return;
     
     printProgramAsPDF(program);
+}
+
+// =========================================================
+// 수업 현황 탭 관련 함수
+// =========================================================
+
+/**
+ * 현재 선택된 프로그램의 수업 내역을 Firestore에서 로드합니다.
+ */
+async function loadClassHistory() {
+    const program = programsData.find(p => p.id === currentSelectedId);
+    if (!program) return;
+
+    const tbody = document.getElementById('history-tbody');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#7f8c8d;">🔄 로딩 중...</td></tr>';
+
+    try {
+        classHistoryData = await getSchedulesByProgramName(program.programName);
+        renderHistoryStats();
+        renderHistoryCharts();
+        renderHistoryTable();
+        setupHistoryFilters();
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#e74c3c;">수업 내역을 불러오는 데 실패했습니다.<br><small>${error.message}</small></td></tr>`;
+    }
+}
+
+/**
+ * 통계 요약 카드를 렌더링합니다.
+ */
+function renderHistoryStats() {
+    const total = classHistoryData.length;
+
+    // 고유 기관 수 (schoolName 또는 기관명 필드)
+    const schools = new Set(classHistoryData.map(s => s.schoolName || s['기관명'] || '').filter(Boolean));
+    
+    // 고유 주강사 수
+    const instructors = new Set(classHistoryData.map(s => s.mainInstructor || s['주강사'] || '').filter(Boolean));
+    
+    // 총 대상 인원 합계 (숫자인 경우만)
+    const totalStudents = classHistoryData.reduce((sum, s) => {
+        const count = Number(s.targetCount || s['대상인원'] || 0);
+        return sum + (isNaN(count) ? 0 : count);
+    }, 0);
+
+    document.getElementById('stat-total-count').textContent = total.toLocaleString() + '회';
+    document.getElementById('stat-school-count').textContent = schools.size.toLocaleString() + '곳';
+    document.getElementById('stat-instructor-count').textContent = instructors.size.toLocaleString() + '명';
+    document.getElementById('stat-total-students').textContent = totalStudents > 0 ? totalStudents.toLocaleString() + '명' : '-';
+}
+
+/**
+ * 기관별/강사별 바 차트를 순수 CSS로 렌더링합니다.
+ */
+function renderHistoryCharts() {
+    // --- 주강사별 수업 횟수 ---
+    const instructorCount = {};
+    classHistoryData.forEach(s => {
+        const inst = (s.mainInstructor || s['주강사'] || '').trim();
+        if (inst) instructorCount[inst] = (instructorCount[inst] || 0) + 1;
+    });
+    renderBarChart('chart-by-instructor', instructorCount, '#3498db');
+
+    // --- 보조강사별 수업 횟수 ---
+    // subInstructors: 배열 (신규), subInstructor: 문자열 (구형), 보조강사: 한글 필드명
+    const subInstructorCount = {};
+    classHistoryData.forEach(s => {
+        let subs = [];
+        if (Array.isArray(s.subInstructors) && s.subInstructors.length > 0) {
+            // 신규 포맷: 배열
+            subs = s.subInstructors;
+        } else {
+            // 구형 포맷: 문자열 (쉼표 구분 가능)
+            const raw = s.subInstructor || s['보조강사'] || '';
+            subs = String(raw).split(/[,，]/).map(n => n.trim());
+        }
+        subs
+            .filter(n => n && n !== '-' && n !== '없음' && n !== '미정')
+            .forEach(sub => {
+                subInstructorCount[sub] = (subInstructorCount[sub] || 0) + 1;
+            });
+    });
+    renderBarChart('chart-by-sub-instructor', subInstructorCount, '#e67e22');
+}
+
+/**
+ * 주어진 컨테이너에 바 차트를 렌더링합니다 (라이브러리 없이 순수 CSS).
+ * @param {string} containerId - 렌더링할 요소의 ID
+ * @param {Object} dataMap - { label: count } 형태의 데이터
+ * @param {string} color - 바 색상
+ */
+function renderBarChart(containerId, dataMap, color) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const entries = Object.entries(dataMap)
+        .sort((a, b) => b[1] - a[1])  // 내림차순 정렬
+        .slice(0, 10);  // 상위 10개만 표시
+
+    if (entries.length === 0) {
+        container.innerHTML = '<div style="color:#aaa; text-align:center; padding:20px;">데이터 없음</div>';
+        return;
+    }
+
+    const maxVal = entries[0][1];
+
+    entries.forEach(([label, count]) => {
+        const pct = Math.round((count / maxVal) * 100);
+        const barWrapper = document.createElement('div');
+        barWrapper.className = 'chart-bar-row';
+        barWrapper.innerHTML = `
+            <div class="chart-bar-label" title="${label}">${label}</div>
+            <div class="chart-bar-track">
+                <div class="chart-bar-fill" style="width: ${pct}%; background: ${color};">
+                    <span class="chart-bar-value">${count}회</span>
+                </div>
+            </div>
+        `;
+        container.appendChild(barWrapper);
+    });
+}
+
+/**
+ * 수업 내역 테이블을 렌더링합니다.
+ * @param {string} [searchTerm=''] - 검색어
+ * @param {string} [yearFilter=''] - 연도 필터
+ */
+function renderHistoryTable(searchTerm = '', yearFilter = '') {
+    const tbody = document.getElementById('history-tbody');
+    tbody.innerHTML = '';
+
+    // 보조강사 값을 표시용 문자열로 변환하는 헬퍼
+    const getSubText = (s) => {
+        if (Array.isArray(s.subInstructors) && s.subInstructors.length > 0) {
+            return s.subInstructors.join(', ');
+        }
+        return s.subInstructor || s['보조강사'] || '';
+    };
+
+    const filtered = classHistoryData.filter(s => {
+        const date = s.date || s['날짜'] || '';
+        const school = s.schoolName || s['기관명'] || '';
+        const main = s.mainInstructor || s['주강사'] || '';
+        const sub = getSubText(s);
+
+        const matchSearch = !searchTerm ||
+            school.includes(searchTerm) ||
+            main.includes(searchTerm) ||
+            sub.includes(searchTerm);
+        
+        const matchYear = !yearFilter || date.startsWith(yearFilter);
+        
+        return matchSearch && matchYear;
+    });
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#aaa; padding: 20px;">해당하는 수업 내역이 없습니다.</td></tr>';
+        return;
+    }
+
+    filtered.forEach(s => {
+        const tr = document.createElement('tr');
+        const date = s.date || s['날짜'] || '-';
+        const school = s.schoolName || s['기관명'] || '-';
+        const main = s.mainInstructor || s['주강사'] || '-';
+        const sub = getSubText(s);
+        const grade = s.grade || s['학년'] || '-';
+        const target = s.targetCount || s['대상인원'] || '-';
+
+        // 날짜를 한국식으로 포맷 (YYYY-MM-DD -> YYYY년 M월 D일)
+        let formattedDate = date;
+        if (date && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [y, m, d] = date.split('-');
+            formattedDate = `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
+        }
+
+        const subDisplay = sub && sub !== '-' && sub !== '없음' && sub !== '미정' ? sub : '-';
+
+        tr.innerHTML = `
+            <td><span class="history-date-badge">${formattedDate}</span></td>
+            <td>${school}</td>
+            <td><span class="instructor-badge main">${main}</span></td>
+            <td>${subDisplay !== '-' ? `<span class="instructor-badge sub">${subDisplay}</span>` : '-'}</td>
+            <td>${grade}</td>
+            <td>${target !== '-' && target !== '' ? Number(target).toLocaleString() + '명' : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+/**
+ * 수업 현황 탭의 검색/필터 이벤트를 설정합니다.
+ */
+function setupHistoryFilters() {
+    // 연도 옵션 생성
+    const yearSelect = document.getElementById('history-year-filter');
+    const years = new Set(classHistoryData.map(s => {
+        const date = s.date || s['날짜'] || '';
+        return date.substring(0, 4);
+    }).filter(y => y));
+    
+    yearSelect.innerHTML = '<option value="">전체 연도</option>';
+    Array.from(years).sort((a, b) => b - a).forEach(year => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year + '년';
+        yearSelect.appendChild(opt);
+    });
+
+    // 이벤트 연결 (기존 리스너 중복 방지를 위해 교체)
+    const searchInput = document.getElementById('history-search');
+    const newSearch = searchInput.cloneNode(true);
+    const newYear = yearSelect.cloneNode(true);
+    // 연도 옵션 복사
+    yearSelect.parentNode.replaceChild(newYear, yearSelect);
+    searchInput.parentNode.replaceChild(newSearch, searchInput);
+
+    // 연도 옵션 재설정 (cloneNode 후)
+    newYear.innerHTML = '<option value="">전체 연도</option>';
+    Array.from(years).sort((a, b) => b - a).forEach(year => {
+        const opt = document.createElement('option');
+        opt.value = year;
+        opt.textContent = year + '년';
+        newYear.appendChild(opt);
+    });
+
+    const onFilter = () => {
+        renderHistoryTable(newSearch.value.trim(), newYear.value);
+    };
+    newSearch.addEventListener('input', onFilter);
+    newYear.addEventListener('change', onFilter);
 }

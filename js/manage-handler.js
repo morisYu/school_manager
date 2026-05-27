@@ -112,7 +112,20 @@ function renderProfileCard(name, profile) {
     if (profile) {
         document.getElementById('profile-birth').textContent = formatDate(profile.birthDate) || '-';
         document.getElementById('profile-hire').textContent  = formatDate(profile.hireDate)  || '-';
-        document.getElementById('profile-programs').textContent = profile.programs || '-';
+        const programsContainer = document.getElementById('profile-programs');
+        programsContainer.innerHTML = ''; // 기존 내용 초기화
+        const programsStr = profile.programs || '';
+        if (programsStr.trim()) {
+            const programs = programsStr.split(',').map(p => p.trim()).filter(p => p);
+            programs.forEach(p => {
+                const badge = document.createElement('span');
+                badge.className = 'program-badge';
+                badge.textContent = p;
+                programsContainer.appendChild(badge);
+            });
+        } else {
+            programsContainer.textContent = '-';
+        }
         document.getElementById('profile-note').textContent    = profile.note     || '-';
 
         // 사진 표시
