@@ -1,5 +1,5 @@
 /* js/manage-handler.js - Firebase Firestore 버전 */
-import { getAllSchedules, getAllInstructors, getInstructorProfile, saveInstructorProfile, deleteInstructor as dbDeleteInstructor } from './db_service.js';
+import { getAllSchedules, getAllInstructors, getInstructorProfile, saveInstructorProfile, deleteInstructor as dbDeleteInstructor, updateSchedule } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -23,6 +23,7 @@ onAuthStateChanged(auth, async (user) => {
         ]);
 
         rawData = firestoreData.map(r => ({
+            'id': r.id,
             '날짜': r.date,
             '시작시간': r.startTime,
             '종료시간': r.endTime,
@@ -35,7 +36,9 @@ onAuthStateChanged(auth, async (user) => {
             '비고': r.note,
             '색상': r.color,
             '학년': r.grade,
-            '대상인원': r.targetCount
+            '대상인원': r.targetCount,
+            '차시': r.rounds !== undefined ? r.rounds : '',
+            '강사비': r.instructorFee !== undefined ? r.instructorFee : ''
         }));
 
     } catch (e) {
@@ -77,6 +80,12 @@ window.onInstructorChange = async function () {
         document.getElementById('profile-note').textContent = '강사를 선택하면 프로필이 표시됩니다.';
         document.getElementById('profile-photo-img').style.display = 'none';
         document.getElementById('profile-photo-placeholder').style.display = 'flex';
+
+        // 출강 및 정산 내역서 테이블 초기화
+        const tbody = document.getElementById('report-table-body');
+        const footer = document.getElementById('report-footer');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="10">강사를 선택하고 조회 조건을 설정하세요.</td></tr>';
+        if (footer) footer.style.display = 'none';
         return;
     }
 
@@ -95,6 +104,9 @@ window.onInstructorChange = async function () {
     try {
         const profile = await getInstructorProfile(name);
         renderProfileCard(name, profile);
+        
+        // 강사가 변경되었으므로 정산 내역서를 자동으로 새로 조회
+        window.loadReport();
     } catch (e) {
         console.error("프로필 로드 실패:", e);
         renderProfileCard(name, null);
@@ -453,8 +465,12 @@ window.loadReport = function () {
         if (role === "주강사") mainTotal += parseFloat(hours);
         else                   subTotal  += parseFloat(hours);
 
+        const roundsVal = r['차시'] !== undefined ? r['차시'] : '';
+        const feeVal = r['강사비'] !== undefined ? r['강사비'] : '';
+        const feeStr = feeVal ? parseInt(feeVal, 10).toLocaleString() : '';
+
         tbody.innerHTML += `
-            <tr>
+            <tr class="report-row" data-role="${role}" data-id="${r['id']}">
                 <td>${index + 1}</td>
                 <td class="date-cell">${formatDate(r['날짜'])}</td>
                 <td>${r['지역구분'] || '-'}</td>
@@ -462,8 +478,9 @@ window.loadReport = function () {
                 <td>${r['프로그램명']}</td>
                 <td>${role}</td>
                 <td class="hour-cell">${hours}</td>
-                <td><input type="number" class="lesson-input" value="" step="0.5"></td>
-                <td><input type="text" class="note-input" value="${r['비고'] || ''}"></td>
+                <td><input type="number" class="lesson-input" value="${roundsVal}" step="0.5" min="0" oninput="calculateAmount()" onblur="saveRowData(this)"></td>
+                <td><input type="text" class="fee-input" value="${feeStr}" oninput="formatFeeAndCalculate(this)" onblur="saveRowData(this)"></td>
+                <td class="amount-cell" style="text-align:right;">0</td>
             </tr>
         `;
     });
@@ -471,21 +488,85 @@ window.loadReport = function () {
     document.getElementById('main-total-hours').innerText = mainTotal.toFixed(1);
     document.getElementById('sub-total-hours').innerText  = subTotal.toFixed(1);
     document.getElementById('total-hours').innerText      = (mainTotal + subTotal).toFixed(1);
+    
+    // 초기 금액 합계 0으로 설정
+    document.getElementById('main-total-amount').innerText = "0";
+    document.getElementById('sub-total-amount').innerText = "0";
+    document.getElementById('total-amount').innerText = "0";
 
     if (filtered.length > 0) {
         footer.style.display = 'table-footer-group';
+        window.calculateAmount();
     } else {
-        tbody.innerHTML = '<tr><td colspan="9">내역이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10">내역이 없습니다.</td></tr>';
         footer.style.display = 'none';
     }
 };
 
-// ─── Excel 내보내기 ───────────────────────────────────────────────────────────
+window.formatFeeAndCalculate = function(input) {
+    let value = input.value.replace(/[^\d]/g, '');
+    if (value) {
+        input.value = parseInt(value, 10).toLocaleString();
+    } else {
+        input.value = '';
+    }
+    window.calculateAmount();
+};
 
-window.exportToExcel = function () {
-    const table   = document.querySelector("#report-area table");
-    const wb      = XLSX.utils.table_to_book(table, { sheet: "정산내역서", raw: true });
-    const name    = document.getElementById('teacherSelect').value || '강사';
-    const dateStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(wb, `정산내역서_${name}_${dateStr}.xlsx`);
+window.calculateAmount = function () {
+    const rows = document.querySelectorAll('#report-table-body .report-row');
+    let mainTotalAmount = 0;
+    let subTotalAmount = 0;
+
+    rows.forEach(row => {
+        const role = row.getAttribute('data-role');
+        const lessonInput = row.querySelector('.lesson-input').value;
+        const feeInput = row.querySelector('.fee-input').value;
+        const amountCell = row.querySelector('.amount-cell');
+
+        const lesson = parseFloat(lessonInput) || 0;
+        const fee = parseFloat(feeInput.replace(/,/g, '')) || 0;
+        const amount = lesson * fee;
+
+        amountCell.innerText = amount.toLocaleString();
+
+        if (role === "주강사") {
+            mainTotalAmount += amount;
+        } else {
+            subTotalAmount += amount;
+        }
+    });
+
+    document.getElementById('main-total-amount').innerText = mainTotalAmount.toLocaleString();
+    document.getElementById('sub-total-amount').innerText = subTotalAmount.toLocaleString();
+    document.getElementById('total-amount').innerText = (mainTotalAmount + subTotalAmount).toLocaleString();
+};
+
+
+window.saveRowData = async function(input) {
+    const row = input.closest('tr');
+    const docId = row.getAttribute('data-id');
+    if (!docId) return;
+
+    const lessonInput = row.querySelector('.lesson-input').value;
+    const feeInput = row.querySelector('.fee-input').value;
+
+    const rounds = lessonInput ? parseFloat(lessonInput) : null;
+    const instructorFee = feeInput ? parseInt(feeInput.replace(/,/g, ''), 10) : null;
+
+    try {
+        await updateSchedule(docId, {
+            rounds: rounds,
+            instructorFee: instructorFee
+        });
+
+        // 로컬 rawData 동기화
+        const target = rawData.find(item => item.id === docId);
+        if (target) {
+            target['차시'] = rounds !== null ? rounds : '';
+            target['강사비'] = instructorFee !== null ? instructorFee : '';
+        }
+    } catch (e) {
+        console.error("차시/강사비 저장 실패:", e);
+    }
 };

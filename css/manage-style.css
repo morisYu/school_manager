@@ -563,6 +563,7 @@ html,
 body {
     overflow: auto !important;
     height: auto !important;
+    min-width: fit-content;
 }
 
 body {
@@ -578,7 +579,7 @@ body {
 
 .container {
     padding: 0 20px 40px 20px;
-    max-width: 1080px; /* 강사 카드가 빈 내용일 때 과도하게 늘어나지 않고 자연스러운 크기로 설정 */
+    max-width: 1400px; /* 강사 카드가 빈 내용일 때 과도하게 늘어나지 않고 자연스러운 크기로 설정 */
     margin: 0 auto;
     overflow-x: visible;
 }
@@ -801,6 +802,33 @@ td {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.fee-input {
+    width: 85px;
+    border: 1px solid #cddcf0;
+    border-radius: 8px;
+    background: #fafdff;
+    text-align: right;
+    font-weight: 900;
+    color: #1f3a66;
+    padding: 6px 8px;
+}
+
+.fee-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* 숫자 입력란 화살표(스핀 버튼) 제거 */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
 }
 
 @media (max-width: 920px) {
