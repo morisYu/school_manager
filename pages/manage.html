@@ -77,6 +77,15 @@
                                 <span class="profile-value" id="profile-note">강사를 선택하면 프로필이 표시됩니다.</span>
                             </div>
                         </div>
+                        <!-- 수업 불가능 시간 요약 -->
+                        <div class="availability-summary" id="availability-summary">
+                            <div class="availability-header">
+                                <span class="profile-label">🕐 수업 불가능 시간</span>
+                            </div>
+                            <div class="availability-badges" id="availability-badges">
+                                <span class="avail-placeholder">강사를 선택하면 불가능 시간이 표시됩니다.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -163,40 +172,56 @@
             <button class="profile-modal-close" onclick="closeProfileModal()">✕</button>
         </div>
         <div class="profile-modal-body">
-            <!-- 사진 업로드 -->
-            <div class="modal-photo-section">
-                <div class="modal-photo-wrap">
-                    <img id="modal-photo-preview" src="" alt="미리보기" style="display:none;">
-                    <div id="modal-photo-placeholder" class="modal-photo-placeholder">👤<br><span>클릭하여 사진 선택</span></div>
+            <div class="modal-top-row">
+                <!-- 사진 업로드 -->
+                <div class="modal-photo-section">
+                    <div class="modal-photo-wrap">
+                        <img id="modal-photo-preview" src="" alt="미리보기" style="display:none;">
+                        <div id="modal-photo-placeholder" class="modal-photo-placeholder">👤<br><span>클릭하여 사진 선택</span></div>
+                    </div>
+                    <input type="file" id="modal-photo-input" accept="image/*" style="display:none;" onchange="onPhotoSelected(this)">
+                    <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                        <button class="btn-photo-select" onclick="document.getElementById('modal-photo-input').click()">📷 사진 변경</button>
+                        <button class="btn-photo-delete" onclick="deletePhoto()">🗑️ 사진 삭제</button>
+                    </div>
                 </div>
-                <input type="file" id="modal-photo-input" accept="image/*" style="display:none;" onchange="onPhotoSelected(this)">
-                <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
-                    <button class="btn-photo-select" onclick="document.getElementById('modal-photo-input').click()">📷 사진 변경</button>
-                    <button class="btn-photo-delete" onclick="deletePhoto()">🗑️ 사진 삭제</button>
+
+                <!-- 정보 입력 폼 -->
+                <div class="modal-form-section">
+                    <div class="modal-form-group">
+                        <label>강사명</label>
+                        <input type="text" id="modal-name" readonly class="input-readonly">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>생년월일</label>
+                        <input type="date" id="modal-birth">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>입사일자</label>
+                        <input type="date" id="modal-hire">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>수업 가능 프로그램</label>
+                        <input type="text" id="modal-programs" placeholder="예: 드론, 로봇, 3D프린팅">
+                    </div>
+                    <div class="modal-form-group full-width">
+                        <label>비고</label>
+                        <textarea id="modal-note" rows="3" placeholder="기타 특이사항"></textarea>
+                    </div>
                 </div>
             </div>
 
-            <!-- 정보 입력 폼 -->
-            <div class="modal-form-section">
-                <div class="modal-form-group">
-                    <label>강사명</label>
-                    <input type="text" id="modal-name" readonly class="input-readonly">
-                </div>
-                <div class="modal-form-group">
-                    <label>생년월일</label>
-                    <input type="date" id="modal-birth">
-                </div>
-                <div class="modal-form-group">
-                    <label>입사일자</label>
-                    <input type="date" id="modal-hire">
-                </div>
-                <div class="modal-form-group">
-                    <label>수업 가능 프로그램</label>
-                    <input type="text" id="modal-programs" placeholder="예: 드론, 로봇, 3D프린팅">
-                </div>
-                <div class="modal-form-group">
-                    <label>비고</label>
-                    <textarea id="modal-note" rows="3" placeholder="기타 특이사항"></textarea>
+            <div class="modal-bottom-row">
+                <!-- 수업 불가능 시간 설정 -->
+                <div class="modal-form-group availability-section">
+                    <label>🕐 수업 불가능 시간</label>
+                    <div class="availability-grid" id="availability-grid">
+                        <!-- JS에서 동적 생성 -->
+                    </div>
+                    <div class="modal-form-group" style="margin-top: 8px;">
+                        <label>📝 불가능 시간 메모</label>
+                        <textarea id="modal-availability-note" rows="2" placeholder="예: 매주 수요일은 개인 일정으로 종일 불가"></textarea>
+                    </div>
                 </div>
             </div>
         </div>

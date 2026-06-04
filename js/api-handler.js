@@ -1,4 +1,4 @@
-import { addSchedule, updateSchedule, deleteSchedule, duplicateSchedule } from './db_service.js';
+import { addSchedule, updateSchedule, deleteSchedule, duplicateSchedule, checkInstructorAvailability } from './db_service.js';
 
 // 1. HTML의 onclick="saveEvent()"와 연결 (module 스크립트에서도 동작하도록 window에 바인딩)
 window.saveEvent = function() {
@@ -47,6 +47,37 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
             grade: getValue('edit-grade'),
             targetCount: Number(getValue('edit-students')) || 0
         };
+
+        // ─── 강사 가용 시간 충돌 확인 (삭제 제외) ───────────────
+        if (action !== 'delete' && payloadData.date && payloadData.startTime && payloadData.endTime) {
+            const instructorsToCheck = [
+                payloadData.mainInstructor,
+                ...payloadData.subInstructors
+            ].filter(n => n && n !== '미정');
+            const warnings = [];
+
+            for (const name of instructorsToCheck) {
+                const result = await checkInstructorAvailability(name, payloadData.date, payloadData.startTime, payloadData.endTime);
+                if (!result.available) {
+                    warnings.push(result.message);
+                }
+            }
+
+            if (warnings.length > 0) {
+                const proceed = confirm(
+                    warnings.join('\n\n') +
+                    '\n\n──────────────────────\n' +
+                    '✅ [확인] 그래도 저장합니다.\n' +
+                    '❌ [취소] 강사를 변경합니다.'
+                );
+                if (!proceed) {
+                    // 강사 입력 필드로 포커스 이동하여 변경 유도
+                    const mainField = document.getElementById('edit-main');
+                    if (mainField) mainField.focus();
+                    return;
+                }
+            }
+        }
 
         if (btn) {
             btn.innerText = pendingText;

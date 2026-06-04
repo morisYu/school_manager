@@ -319,13 +319,15 @@
 
 .profile-modal {
     display: none;
+    flex-direction: column;
     position: fixed;
     top: 50%;
     left: 50%;
+    max-height: 90vh;
     /* 시작 위치: 약간 위로 오프셋 */
     transform: translate(-50%, -54%);
     z-index: 1001;
-    width: min(680px, 94vw);
+    width: min(1100px, 94vw);
     background: white;
     border-radius: 20px;
     box-shadow: 0 24px 60px rgba(20, 45, 90, 0.28);
@@ -381,9 +383,23 @@
 
 .profile-modal-body {
     display: flex;
-    gap: 28px;
+    flex-direction: column;
+    gap: 24px;
     padding: 28px 28px 16px 28px;
+    align-items: stretch;
+    overflow-y: auto;
+}
+
+.modal-top-row {
+    display: flex;
+    gap: 28px;
     align-items: flex-start;
+    width: 100%;
+}
+
+.modal-bottom-row {
+    width: 100%;
+    /* 배경이나 테두리를 주어 분리감을 줄 수 있음 */
 }
 
 .modal-photo-section {
@@ -469,9 +485,15 @@
 
 .modal-form-section {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 20px;
+}
+
+/* 폼 그룹 중 일부는 2칸을 모두 차지하도록 설정 */
+.modal-form-group.full-width,
+.availability-section {
+    grid-column: 1 / -1;
 }
 
 .modal-form-group {
@@ -959,6 +981,235 @@ input[type="number"] {
     #report-title {
         font-size: 1rem;
         margin-bottom: 14px;
+    }
+}
+
+
+/* ============================================================
+   수업 가능 시간 - 프로필 카드 요약
+   ============================================================ */
+
+.availability-summary {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #d8e3f2;
+    width: 100%;
+}
+
+.availability-header {
+    margin-bottom: 8px;
+}
+
+.availability-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 80px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.availability-badges::-webkit-scrollbar {
+    width: 4px;
+}
+.availability-badges::-webkit-scrollbar-thumb {
+    background: #cddcf0;
+    border-radius: 4px;
+}
+
+.avail-day-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #eaf6f4;
+    color: #0d7f72;
+    border: 1px solid #b8e6df;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.avail-day-badge.unavailable {
+    background: #fff0f0;
+    color: #c0392b;
+    border-color: #ffd3d3;
+}
+
+.avail-day-label {
+    font-weight: 900;
+    margin-right: 2px;
+}
+
+.avail-placeholder {
+    color: #a0b4cc;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+/* ============================================================
+   수업 가능 시간 - 모달 입력 UI
+   ============================================================ */
+
+.availability-section {
+    /* 새 레이아웃에 맞춰 구분선 제거 */
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.availability-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.avail-day-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 6px;
+    background: #f8fbff;
+    border: 1px solid #e4ecf7;
+    border-radius: 12px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.avail-day-row:hover {
+    background: #f0f6ff;
+    border-color: #c8d9f0;
+}
+
+.avail-day-row.disabled {
+    background: #fafafa;
+    border-color: #eee;
+    opacity: 0.6;
+}
+
+.avail-day-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 50px;
+    flex-shrink: 0;
+    padding-top: 4px;
+}
+
+.avail-day-toggle input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--mint);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.avail-day-toggle label {
+    font-weight: 900 !important;
+    font-size: 0.8rem !important;
+    color: #264875 !important;
+    background: none !important;
+    padding: 0 !important;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.avail-slots-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.avail-slot-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.avail-slot-row input[type="text"] {
+    width: 54px;
+    padding: 6px 2px;
+    border: 1px solid #cfddf0;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-align: center;
+    background: #fff;
+    font-family: 'Pretendard', sans-serif;
+}
+
+.avail-slot-row input[type="text"]:focus {
+    outline: none;
+    border-color: #5b8fd9;
+    box-shadow: 0 0 0 3px rgba(91, 143, 217, 0.15);
+}
+
+.avail-slot-separator {
+    font-weight: 900;
+    color: #8aabbf;
+    font-size: 0.85rem;
+}
+
+.btn-remove-slot {
+    padding: 4px 6px !important;
+    min-height: unset !important;
+    background: #fff0f0 !important;
+    color: #e74c3c !important;
+    border: 1px solid #ffd3d3 !important;
+    border-radius: 6px !important;
+    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    cursor: pointer;
+    transition: background 0.15s !important;
+}
+
+.btn-remove-slot:hover {
+    background: #ffe3e3 !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.btn-add-slot {
+    padding: 5px 10px !important;
+    min-height: unset !important;
+    background: #eaf6f4 !important;
+    color: #0d7f72 !important;
+    border: 1px solid #b8e6df !important;
+    border-radius: 6px !important;
+    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: background 0.15s !important;
+}
+
+.btn-add-slot:hover {
+    background: #d4f0eb !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* 모바일 반응형 - 가용 시간 */
+@media (max-width: 920px) {
+    .availability-summary {
+        margin-top: 8px;
+    }
+}
+
+@media (max-width: 768px) {
+    .avail-day-row {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .avail-day-toggle {
+        min-width: unset;
+    }
+
+    .avail-slot-row input[type="text"] {
+        width: 60px;
     }
 }
 

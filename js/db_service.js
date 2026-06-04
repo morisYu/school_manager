@@ -349,3 +349,70 @@ export async function deleteProgram(docId) {
         throw error;
     }
 }
+
+/**
+ * =========================================================
+ * [강사 가용 시간 충돌 확인]
+ * =========================================================
+ */
+
+/**
+ * 특정 강사가 주어진 날짜/시간에 수업 가능한지 확인합니다.
+ * @param {string} instructorName 강사명
+ * @param {string} dateStr 날짜 문자열 (YYYY-MM-DD)
+ * @param {string} startTime 시작 시간 (HH:MM)
+ * @param {string} endTime 종료 시간 (HH:MM)
+ * @returns {Promise<{available: boolean, message: string}>}
+ */
+export async function checkInstructorAvailability(instructorName, dateStr, startTime, endTime) {
+    const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const DAY_KO = ['일', '월', '화', '수', '목', '금', '토'];
+
+    try {
+        const profile = await getInstructorProfile(instructorName);
+
+        // 프로필이 없거나 가용 시간이 설정되지 않은 경우 → 제한 없음
+        if (!profile || !profile.availability) {
+            return { available: true, message: '' };
+        }
+
+        const dayIndex = new Date(dateStr).getDay();
+        const dayKey = DAY_NAMES[dayIndex];
+        const dayKo = DAY_KO[dayIndex];
+        const slots = profile.availability[dayKey];
+
+        // 해당 요일에 불가능 시간 슬롯이 없거나 빈 배열 → 종일 수업 가능
+        if (!slots || slots.length === 0) {
+            return { available: true, message: '' };
+        }
+
+        // 시간을 분(minutes)으로 변환하여 비교
+        const toMinutes = (t) => {
+            const [h, m] = t.split(':').map(Number);
+            return h * 60 + m;
+        };
+        const schedStart = toMinutes(startTime);
+        const schedEnd = toMinutes(endTime);
+
+        // 불가능 시간 슬롯 중 하나라도 일정 시간과 '겹치는지' 확인
+        const overlappingSlot = slots.find(slot => {
+            const slotStart = toMinutes(slot.start);
+            const slotEnd = toMinutes(slot.end);
+            return schedStart < slotEnd && schedEnd > slotStart;
+        });
+
+        if (overlappingSlot) {
+            return {
+                available: false,
+                message: `⚠️ "${instructorName}" 강사는 ${dayKo}요일 [${overlappingSlot.start}~${overlappingSlot.end}]에 수업이 불가능합니다.\n(요청 시간: ${startTime}~${endTime})`
+            };
+        }
+
+        return { available: true, message: '' };
+    } catch (error) {
+        console.error('⏰ checkInstructorAvailability 에러:', error);
+        // 에러 시에는 저장을 막지 않음
+        return { available: true, message: '' };
+    }
+}
+

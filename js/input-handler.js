@@ -1,4 +1,4 @@
-import { addSchedule, getSchools } from './db_service.js';
+import { addSchedule, getSchools, checkInstructorAvailability } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -56,6 +56,34 @@ document.getElementById('lectureForm').addEventListener('submit', async function
             note: document.getElementById('note').value,
             region: document.getElementById('input-region').value
         };
+
+        // ─── 강사 가용 시간 충돌 확인 ───────────────────────────
+        const instructorsToCheck = [payloadData.mainInstructor, ...payloadData.subInstructors].filter(n => n && n !== '미정');
+        const warnings = [];
+
+        for (const name of instructorsToCheck) {
+            const result = await checkInstructorAvailability(name, payloadData.date, payloadData.startTime, payloadData.endTime);
+            if (!result.available) {
+                warnings.push(result.message);
+            }
+        }
+
+        if (warnings.length > 0) {
+            const proceed = confirm(
+                warnings.join('\n\n') +
+                '\n\n──────────────────────\n' +
+                '✅ [확인] 그래도 저장합니다.\n' +
+                '❌ [취소] 강사를 변경합니다.'
+            );
+            if (!proceed) {
+                // 강사 입력 필드로 포커스 이동하여 변경 유도
+                const mainField = document.getElementById('mainTeacher');
+                if (mainField) mainField.focus();
+                btn.disabled = false;
+                btn.innerText = originalText;
+                return;
+            }
+        }
 
         // Firestore에 일정 추가
         await addSchedule(payloadData);

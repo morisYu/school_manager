@@ -9,6 +9,18 @@ let pendingPhotoBase64 = null;
 
 // 등록된 강사 목록 (모듈 전역 상태)
 let registeredInstructors = [];
+let currentSort = { field: 'name', direction: 'asc' }; // 정렬 상태
+
+// 요일 설정 (영문 키 → 한글 라벨)
+const DAY_CONFIG = [
+    { key: 'monday',    label: '월' },
+    { key: 'tuesday',   label: '화' },
+    { key: 'wednesday', label: '수' },
+    { key: 'thursday',  label: '목' },
+    { key: 'friday',    label: '금' },
+    { key: 'saturday',  label: '토' },
+    { key: 'sunday',    label: '일' }
+];
 
 // ─── 인증 후 데이터 로드 ────────────────────────────────────────────────────────
 
@@ -138,9 +150,51 @@ function renderProfileCard(name, profile) {
         } else {
             programsContainer.textContent = '-';
         }
-        document.getElementById('profile-note').textContent    = profile.note     || '-';
+        if (profile?.note) {
+            document.getElementById('profile-note').textContent = profile.note;
+        } else {
+            document.getElementById('profile-note').innerHTML = '<span class="empty-placeholder">입력된 비고가 없습니다.</span>';
+        }
 
-        // 사진 표시
+        // ─── 가용 시간 요약 렌더링 ────────────────────────────────────
+        const badgesContainer = document.getElementById('availability-badges');
+        if (badgesContainer) {
+            badgesContainer.innerHTML = '';
+            const avail = profile?.availability;
+
+            if (!avail || Object.keys(avail).length === 0) {
+                badgesContainer.innerHTML = '<span class="avail-placeholder">수업 불가능 시간이 없습니다. (모든 요일 종일 가능)</span>';
+            } else {
+                DAY_CONFIG.forEach(({ key, label }) => {
+                    const slots = avail[key];
+                    const badge = document.createElement('span');
+
+                    if (!slots || slots.length === 0) {
+                        badge.className = 'avail-day-badge'; // 종일 가능 (민트색)
+                        badge.innerHTML = `<span class="avail-day-label">${label}</span> 종일 가능`;
+                    } else {
+                        badge.className = 'avail-day-badge unavailable'; // 불가 (빨간색)
+                        const timeStr = slots.map(s => {
+                            if (s.start === '00:00' && s.end === '23:59') return '종일';
+                            return `${s.start}~${s.end}`;
+                        }).join(', ');
+                        badge.innerHTML = `<span class="avail-day-label">${label}</span> ${timeStr} 불가`;
+                    }
+                    badgesContainer.appendChild(badge);
+                });
+            }
+
+            // 가용 시간 메모 표시
+            if (profile?.availabilityNote) {
+                const noteSpan = document.createElement('span');
+                noteSpan.className = 'avail-placeholder';
+                noteSpan.style.width = '100%';
+                noteSpan.style.marginTop = '4px';
+                noteSpan.textContent = `📝 ${profile.availabilityNote}`;
+                badgesContainer.appendChild(noteSpan);
+            }
+        }
+
         const img = document.getElementById('profile-photo-img');
         const placeholder = document.getElementById('profile-photo-placeholder');
         if (profile.photoBase64) {
@@ -198,15 +252,25 @@ window.openProfileModal = async function () {
                 // 기존 사진을 유지하기 위해 pendingPhotoBase64에 기존 값 저장
                 pendingPhotoBase64 = profile.photoBase64;
             }
+            
+            // 가용 시간 UI 렌더링
+            renderAvailabilityInputUI(profile.availability || null);
+            document.getElementById('modal-availability-note').value = profile.availabilityNote || '';
         }
     } catch (e) {
         console.error("프로필 로드 실패:", e);
     }
 
+    // 프로필이 없거나 로드 실패 시 빈 가용 시간 UI 렌더링
+    if (!document.getElementById('availability-grid')?.children.length) {
+        renderAvailabilityInputUI(null);
+        document.getElementById('modal-availability-note').value = '';
+    }
+
     const overlay = document.getElementById('profile-modal-overlay');
     const modal   = document.getElementById('profile-modal');
     overlay.style.display = 'block';
-    modal.style.display   = 'block';
+    modal.style.display   = 'flex';
     requestAnimationFrame(() => {
         overlay.classList.add('is-open');
         modal.classList.add('is-open');
@@ -411,7 +475,9 @@ window.saveProfile = async function () {
         hireDate:   document.getElementById('modal-hire').value,
         programs:   document.getElementById('modal-programs').value,
         note:       document.getElementById('modal-note').value,
-        photoBase64: pendingPhotoBase64 || null
+        photoBase64: pendingPhotoBase64 || null,
+        availability: collectAvailabilityData(),
+        availabilityNote: document.getElementById('modal-availability-note')?.value?.trim() || ''
     };
 
     try {
@@ -569,4 +635,157 @@ window.saveRowData = async function(input) {
     } catch (e) {
         console.error("차시/강사비 저장 실패:", e);
     }
+};
+
+// ─── 가용 시간 입력 UI ─────────────────────────────────────────────────────────
+
+/**
+ * 모달 내 요일별 가용 시간 입력 UI를 렌더링합니다.
+ * @param {Object|null} availability 기존 가용 시간 데이터
+ */
+window.renderAvailabilityInputUI = function(availability) {
+    const grid = document.getElementById('availability-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    DAY_CONFIG.forEach(({ key, label }) => {
+        const slots = availability?.[key] || [];
+        const isEnabled = slots.length > 0;
+
+        const row = document.createElement('div');
+        row.className = `avail-day-row ${isEnabled ? '' : 'disabled'}`;
+        row.dataset.day = key;
+
+        // 체크박스 + 요일 라벨
+        const toggle = document.createElement('div');
+        toggle.className = 'avail-day-toggle';
+        toggle.innerHTML = `
+            <input type="checkbox" id="avail-chk-${key}" ${isEnabled ? 'checked' : ''}
+                   onchange="toggleDayAvailability('${key}', this.checked)">
+            <label for="avail-chk-${key}">${label}요일</label>
+        `;
+
+        // 시간대 슬롯 컨테이너
+        const slotsWrap = document.createElement('div');
+        slotsWrap.className = 'avail-slots-wrap';
+        slotsWrap.id = `avail-slots-${key}`;
+
+        if (isEnabled) {
+            slots.forEach((slot, idx) => {
+                slotsWrap.appendChild(createSlotRow(key, slot.start, slot.end, idx > 0));
+            });
+        } else {
+            // 비활성 시 기본 1개 빈 슬롯 (숨김 상태)
+            slotsWrap.appendChild(createSlotRow(key, '', '', false));
+            slotsWrap.style.display = 'none';
+        }
+
+        // + 시간대 추가 버튼
+        const addBtn = document.createElement('button');
+        addBtn.type = 'button';
+        addBtn.className = 'btn-add-slot';
+        addBtn.textContent = '+ 시간대 추가';
+        addBtn.onclick = () => addAvailabilitySlot(key);
+        if (!isEnabled) addBtn.style.display = 'none';
+        addBtn.id = `avail-add-${key}`;
+
+        slotsWrap.appendChild(addBtn);
+
+        row.appendChild(toggle);
+        row.appendChild(slotsWrap);
+        grid.appendChild(row);
+    });
+};
+
+/**
+ * 시간대 슬롯 행(input 2개 + 삭제 버튼)을 생성합니다.
+ */
+window.createSlotRow = function(dayKey, startVal, endVal, showRemove) {
+    const slotRow = document.createElement('div');
+    slotRow.className = 'avail-slot-row';
+    slotRow.innerHTML = `
+        <input type="text" class="avail-start" value="${startVal}" placeholder="09:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric">
+        <span class="avail-slot-separator">~</span>
+        <input type="text" class="avail-end" value="${endVal}" placeholder="18:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric">
+        ${showRemove ? '<button type="button" class="btn-remove-slot" onclick="removeAvailabilitySlot(this)">✕</button>' : ''}
+    `;
+    return slotRow;
+};
+
+/**
+ * 요일 체크박스 토글 시 해당 요일의 슬롯 표시/숨김을 전환합니다.
+ */
+window.toggleDayAvailability = function (dayKey, isChecked) {
+    const row = document.querySelector(`.avail-day-row[data-day="${dayKey}"]`);
+    const slotsWrap = document.getElementById(`avail-slots-${dayKey}`);
+    const addBtn = document.getElementById(`avail-add-${dayKey}`);
+
+    if (isChecked) {
+        row.classList.remove('disabled');
+        slotsWrap.style.display = '';
+        addBtn.style.display = '';
+        // 슬롯이 없으면 기본 1개 추가 (버튼만 남아있는 경우)
+        if (slotsWrap.children.length === 1) {
+            slotsWrap.insertBefore(createSlotRow(dayKey, '', '', false), addBtn);
+        }
+    } else {
+        row.classList.add('disabled');
+        slotsWrap.style.display = 'none';
+        addBtn.style.display = 'none';
+    }
+};
+
+/**
+ * 특정 요일에 시간대 슬롯을 추가합니다.
+ */
+window.addAvailabilitySlot = function (dayKey) {
+    const slotsWrap = document.getElementById(`avail-slots-${dayKey}`);
+    const addBtn = document.getElementById(`avail-add-${dayKey}`);
+    if (!slotsWrap) return;
+    slotsWrap.insertBefore(createSlotRow(dayKey, '', '', true), addBtn);
+};
+
+/**
+ * 시간대 슬롯을 삭제합니다.
+ */
+window.removeAvailabilitySlot = function (button) {
+    const slotRow = button.closest('.avail-slot-row');
+    if (slotRow) slotRow.remove();
+};
+
+/**
+ * 모달에서 요일별 가용 시간 데이터를 수집합니다.
+ * @returns {Object} availability 객체
+ */
+window.collectAvailabilityData = function() {
+    const availability = {};
+
+    DAY_CONFIG.forEach(({ key }) => {
+        const checkbox = document.getElementById(`avail-chk-${key}`);
+        if (!checkbox || !checkbox.checked) {
+            availability[key] = [];
+            return;
+        }
+
+        const slotsWrap = document.getElementById(`avail-slots-${key}`);
+        const slotRows = slotsWrap ? slotsWrap.querySelectorAll('.avail-slot-row') : [];
+        const slots = [];
+
+        slotRows.forEach(row => {
+            const start = row.querySelector('.avail-start')?.value?.trim();
+            const end = row.querySelector('.avail-end')?.value?.trim();
+            if (start && end) {
+                slots.push({ start, end });
+            }
+        });
+
+        // 체크는 했지만 시간을 입력하지 않은 경우 '종일 불가'로 간주 (00:00~23:59)
+        if (slots.length === 0) {
+            slots.push({ start: '00:00', end: '23:59' });
+        }
+
+        availability[key] = slots;
+    });
+
+    return availability;
 };
