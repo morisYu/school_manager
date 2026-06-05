@@ -24,6 +24,7 @@
                     <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
                     <button class="nav-btn btn-program" onclick="location.href='program-manage.html'">📦 프로그램 관리</button>
                     <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-settlement" onclick="location.href='settlement.html'">💰 정산 관리</button>
                     <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
                 </div>
             </div>
@@ -61,6 +62,10 @@
                         </div>
                         <div class="profile-details">
                             <div class="profile-row">
+                                <span class="profile-label">소속</span>
+                                <span class="profile-value" id="profile-affiliation">-</span>
+                            </div>
+                            <div class="profile-row">
                                 <span class="profile-label">생년월일</span>
                                 <span class="profile-value" id="profile-birth">-</span>
                             </div>
@@ -71,6 +76,10 @@
                             <div class="profile-row">
                                 <span class="profile-label">수업 프로그램</span>
                                 <span class="profile-value" id="profile-programs">-</span>
+                            </div>
+                            <div class="profile-row">
+                                <span class="profile-label">계좌정보</span>
+                                <span class="profile-value" id="profile-bank-info">-</span>
                             </div>
                             <div class="profile-row">
                                 <span class="profile-label">비고</span>
@@ -193,6 +202,10 @@
                         <input type="text" id="modal-name" readonly class="input-readonly">
                     </div>
                     <div class="modal-form-group">
+                        <label>소속</label>
+                        <input type="text" id="modal-affiliation" placeholder="예: 본사, 외부협력업체 등">
+                    </div>
+                    <div class="modal-form-group">
                         <label>생년월일</label>
                         <input type="date" id="modal-birth">
                     </div>
@@ -207,6 +220,18 @@
                     <div class="modal-form-group full-width">
                         <label>비고</label>
                         <textarea id="modal-note" rows="3" placeholder="기타 특이사항"></textarea>
+                    </div>
+                    <div class="modal-form-group">
+                        <label>은행명</label>
+                        <input type="text" id="modal-bank-name" placeholder="예: 국민은행">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>계좌번호</label>
+                        <input type="text" id="modal-account-number" placeholder="예: 123-456-789012">
+                    </div>
+                    <div class="modal-form-group">
+                        <label>예금주</label>
+                        <input type="text" id="modal-account-holder" placeholder="예: 홍길동">
                     </div>
                 </div>
             </div>
@@ -228,6 +253,25 @@
         <div class="profile-modal-footer">
             <button class="btn-modal-save" onclick="saveProfile()">💾 저장</button>
             <button class="btn-modal-cancel" onclick="closeProfileModal()">취소</button>
+        </div>
+    </div>
+
+    <!-- 강사 프로필 수정 모달 끝 -->
+
+    <!-- 계좌 정보 상세 모달 -->
+    <div id="bank-modal-overlay" class="profile-modal-overlay" onclick="closeBankModal()"></div>
+    <div id="bank-modal" class="profile-modal" style="max-width: 400px; display: none; z-index: 10001;">
+        <div class="profile-modal-header">
+            <h3>💳 계좌 정보 상세</h3>
+            <button class="profile-modal-close" onclick="closeBankModal()">✕</button>
+        </div>
+        <div class="profile-modal-body" style="padding: 20px; font-size: 1.1rem; line-height: 1.6;">
+            <p><strong>🏦 은행명:</strong> <span id="bank-modal-name"></span></p>
+            <p style="margin-top: 10px;"><strong>🔢 계좌번호:</strong> <span id="bank-modal-account"></span></p>
+            <p style="margin-top: 10px;"><strong>👤 예금주:</strong> <span id="bank-modal-holder"></span></p>
+        </div>
+        <div class="profile-modal-footer">
+            <button class="btn-modal-cancel" onclick="closeBankModal()">닫기</button>
         </div>
     </div>
 

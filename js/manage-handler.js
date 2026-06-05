@@ -134,6 +134,7 @@ function renderProfileCard(name, profile) {
     document.getElementById('profile-name').textContent = name;
 
     if (profile) {
+        document.getElementById('profile-affiliation').textContent = profile.affiliation || '-';
         document.getElementById('profile-birth').textContent = formatDate(profile.birthDate) || '-';
         document.getElementById('profile-hire').textContent  = formatDate(profile.hireDate)  || '-';
         const programsContainer = document.getElementById('profile-programs');
@@ -154,6 +155,14 @@ function renderProfileCard(name, profile) {
             document.getElementById('profile-note').textContent = profile.note;
         } else {
             document.getElementById('profile-note').innerHTML = '<span class="empty-placeholder">입력된 비고가 없습니다.</span>';
+        }
+
+        // ─── 계좌 정보 렌더링 ──────────────────────────────────────────
+        const bankInfoContainer = document.getElementById('profile-bank-info');
+        if (profile.bankName && profile.accountNumber && profile.accountHolder) {
+            bankInfoContainer.innerHTML = `<button class="btn-bank-info" onclick="openBankModal('${profile.bankName}', '${profile.accountNumber}', '${profile.accountHolder}')">🏦 ${profile.bankName}</button>`;
+        } else {
+            bankInfoContainer.innerHTML = '<span class="empty-placeholder">계좌 정보가 없습니다.</span>';
         }
 
         // ─── 가용 시간 요약 렌더링 ────────────────────────────────────
@@ -206,8 +215,9 @@ function renderProfileCard(name, profile) {
             placeholder.style.display = 'flex';
         }
     } else {
-        document.getElementById('profile-birth').textContent    = '-';
-        document.getElementById('profile-hire').textContent     = '-';
+        document.getElementById('profile-affiliation').textContent = '-';
+        document.getElementById('profile-birth').textContent = '-';
+        document.getElementById('profile-hire').textContent = '-';
         document.getElementById('profile-programs').textContent = '-';
         document.getElementById('profile-note').textContent     = '정보가 없습니다. 수정 버튼으로 등록하세요.';
         document.getElementById('profile-photo-img').style.display = 'none';
@@ -225,10 +235,14 @@ window.openProfileModal = async function () {
 
     // 모달 폼에 현재 값 채우기
     document.getElementById('modal-name').value = name;
+    document.getElementById('modal-affiliation').value = '';
     document.getElementById('modal-birth').value = '';
     document.getElementById('modal-hire').value = '';
     document.getElementById('modal-programs').value = '';
     document.getElementById('modal-note').value = '';
+    document.getElementById('modal-bank-name').value = '';
+    document.getElementById('modal-account-number').value = '';
+    document.getElementById('modal-account-holder').value = '';
 
     // 모달 사진 미리보기 초기화
     const previewImg = document.getElementById('modal-photo-preview');
@@ -240,10 +254,14 @@ window.openProfileModal = async function () {
     try {
         const profile = await getInstructorProfile(name);
         if (profile) {
+            document.getElementById('modal-affiliation').value = profile.affiliation || '';
             document.getElementById('modal-birth').value    = profile.birthDate || '';
             document.getElementById('modal-hire').value     = profile.hireDate  || '';
             document.getElementById('modal-programs').value = profile.programs  || '';
             document.getElementById('modal-note').value     = profile.note      || '';
+            document.getElementById('modal-bank-name').value = profile.bankName || '';
+            document.getElementById('modal-account-number').value = profile.accountNumber || '';
+            document.getElementById('modal-account-holder').value = profile.accountHolder || '';
 
             if (profile.photoBase64) {
                 previewImg.src = profile.photoBase64;
@@ -286,6 +304,33 @@ window.closeProfileModal = function () {
     document.getElementById('modal-photo-input').value = '';
     pendingPhotoBase64 = null;
 
+    modal.addEventListener('transitionend', () => {
+        overlay.style.display = 'none';
+        modal.style.display   = 'none';
+    }, { once: true });
+};
+
+// ─── 계좌 정보 모달 ────────────────────────────────────────────────────────
+window.openBankModal = function (bankName, accountNumber, accountHolder) {
+    document.getElementById('bank-modal-name').textContent = bankName;
+    document.getElementById('bank-modal-account').textContent = accountNumber;
+    document.getElementById('bank-modal-holder').textContent = accountHolder;
+
+    const overlay = document.getElementById('bank-modal-overlay');
+    const modal   = document.getElementById('bank-modal');
+    overlay.style.display = 'block';
+    modal.style.display   = 'block';
+    requestAnimationFrame(() => {
+        overlay.classList.add('is-open');
+        modal.classList.add('is-open');
+    });
+};
+
+window.closeBankModal = function () {
+    const overlay = document.getElementById('bank-modal-overlay');
+    const modal   = document.getElementById('bank-modal');
+    overlay.classList.remove('is-open');
+    modal.classList.remove('is-open');
     modal.addEventListener('transitionend', () => {
         overlay.style.display = 'none';
         modal.style.display   = 'none';
@@ -470,11 +515,15 @@ window.saveProfile = async function () {
     saveBtn.textContent = '저장 중...';
 
     const profileData = {
-        name:       name,
+        name: name,
+        affiliation: document.getElementById('modal-affiliation').value,
         birthDate:  document.getElementById('modal-birth').value,
         hireDate:   document.getElementById('modal-hire').value,
         programs:   document.getElementById('modal-programs').value,
         note:       document.getElementById('modal-note').value,
+        bankName:   document.getElementById('modal-bank-name').value,
+        accountNumber: document.getElementById('modal-account-number').value,
+        accountHolder: document.getElementById('modal-account-holder').value,
         photoBase64: pendingPhotoBase64 || null,
         availability: collectAvailabilityData(),
         availabilityNote: document.getElementById('modal-availability-note')?.value?.trim() || ''

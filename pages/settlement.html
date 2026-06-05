@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>정산 관리 대시보드</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/manage-style.css">
+    <style>
+        .table-amount { text-align: right; padding-right: 16px !important; }
+        .table-center { text-align: center; }
+    </style>
+</head>
+<body style="display: none;">
+    <div id="main-content">
+        <div id="nav-overlay" class="nav-overlay"></div>
+
+        <div class="system-header">
+            <div class="header-container">
+                <div class="header-left">
+                    <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
+                </div>
+                <button id="hamburger-btn" class="hamburger-btn" aria-label="메뉴 열기" aria-expanded="false">
+                    <span></span><span></span><span></span>
+                </button>
+                <div id="mobile-nav" class="header-right">
+                    <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                    <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
+                    <button class="nav-btn btn-program" onclick="location.href='program-manage.html'">📦 프로그램 관리</button>
+                    <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-settlement" onclick="location.href='settlement.html'">💰 정산 관리</button>
+                    <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <!-- 조회 조건 박스 -->
+            <div class="header-box">
+                <div class="header-row" style="grid-template-columns: 1fr 1fr 1fr 0.5fr; gap: 20px;">
+                    <div class="input-group">
+                        <label>📅 시작일</label>
+                        <input type="date" id="startDate">
+                    </div>
+                    <div class="input-group">
+                        <label>📅 종료일</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <div class="input-group">
+                        <label>🏢 소속 검색</label>
+                        <input type="text" id="affiliationSearch" placeholder="예: 본사">
+                    </div>
+                    <div class="input-group input-group-btn">
+                        <button class="btn-search" onclick="loadSettlementReport()">조회하기</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 정산 내역서 영역 -->
+            <div id="report-area">
+                <h2 id="report-title">강사별 정산 내역</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="table-center">이름</th>
+                            <th class="table-center">소속</th>
+                            <th class="table-center">생년월일(6자리)</th>
+                            <th class="table-center">은행명</th>
+                            <th class="table-center">계좌번호</th>
+                            <th class="table-center">예금주</th>
+                            <th class="table-amount">총 합계 금액 (세전)</th>
+                            <th class="table-amount">최종 금액 (3.3% 공제)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="settlement-table-body">
+                        <tr><td colspan="7">기간을 설정하고 조회 버튼을 눌러주세요.</td></tr>
+                    </tbody>
+                    <tfoot id="settlement-footer" style="display:none;">
+                        <tr class="total-final">
+                            <td colspan="6" style="text-align:right; padding-right:20px; font-weight: bold;">전체 합계</td>
+                            <td id="total-pre-tax" class="table-amount" style="font-weight: bold;">0</td>
+                            <td id="total-post-tax" class="table-amount" style="font-weight: bold;">0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase & Scripts -->
+    <script src="../js/utils.js"></script>
+    <script type="module" src="../js/settlement-handler.js"></script>
+    <script type="module" src="../js/auth-check.js"></script>
+</body>
+</html>

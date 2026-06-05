@@ -297,6 +297,23 @@
     box-shadow: 0 6px 16px rgba(31, 58, 102, 0.28);
 }
 
+.btn-bank-info {
+    padding: 2px 8px;
+    background: #eaf2ff;
+    color: var(--primary);
+    border: 1px solid #cddcf0;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+}
+
+.btn-bank-info:hover {
+    background: #d5e8ff;
+    transform: translateY(-1px);
+}
+
 /* ============================================================
    강사 프로필 수정 모달
    ============================================================ */
