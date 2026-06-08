@@ -23,6 +23,12 @@ const DAY_CONFIG = [
 ];
 
 // ─── 인증 후 데이터 로드 ────────────────────────────────────────────────────────
+// 로그인 상태 확인
+onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        window.location.href = 'login.html';
+    }
+});
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
@@ -290,8 +296,10 @@ window.openProfileModal = async function () {
     overlay.style.display = 'block';
     modal.style.display   = 'flex';
     requestAnimationFrame(() => {
-        overlay.classList.add('is-open');
-        modal.classList.add('is-open');
+        requestAnimationFrame(() => {
+            overlay.classList.add('is-open');
+            modal.classList.add('is-open');
+        });
     });
 };
 

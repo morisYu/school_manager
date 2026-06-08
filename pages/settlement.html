@@ -9,6 +9,24 @@
     <style>
         .table-amount { text-align: right; padding-right: 16px !important; }
         .table-center { text-align: center; }
+        #detail-modal table { min-width: 100%; margin-bottom: 0; }
+        #detail-modal th, #detail-modal td { font-size: 0.85em; padding: 8px; }
+        .instructor-name-btn {
+            display: inline-block;
+            padding: 6px 14px;
+            background-color: #f0f4fa;
+            color: #1f3a66;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid #d8e3f2;
+        }
+        .instructor-name-btn:hover {
+            background-color: #eaf2ff;
+            border-color: #cddcf0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(31, 58, 102, 0.08);
+        }
     </style>
 </head>
 <body style="display: none;">
@@ -84,6 +102,35 @@
                     </tfoot>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <!-- 강사 상세 내역 모달 -->
+    <div id="detail-modal-overlay" class="profile-modal-overlay" style="display:none;" onclick="closeDetailModal()"></div>
+    <div id="detail-modal" class="profile-modal" style="display:none; max-width: 800px; z-index: 10001;">
+        <div class="profile-modal-header">
+            <h3 id="detail-modal-title">출강 및 정산 내역서</h3>
+            <button class="profile-modal-close" onclick="closeDetailModal()">✕</button>
+        </div>
+        <div class="profile-modal-body" style="padding: 20px; overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th class="table-center">날짜</th>
+                        <th class="table-center">기관명</th>
+                        <th class="table-center">프로그램명</th>
+                        <th class="table-center">강사 구분</th>
+                        <th class="table-center">차시</th>
+                        <th class="table-amount">합계금액</th>
+                    </tr>
+                </thead>
+                <tbody id="detail-modal-tbody">
+                    <!-- 상세 내역이 여기에 렌더링됩니다 -->
+                </tbody>
+            </table>
+        </div>
+        <div class="profile-modal-footer">
+            <button class="btn-modal-cancel" onclick="closeDetailModal()">닫기</button>
         </div>
     </div>
 

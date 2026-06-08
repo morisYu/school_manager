@@ -33,17 +33,47 @@
         <div class="container">
 
             <!-- ① 강사 검색 + 프로필 카드 영역 -->
+            <!-- ① 좌측 검색 및 조회 영역 + 우측 프로필 카드 영역 -->
             <div class="top-layout">
-
-                <!-- 강사 선택 드롭다운 -->
-                <div class="instructor-search-box">
-                    <div class="input-group">
-                        <label>👤 강사 선택</label>
-                        <select id="teacherSelect" onchange="onInstructorChange()"></select>
+                <div class="left-column">
+                    <!-- 강사 선택 드롭다운 -->
+                    <div class="instructor-search-box">
+                        <div class="input-group">
+                            <label>👤 강사 선택</label>
+                            <select id="teacherSelect" onchange="onInstructorChange()"></select>
+                        </div>
+                        <div class="instructor-action-btns">
+                            <button class="btn-add-instructor" onclick="openAddInstructorModal()">➕ 강사 추가</button>
+                            <button class="btn-delete-instructor" onclick="deleteInstructor()">🗑️ 삭제</button>
+                        </div>
                     </div>
-                    <div class="instructor-action-btns">
-                        <button class="btn-add-instructor" onclick="openAddInstructorModal()">➕ 강사 추가</button>
-                        <button class="btn-delete-instructor" onclick="deleteInstructor()">🗑️ 삭제</button>
+
+                    <!-- ② 출강 이력 조회 박스 -->
+                    <div class="header-box">
+                        <div class="header-row">
+                            <div class="input-group">
+                                <label>📍 지역 선택</label>
+                                <select id="region-select">
+                                    <option value="전체">전체 지역</option>
+                                    <option value="대구">대구</option>
+                                    <option value="부산">부산</option>
+                                    <option value="울산">울산</option>
+                                    <option value="포항">포항</option>
+                                    <option value="기타">기타</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>📅 시작일</label>
+                                <input type="date" id="startDate">
+                            </div>
+                            <div class="input-group">
+                                <label>📅 종료일</label>
+                                <input type="date" id="endDate">
+                            </div>
+                            <div class="input-group input-group-btn">
+                                <button class="btn-search" onclick="loadReport()">조회하기</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -81,13 +111,18 @@
                                 <span class="profile-label">계좌정보</span>
                                 <span class="profile-value" id="profile-bank-info">-</span>
                             </div>
-                            <div class="profile-row">
-                                <span class="profile-label">비고</span>
-                                <span class="profile-value" id="profile-note">강사를 선택하면 프로필이 표시됩니다.</span>
-                            </div>
                         </div>
-                        <!-- 수업 불가능 시간 요약 -->
-                        <div class="availability-summary" id="availability-summary">
+
+                        <!-- 비고 (Box Design) -->
+                        <div class="info-box-full" id="profile-note-container">
+                            <div class="availability-header">
+                                <span class="profile-label">📝 비고</span>
+                            </div>
+                            <span class="profile-value" id="profile-note" style="height: auto; min-height: 40px; margin-top: 4px;">강사를 선택하면 프로필이 표시됩니다.</span>
+                        </div>
+
+                        <!-- 수업 불가능 시간 (Box Design) -->
+                        <div class="info-box-full" id="availability-summary">
                             <div class="availability-header">
                                 <span class="profile-label">🕐 수업 불가능 시간</span>
                             </div>
@@ -95,34 +130,6 @@
                                 <span class="avail-placeholder">강사를 선택하면 불가능 시간이 표시됩니다.</span>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ② 출강 이력 조회 박스 -->
-            <div class="header-box">
-                <div class="header-row">
-                    <div class="input-group">
-                        <label>📍 지역 선택</label>
-                        <select id="region-select">
-                            <option value="전체">전체 지역</option>
-                            <option value="대구">대구</option>
-                            <option value="부산">부산</option>
-                            <option value="울산">울산</option>
-                            <option value="포항">포항</option>
-                            <option value="기타">기타</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label>📅 시작일</label>
-                        <input type="date" id="startDate">
-                    </div>
-                    <div class="input-group">
-                        <label>📅 종료일</label>
-                        <input type="date" id="endDate">
-                    </div>
-                    <div class="input-group input-group-btn">
-                        <button class="btn-search" onclick="loadReport()">조회하기</button>
                     </div>
                 </div>
             </div>

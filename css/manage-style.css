@@ -18,20 +18,41 @@
     margin-bottom: 20px;
 }
 
+.left-column {
+    flex: 0 0 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
 .instructor-search-box {
     background: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(8px);
-    padding: 24px;
+    padding: 16px 20px;
     border-radius: 20px;
     box-shadow: 0 14px 30px rgba(34, 62, 97, 0.12);
     border: 1px solid rgba(97, 134, 177, 0.25);
-    flex: 0 0 240px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     gap: 12px;
-    min-height: 160px;
+    align-self: flex-start;
     box-sizing: border-box;
+    width: 100%;
+}
+
+.left-column .header-box {
+    margin-bottom: 0;
+    padding: 16px 20px;
+    box-sizing: border-box;
+}
+
+.left-column .header-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 0;
+    align-items: stretch;
 }
 
 /* 강사 추가 / 삭제 버튼 행 */
@@ -230,8 +251,7 @@
     min-width: 0;
 }
 
-#profile-programs,
-#profile-note {
+#profile-programs {
     word-break: break-word;
     height: 66px; /* 3줄 분량으로 고정하여 내용 증감에 따라 상자 크기가 변동되지 않게 함 */
     overflow-y: auto; /* 넘칠 경우 스크롤 */
@@ -249,6 +269,7 @@
 #profile-note {
     display: block; /* 비고란은 flex 대신 block 사용 */
     white-space: pre-wrap; /* 사용자가 입력한 엔터(\n) 보존 및 자동 줄바꿈 */
+    word-break: break-word;
 }
 
 /* 커스텀 스크롤바 (프로그램/비고란 용) */
@@ -260,6 +281,44 @@
 #profile-note::-webkit-scrollbar-thumb {
     background: #cddcf0;
     border-radius: 4px;
+}
+
+/* 박스 형태의 정보 영역 (비고, 불가능 시간 등) */
+.info-box-full {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+
+.info-box-full:hover {
+    background-color: #f1f5f9;
+}
+
+.availability-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.availability-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 80px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.avail-placeholder {
+    font-size: 0.82rem;
+    color: #94a3b8;
+    font-style: italic;
 }
 
 .program-badge {
@@ -1006,25 +1065,7 @@ input[type="number"] {
    수업 가능 시간 - 프로필 카드 요약
    ============================================================ */
 
-.availability-summary {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed #d8e3f2;
-    width: 100%;
-}
 
-.availability-header {
-    margin-bottom: 8px;
-}
-
-.availability-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    max-height: 80px;
-    overflow-y: auto;
-    padding-right: 4px;
-}
 
 .availability-badges::-webkit-scrollbar {
     width: 4px;
