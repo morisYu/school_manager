@@ -4,48 +4,59 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/f
 
 // onAuthStateChanged는 auth_handler.js에서 통합 관리하고, 
 // 여기서는 초기화 함수만 전역으로 노출하여 화면이 준비되었을 때 호출하도록 변경합니다.
-// 대한민국 법정공휴일 하드코딩 데이터 (2024~2026년 기준)
-const KOREAN_HOLIDAYS = {
-    "2024-01-01": "신정",
-    "2024-02-09": "설날", "2024-02-10": "설날", "2024-02-11": "설날", "2024-02-12": "대체공휴일",
-    "2024-03-01": "3·1절",
-    "2024-04-10": "국회의원선거",
-    "2024-05-05": "어린이날", "2024-05-06": "대체공휴일", "2024-05-15": "부처님오신날",
-    "2024-06-06": "현충일",
-    "2024-08-15": "광복절",
-    "2024-09-16": "추석", "2024-09-17": "추석", "2024-09-18": "추석",
-    "2024-10-01": "임시공휴일(국군의날)", "2024-10-03": "개천절", "2024-10-09": "한글날",
-    "2024-12-25": "크리스마스",
-    "2025-01-01": "신정",
-    "2025-01-28": "설날", "2025-01-29": "설날", "2025-01-30": "설날",
-    "2025-03-01": "3·1절", "2025-03-03": "대체공휴일",
-    "2025-05-05": "어린이날/부처님오신날", "2025-05-06": "대체공휴일",
-    "2025-06-06": "현충일",
-    "2025-08-15": "광복절",
-    "2025-10-03": "개천절", "2025-10-05": "추석", "2025-10-06": "추석", "2025-10-07": "추석", "2025-10-08": "대체공휴일", "2025-10-09": "한글날",
-    "2025-12-25": "크리스마스",
-    "2026-01-01": "신정",
-    "2026-02-16": "설날", "2026-02-17": "설날", "2026-02-18": "설날",
-    "2026-03-01": "3·1절", "2026-03-02": "대체공휴일",
-    "2026-05-05": "어린이날", "2026-05-24": "부처님오신날", "2026-05-25": "대체공휴일",
-    "2026-06-03": "지방선거", "2026-06-06": "현충일",
-    "2026-08-15": "광복절",
-    "2026-09-24": "추석", "2026-09-25": "추석", "2026-09-26": "추석", "2026-09-28": "대체공휴일",
-    "2026-10-03": "개천절", "2026-10-05": "대체공휴일", "2026-10-09": "한글날",
-    "2026-12-25": "크리스마스"
-};
-
-const STATIC_HOLIDAY_EVENTS = Object.entries(KOREAN_HOLIDAYS).map(([dateStr, name]) => ({
-    title: name,
-    start: dateStr,
-    allDay: true,
-    display: 'block',
-    classNames: ['holiday-event'],
-    extendedProps: { isHoliday: true }
-}));
-
+// 공휴일 관련 전역 상태
 window.isUnassignedFilterActive = false;
-window.allHolidayDates = Object.keys(KOREAN_HOLIDAYS);
+window.allHolidayDates = [];
+window.holidayEventsMap = {};
+
+const HOLIDAY_API_KEY = '90429afb7b60bd5e94f15a8289c8966b421bbef0e5b213e96aa348bbbd5836a0';
+
+// 공공데이터포털 특일 정보 API 호출 함수
+async function fetchHolidays(year) {
+    const cacheKey = `holidays_${year}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+        return JSON.parse(cached);
+    }
+
+    try {
+        // http -> https 문제(Mixed Content) 방지를 위해 https로 호출
+        // 공공데이터포털은 https 지원
+        const url = `https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/getRestDeInfo?serviceKey=${HOLIDAY_API_KEY}&solYear=${year}&numOfRows=100&_type=json`;
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const items = data?.response?.body?.items?.item;
+        let holidays = [];
+        
+        if (Array.isArray(items)) {
+            holidays = items;
+        } else if (items) {
+            holidays = [items];
+        }
+
+        const formattedHolidays = {};
+        holidays.forEach(h => {
+            if (h.isHoliday === 'Y') {
+                const dateStr = h.locdate.toString();
+                const formattedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+                
+                // 같은 날짜에 공휴일이 겹치는 경우 (예: 어린이날 + 부처님오신날)
+                if (formattedHolidays[formattedDate]) {
+                     formattedHolidays[formattedDate] += `/${h.dateName}`;
+                } else {
+                     formattedHolidays[formattedDate] = h.dateName;
+                }
+            }
+        });
+
+        localStorage.setItem(cacheKey, JSON.stringify(formattedHolidays));
+        return formattedHolidays;
+    } catch (error) {
+        console.error(`${year}년 공휴일 데이터를 가져오는데 실패했습니다:`, error);
+        return {};
+    }
+}
 
 // 동적 CSS 필터 스타일 업데이트 함수
 function updateFilterStyle(filterName) {
@@ -75,7 +86,7 @@ function updateFilterStyle(filterName) {
 
 // onAuthStateChanged 리스너가 상단(5라인)에 이미 존재하므로 중복 방지를 위해 여기서는 제거합니다.
 
-window.initCalendar = function() {
+window.initCalendar = async function() {
     const calendarEl = document.getElementById('calendar');
     if (!calendarEl) return;
 
@@ -83,9 +94,21 @@ window.initCalendar = function() {
     if (window.myCalendar) return;
 
     const savedDate = sessionStorage.getItem('calendarCurrentDate');
+    const initialDate = savedDate ? new Date(savedDate) : new Date();
+
+    // 달력 초기화 전, 현재 표시될 연도를 기준으로 앞뒤 1년치 공휴일 미리 캐싱
+    const initYear = initialDate.getFullYear();
+    const [prevHols, currHols, nextHols] = await Promise.all([
+        fetchHolidays(initYear - 1),
+        fetchHolidays(initYear),
+        fetchHolidays(initYear + 1)
+    ]);
+    
+    Object.assign(window.holidayEventsMap, prevHols, currHols, nextHols);
+    window.allHolidayDates = Object.keys(window.holidayEventsMap);
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialDate: savedDate ? new Date(savedDate) : new Date(),
+        initialDate: initialDate,
         initialView: 'dayGridMonth',
         locale: 'ko',
         height: '100%',
@@ -137,7 +160,58 @@ window.initCalendar = function() {
         buttonText: { today: '오늘', month: '월간', list: '목록' },
 
         eventSources: [
-            STATIC_HOLIDAY_EVENTS,
+            async function (info, successCallback, failureCallback) {
+                try {
+                    // 현재 달력 뷰에 포함된 연도를 추출
+                    const startYear = info.start.getFullYear();
+                    const endYear = info.end.getFullYear();
+                    
+                    let newlyLoaded = false;
+                    for (let y = startYear; y <= endYear; y++) {
+                        const cacheKey = `holidays_${y}`;
+                        // 이미 로컬 스토리지에 캐싱되어 있는지 확인
+                        const cached = localStorage.getItem(cacheKey);
+                        if (!cached) {
+                            const hMap = await fetchHolidays(y);
+                            Object.assign(window.holidayEventsMap, hMap);
+                            newlyLoaded = true;
+                        } else if (Object.keys(window.holidayEventsMap).length === 0) {
+                            // 캐시엔 있지만 메모리 맵이 비어있는 경우 (예외 상황)
+                            Object.assign(window.holidayEventsMap, JSON.parse(cached));
+                            newlyLoaded = true;
+                        }
+                    }
+                    
+                    // 글로벌 배열 갱신
+                    window.allHolidayDates = Object.keys(window.holidayEventsMap);
+                    
+                    // 새롭게 불러온 공휴일이 있다면, 달력 셀 스타일 강제 렌더링을 위해 클래스 추가
+                    // (dayCellDidMount가 비동기 호출보다 먼저 일어날 수 있으므로)
+                    if (newlyLoaded) {
+                        window.allHolidayDates.forEach(dateStr => {
+                            const cell = calendarEl.querySelector(`.fc-day[data-date="${dateStr}"]`);
+                            if (cell && !cell.classList.contains('fc-holiday-date')) {
+                                cell.classList.add('fc-holiday-date');
+                            }
+                        });
+                    }
+                    
+                    // FullCalendar 이벤트 포맷으로 변환
+                    const eventsData = Object.entries(window.holidayEventsMap).map(([dateStr, name]) => ({
+                        title: name,
+                        start: dateStr,
+                        allDay: true,
+                        display: 'block',
+                        classNames: ['holiday-event'],
+                        extendedProps: { isHoliday: true }
+                    }));
+                    
+                    successCallback(eventsData);
+                } catch (error) {
+                    console.error('공휴일 로딩 실패:', error);
+                    failureCallback(error);
+                }
+            },
             async function (info, successCallback, failureCallback) {
                 try {
                     // 캘린더의 현재 뷰 시작일과 종료일 가져오기
