@@ -416,3 +416,55 @@ export async function checkInstructorAvailability(instructorName, dateStr, start
     }
 }
 
+/**
+ * =========================================================
+ * [지급기준 (Payment Rules) 컬렉션 관련 기능]
+ * Schema: { id, ruleName, keyword, baseMinutes, mainFee, subFee, order }
+ * =========================================================
+ */
+
+export async function getPaymentRules() {
+    try {
+        const rulesRef = collection(db, "payment_rules");
+        const q = query(rulesRef, orderBy("order", "asc"));
+        const snapshot = await getDocs(q);
+        const rules = [];
+        snapshot.forEach(doc => {
+            rules.push({ id: doc.id, ...doc.data() });
+        });
+        return rules;
+    } catch (error) {
+        console.error("📋 getPaymentRules 에러:", error);
+        return []; // 에러 시 빈 배열 반환 (인덱스 없을 때 대비)
+    }
+}
+
+export async function savePaymentRule(data) {
+    try {
+        const rulesRef = collection(db, "payment_rules");
+        if (data.id) {
+            const ruleRef = doc(db, "payment_rules", data.id);
+            const dataToUpdate = { ...data };
+            delete dataToUpdate.id; // id 필드는 문서에 저장하지 않음
+            await updateDoc(ruleRef, dataToUpdate);
+            return data.id;
+        } else {
+            const docRef = await addDoc(rulesRef, data);
+            return docRef.id;
+        }
+    } catch (error) {
+        console.error("📋 savePaymentRule 에러:", error);
+        throw error;
+    }
+}
+
+export async function deletePaymentRule(id) {
+    try {
+        const ruleRef = doc(db, "payment_rules", id);
+        await deleteDoc(ruleRef);
+    } catch (error) {
+        console.error("📋 deletePaymentRule 에러:", error);
+        throw error;
+    }
+}
+

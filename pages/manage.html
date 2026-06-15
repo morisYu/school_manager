@@ -70,8 +70,9 @@
                                 <label>📅 종료일</label>
                                 <input type="date" id="endDate">
                             </div>
-                            <div class="input-group input-group-btn">
-                                <button class="btn-search" onclick="loadReport()">조회하기</button>
+                            <div class="input-group input-group-btn" style="flex-direction: row; gap: 8px;">
+                                <button class="btn-search" style="flex: 1;" onclick="loadReport()">조회하기</button>
+                                <button class="btn-print" style="flex: 1; font-size: 0.82rem;" onclick="openPaymentModal()">지급기준</button>
                             </div>
                         </div>
                     </div>
@@ -139,6 +140,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="check-all-reports" onchange="toggleAllReportRows(this)"></th>
                             <th>순번</th>
                             <th>날짜</th>
                             <th>지역</th>
@@ -153,23 +155,23 @@
                     </thead>
 
                     <tbody id="report-table-body">
-                        <tr><td colspan="10">강사를 선택하고 조회 조건을 설정하세요.</td></tr>
+                        <tr><td colspan="11">강사를 선택하고 조회 조건을 설정하세요.</td></tr>
                     </tbody>
                     <tfoot id="report-footer" style="display:none;">
                         <tr class="total-row">
-                            <td colspan="6" style="text-align:right; padding-right:20px;">주강사 합계</td>
+                            <td colspan="7" style="text-align:right; padding-right:20px;">주강사 합계</td>
                             <td id="main-total-hours">0.0</td>
                             <td colspan="2"></td>
                             <td id="main-total-amount" style="text-align:right;">0</td>
                         </tr>
                         <tr class="total-row">
-                            <td colspan="6" style="text-align:right; padding-right:20px;">보조강사 합계</td>
+                            <td colspan="7" style="text-align:right; padding-right:20px;">보조강사 합계</td>
                             <td id="sub-total-hours">0.0</td>
                             <td colspan="2"></td>
                             <td id="sub-total-amount" style="text-align:right;">0</td>
                         </tr>
                         <tr class="total-row total-final">
-                            <td colspan="6" style="text-align:right; padding-right:20px;">전체 총 합계</td>
+                            <td colspan="7" style="text-align:right; padding-right:20px;">전체 총 합계</td>
                             <td id="total-hours">0.0</td>
                             <td colspan="2">-</td>
                             <td id="total-amount" style="text-align:right;">0</td>
@@ -300,6 +302,100 @@
         <div class="profile-modal-footer">
             <button class="btn-modal-save" onclick="confirmAddInstructor()">➕ 추가하기</button>
             <button class="btn-modal-cancel" onclick="closeAddInstructorModal()">취소</button>
+        </div>
+    </div>
+
+    <!-- 지급기준 모달 -->
+    <div id="payment-modal-overlay" class="profile-modal-overlay" onclick="closePaymentModal()"></div>
+    <div id="payment-modal" class="profile-modal" style="max-width: 1000px; display: none;">
+        <div class="profile-modal-header">
+            <h3>⚙️ 지급기준(차시 및 강사비) 설정</h3>
+            <button class="profile-modal-close" onclick="closePaymentModal()">✕</button>
+        </div>
+        
+        <!-- 탭 메뉴 -->
+        <div class="tab-menu" style="margin-top: 0; border-bottom: 1px solid #e2e8f0; border-radius: 0;">
+            <button class="tab-btn active" data-target="tab-payment-rules">규칙 관리</button>
+            <button class="tab-btn" data-target="tab-payment-apply">현재 화면에 적용</button>
+        </div>
+
+        <div class="profile-modal-body" style="padding: 20px;">
+            <!-- 탭 1: 규칙 관리 -->
+            <div id="tab-payment-rules" class="tab-content active" style="display: block;">
+                <p style="margin-bottom: 15px; color: #64748b; font-size: 0.95rem;">
+                    기관명 키워드에 따라 1차시 기준 시간(분)과 기본 강사비를 설정합니다.
+                </p>
+                <div class="table-responsive">
+                    <table class="history-table" style="min-width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>규칙 유형</th>
+                                <th>조건 (키워드/학교급)</th>
+                                <th>기준 시간(분)</th>
+                                <th>주강사비</th>
+                                <th>보조강사비</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payment-rules-tbody">
+                            <!-- JS에서 렌더링 -->
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f8fafc;">
+                                <td>
+                                    <select id="new-rule-type" onchange="toggleRuleInput()" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                                        <option value="keyword">키워드 포함</option>
+                                        <option value="schoolLevel">학교급 일치</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" id="new-rule-keyword" placeholder="예: 수성" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                                    <select id="new-rule-schoolLevel" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; display: none; box-sizing: border-box;">
+                                        <option value="초등학교">초등학교</option>
+                                        <option value="중학교">중학교</option>
+                                        <option value="고등학교">고등학교</option>
+                                    </select>
+                                </td>
+                                <td><input type="number" id="new-rule-minutes" placeholder="예: 60" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
+                                <td><input type="number" id="new-rule-mainfee" placeholder="예: 50000" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
+                                <td><input type="number" id="new-rule-subfee" placeholder="예: 25000" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
+                                <td style="text-align:center;">
+                                    <button class="btn-primary btn-sm" onclick="addPaymentRule()">추가</button>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 탭 2: 화면 내역에 적용 -->
+            <div id="tab-payment-apply" class="tab-content" style="display: none;">
+                <p style="margin-bottom: 15px; color: #64748b; font-size: 0.95rem;">
+                    현재 조회된 수업 내역(기관+프로그램 조합)을 자동으로 분석하여 지급기준을 매칭합니다. <br>
+                    규칙이 중복 매칭되는 경우 직접 선택해주세요.
+                </p>
+                <div class="table-responsive">
+                    <table class="history-table" style="min-width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>기관명</th>
+                                <th>프로그램명</th>
+                                <th>대표 수업시간(분)</th>
+                                <th>적용할 규칙</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payment-apply-tbody">
+                            <!-- JS에서 렌더링 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 15px; text-align: right;">
+                    <button class="btn-primary" onclick="applyPaymentRules()">🚀 일괄 차시/강사비 적용</button>
+                </div>
+            </div>
+        </div>
+        <div class="profile-modal-footer">
+            <button class="btn-modal-cancel" onclick="closePaymentModal()">닫기</button>
         </div>
     </div>
 

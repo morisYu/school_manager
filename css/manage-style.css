@@ -841,6 +841,7 @@ th {
     position: sticky;
     top: 0;
     z-index: 2;
+    white-space: nowrap;
 }
 
 td {
@@ -849,6 +850,7 @@ td {
     text-align: center;
     font-size: 0.9em;
     background: rgba(255, 255, 255, 0.82);
+    white-space: nowrap;
 }
 
 #report-table-body tr:nth-child(even) td {
@@ -918,6 +920,25 @@ td {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
+
+/* 입력 필드 저장 상태 피드백 */
+.saving {
+    background: #fff8e1 !important;
+    border-color: #ffd54f !important;
+    transition: all 0.3s ease;
+}
+
+.saved {
+    background: #e8f5e9 !important;
+    border-color: #81c784 !important;
+    transition: all 0.5s ease;
+}
+
+.save-error {
+    background: #ffebee !important;
+    border-color: #e57373 !important;
+}
+
 
 /* 숫자 입력란 화살표(스핀 버튼) 제거 */
 input[type="number"]::-webkit-outer-spin-button,

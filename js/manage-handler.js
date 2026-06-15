@@ -1,9 +1,11 @@
 /* js/manage-handler.js - Firebase Firestore 버전 */
-import { getAllSchedules, getAllInstructors, getInstructorProfile, saveInstructorProfile, deleteInstructor as dbDeleteInstructor, updateSchedule } from './db_service.js';
+import { getAllSchedules, getAllInstructors, getInstructorProfile, saveInstructorProfile, deleteInstructor as dbDeleteInstructor, updateSchedule, getPrograms, getPaymentRules, savePaymentRule, deletePaymentRule } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
 let rawData = [];
+let programsData = []; // 프로그램 목록 저장용
+let paymentRulesData = []; // 지급기준 규칙 목록 저장용
 // 모달에서 현재 선택된 사진의 Base64 문자열 (null이면 변경 없음)
 let pendingPhotoBase64 = null;
 
@@ -34,11 +36,16 @@ onAuthStateChanged(auth, async (user) => {
     if (!user) return;
 
     try {
-        // 두 컬렉션을 병렬로 동시 조회하여 초기 로딩 시간 단축
-        const [firestoreData] = await Promise.all([
+        // 세 컬렉션을 병렬로 동시 조회하여 초기 로딩 시간 단축
+        const [firestoreData, programs, rules] = await Promise.all([
             getAllSchedules(),
+            getPrograms(),
+            getPaymentRules(),
             loadInstructorList()
         ]);
+
+        programsData = programs || [];
+        paymentRulesData = rules || [];
 
         rawData = firestoreData.map(r => ({
             'id': r.id,
@@ -556,7 +563,10 @@ window.saveProfile = async function () {
 
 // ─── 출강 이력 조회 ───────────────────────────────────────────────────────────
 
-window.loadReport = function () {
+window.loadReport = async function () {
+    // 조회 전 혹시 저장되지 않은 차시/강사비 데이터가 있다면 즉시 강제 저장
+    await window.flushUnsavedData();
+
     const region = document.getElementById('region-select').value;
     const name   = document.getElementById('teacherSelect').value;
     const start  = document.getElementById('startDate').value;
@@ -588,12 +598,14 @@ window.loadReport = function () {
         if (role === "주강사") mainTotal += parseFloat(hours);
         else                   subTotal  += parseFloat(hours);
 
-        const roundsVal = r['차시'] !== undefined ? r['차시'] : '';
-        const feeVal = r['강사비'] !== undefined ? r['강사비'] : '';
+        let roundsVal = r['차시'] !== undefined ? r['차시'] : '';
+        let feeVal = r['강사비'] !== undefined ? r['강사비'] : '';
+
         const feeStr = feeVal ? parseInt(feeVal, 10).toLocaleString() : '';
 
         tbody.innerHTML += `
-            <tr class="report-row" data-role="${role}" data-id="${r['id']}">
+            <tr class="report-row" data-role="${role}" data-id="${r['id']}" data-start="${r['시작시간']}" data-end="${r['종료시간']}">
+                <td style="text-align:center;"><input type="checkbox" class="row-checkbox" checked></td>
                 <td>${index + 1}</td>
                 <td class="date-cell">${formatDate(r['날짜'])}</td>
                 <td>${r['지역구분'] || '-'}</td>
@@ -601,8 +613,8 @@ window.loadReport = function () {
                 <td>${r['프로그램명']}</td>
                 <td>${role}</td>
                 <td class="hour-cell">${hours}</td>
-                <td><input type="number" class="lesson-input" value="${roundsVal}" step="0.5" min="0" oninput="calculateAmount()" onblur="saveRowData(this)"></td>
-                <td><input type="text" class="fee-input" value="${feeStr}" oninput="formatFeeAndCalculate(this)" onblur="saveRowData(this)"></td>
+                <td><input type="number" class="lesson-input" value="${roundsVal}" step="0.5" min="0" oninput="calculateAmount(); queueSaveRowData(this)"></td>
+                <td><input type="text" class="fee-input" value="${feeStr}" oninput="formatFeeAndCalculate(this); queueSaveRowData(this)"></td>
                 <td class="amount-cell" style="text-align:right;">0</td>
             </tr>
         `;
@@ -621,9 +633,14 @@ window.loadReport = function () {
         footer.style.display = 'table-footer-group';
         window.calculateAmount();
     } else {
-        tbody.innerHTML = '<tr><td colspan="10">내역이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11">내역이 없습니다.</td></tr>';
         footer.style.display = 'none';
     }
+};
+
+window.toggleAllReportRows = function(checkbox) {
+    const checkboxes = document.querySelectorAll('#report-table-body .row-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
 };
 
 window.formatFeeAndCalculate = function(input) {
@@ -665,34 +682,97 @@ window.calculateAmount = function () {
     document.getElementById('total-amount').innerText = (mainTotalAmount + subTotalAmount).toLocaleString();
 };
 
+// ─── 출강 내역 자동 저장 (Debounce) 및 강제 저장 ────────────────────────────────
+const saveTimeouts = new Map();
+const pendingSaves = new Map();
 
-window.saveRowData = async function(input) {
+window.flushUnsavedData = async function() {
+    const promises = [];
+    for (const [docId, data] of pendingSaves.entries()) {
+        const timeout = saveTimeouts.get(docId);
+        if (timeout) {
+            clearTimeout(timeout);
+            saveTimeouts.delete(docId);
+        }
+        
+        promises.push(executeSave(docId, data));
+    }
+    pendingSaves.clear();
+    if (promises.length > 0) {
+        await Promise.all(promises);
+    }
+};
+
+window.queueSaveRowData = function(input) {
     const row = input.closest('tr');
     const docId = row.getAttribute('data-id');
     if (!docId) return;
 
-    const lessonInput = row.querySelector('.lesson-input').value;
-    const feeInput = row.querySelector('.fee-input').value;
+    const lessonInput = row.querySelector('.lesson-input');
+    const feeInput = row.querySelector('.fee-input');
 
-    const rounds = lessonInput ? parseFloat(lessonInput) : null;
-    const instructorFee = feeInput ? parseInt(feeInput.replace(/,/g, ''), 10) : null;
+    // 입력 중 상태 시각적 피드백
+    lessonInput.classList.remove('saved', 'save-error');
+    feeInput.classList.remove('saved', 'save-error');
+    lessonInput.classList.add('saving');
+    feeInput.classList.add('saving');
+
+    const roundsStr = lessonInput.value;
+    const feeStr = feeInput.value;
+
+    const rounds = roundsStr ? parseFloat(roundsStr) : null;
+    const instructorFee = feeStr ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
+
+    pendingSaves.set(docId, { rounds, instructorFee, lessonInput, feeInput });
+
+    if (saveTimeouts.has(docId)) {
+        clearTimeout(saveTimeouts.get(docId));
+    }
+
+    const timeout = setTimeout(() => {
+        saveTimeouts.delete(docId);
+        const data = pendingSaves.get(docId);
+        if (data) {
+            pendingSaves.delete(docId);
+            executeSave(docId, data);
+        }
+    }, 800); // 800ms 디바운싱
+    
+    saveTimeouts.set(docId, timeout);
+};
+
+async function executeSave(docId, data = null) {
+    if (!data) return; // flush에서 넘어온 경우 이미 data를 받음
 
     try {
         await updateSchedule(docId, {
-            rounds: rounds,
-            instructorFee: instructorFee
+            rounds: data.rounds,
+            instructorFee: data.instructorFee
         });
 
-        // 로컬 rawData 동기화
+        // 로컬 데이터 동기화
         const target = rawData.find(item => item.id === docId);
         if (target) {
-            target['차시'] = rounds !== null ? rounds : '';
-            target['강사비'] = instructorFee !== null ? instructorFee : '';
+            target['차시'] = data.rounds !== null ? data.rounds : '';
+            target['강사비'] = data.instructorFee !== null ? data.instructorFee : '';
         }
+
+        if (data.lessonInput) data.lessonInput.classList.replace('saving', 'saved');
+        if (data.feeInput) data.feeInput.classList.replace('saving', 'saved');
+        
+        // 1초 뒤 상태 제거
+        setTimeout(() => {
+            if (data.lessonInput) data.lessonInput.classList.remove('saved');
+            if (data.feeInput) data.feeInput.classList.remove('saved');
+        }, 1500);
+        
     } catch (e) {
         console.error("차시/강사비 저장 실패:", e);
+        if (data.lessonInput) data.lessonInput.classList.replace('saving', 'save-error');
+        if (data.feeInput) data.feeInput.classList.replace('saving', 'save-error');
     }
-};
+}
+
 
 // ─── 가용 시간 입력 UI ─────────────────────────────────────────────────────────
 
@@ -845,4 +925,438 @@ window.collectAvailabilityData = function() {
     });
 
     return availability;
+};
+
+// ─── 지급기준 (Payment Rules) 관련 로직 ───────────────────────────────────────
+
+// 탭 전환 이벤트 설정
+document.addEventListener('DOMContentLoaded', () => {
+    const paymentTabBtns = document.querySelectorAll('#payment-modal .tab-btn');
+    paymentTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            paymentTabBtns.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#payment-modal .tab-content').forEach(c => c.style.display = 'none');
+            
+            btn.classList.add('active');
+            const targetId = btn.getAttribute('data-target');
+            document.getElementById(targetId).style.display = 'block';
+
+            if (targetId === 'tab-payment-apply') {
+                renderPaymentApplyTable();
+            } else if (targetId === 'tab-payment-rules') {
+                renderPaymentRules();
+            }
+        });
+    });
+});
+
+window.openPaymentModal = async function() {
+    const overlay = document.getElementById('payment-modal-overlay');
+    const modal = document.getElementById('payment-modal');
+    
+    overlay.style.display = 'block';
+    modal.style.display = 'flex';
+    
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            overlay.classList.add('is-open');
+            modal.classList.add('is-open');
+        });
+    });
+
+    // 기본 탭 활성화
+    document.querySelector('#payment-modal .tab-btn[data-target="tab-payment-rules"]').click();
+    
+    // DB 데이터 강제 리로드
+    paymentRulesData = await getPaymentRules() || [];
+    renderPaymentRules();
+};
+
+window.closePaymentModal = function() {
+    const overlay = document.getElementById('payment-modal-overlay');
+    const modal = document.getElementById('payment-modal');
+    
+    overlay.classList.remove('is-open');
+    modal.classList.remove('is-open');
+    
+    setTimeout(() => {
+        overlay.style.display = 'none';
+        modal.style.display = 'none';
+    }, 180);
+};
+
+window.toggleRuleInput = function() {
+    const type = document.getElementById('new-rule-type').value;
+    const keywordInput = document.getElementById('new-rule-keyword');
+    const schoolLevelInput = document.getElementById('new-rule-schoolLevel');
+
+    if (type === 'schoolLevel') {
+        keywordInput.style.display = 'none';
+        schoolLevelInput.style.display = 'block';
+    } else {
+        keywordInput.style.display = 'block';
+        schoolLevelInput.style.display = 'none';
+    }
+};
+
+let editingRuleId = null;
+
+window.editPaymentRuleRow = function(id) {
+    editingRuleId = id;
+    renderPaymentRules();
+};
+
+window.cancelEditPaymentRuleRow = function() {
+    editingRuleId = null;
+    renderPaymentRules();
+};
+
+window.saveEditedPaymentRuleRow = async function(id) {
+    const type = document.getElementById(`edit-rule-type-${id}`).value;
+    const keyword = type === 'schoolLevel' 
+        ? document.getElementById(`edit-rule-schoolLevel-${id}`).value 
+        : document.getElementById(`edit-rule-keyword-${id}`).value.trim();
+    const minutes = parseInt(document.getElementById(`edit-rule-minutes-${id}`).value, 10);
+    const mainFee = parseInt(document.getElementById(`edit-rule-mainfee-${id}`).value, 10);
+    const subFee = parseInt(document.getElementById(`edit-rule-subfee-${id}`).value, 10);
+
+    if (!keyword || isNaN(minutes) || isNaN(mainFee) || isNaN(subFee)) {
+        alert("모든 필드를 올바르게 입력해주세요.");
+        return;
+    }
+
+    const updatedRule = {
+        id: id,
+        ruleType: type,
+        keyword: keyword,
+        baseMinutes: minutes,
+        mainFee: mainFee,
+        subFee: subFee
+    };
+
+    try {
+        await savePaymentRule(updatedRule);
+        
+        // 로컬 데이터 업데이트
+        const index = paymentRulesData.findIndex(r => r.id === id);
+        if (index !== -1) {
+            paymentRulesData[index] = { ...paymentRulesData[index], ...updatedRule };
+        }
+        
+        editingRuleId = null;
+        renderPaymentRules();
+    } catch (error) {
+        alert("규칙 수정에 실패했습니다.");
+    }
+};
+
+window.toggleEditRuleInput = function(id) {
+    const type = document.getElementById(`edit-rule-type-${id}`).value;
+    const keywordInput = document.getElementById(`edit-rule-keyword-${id}`);
+    const schoolLevelInput = document.getElementById(`edit-rule-schoolLevel-${id}`);
+
+    if (type === 'schoolLevel') {
+        keywordInput.style.display = 'none';
+        schoolLevelInput.style.display = 'block';
+    } else {
+        keywordInput.style.display = 'block';
+        schoolLevelInput.style.display = 'none';
+    }
+};
+
+function renderPaymentRules() {
+    const tbody = document.getElementById('payment-rules-tbody');
+    tbody.innerHTML = '';
+
+    if (paymentRulesData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#7f8c8d;">등록된 지급기준이 없습니다.</td></tr>';
+        return;
+    }
+
+    paymentRulesData.forEach(rule => {
+        const tr = document.createElement('tr');
+
+        if (rule.id === editingRuleId) {
+            const isSchoolLevel = rule.ruleType === 'schoolLevel';
+            tr.innerHTML = `
+                <td>
+                    <select id="edit-rule-type-${rule.id}" onchange="toggleEditRuleInput('${rule.id}')" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                        <option value="keyword" ${!isSchoolLevel ? 'selected' : ''}>키워드 포함</option>
+                        <option value="schoolLevel" ${isSchoolLevel ? 'selected' : ''}>학교급 일치</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" id="edit-rule-keyword-${rule.id}" value="${!isSchoolLevel ? rule.keyword : ''}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; display: ${!isSchoolLevel ? 'block' : 'none'}; box-sizing: border-box;">
+                    <select id="edit-rule-schoolLevel-${rule.id}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; display: ${isSchoolLevel ? 'block' : 'none'}; box-sizing: border-box;">
+                        <option value="초등학교" ${isSchoolLevel && rule.keyword === '초등학교' ? 'selected' : ''}>초등학교</option>
+                        <option value="중학교" ${isSchoolLevel && rule.keyword === '중학교' ? 'selected' : ''}>중학교</option>
+                        <option value="고등학교" ${isSchoolLevel && rule.keyword === '고등학교' ? 'selected' : ''}>고등학교</option>
+                    </select>
+                </td>
+                <td><input type="number" id="edit-rule-minutes-${rule.id}" value="${rule.baseMinutes}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
+                <td><input type="number" id="edit-rule-mainfee-${rule.id}" value="${rule.mainFee}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
+                <td><input type="number" id="edit-rule-subfee-${rule.id}" value="${rule.subFee}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <button class="btn-primary btn-sm" onclick="saveEditedPaymentRuleRow('${rule.id}')" style="margin-bottom:4px;">저장</button>
+                    <button class="btn-modal-cancel btn-sm" onclick="cancelEditPaymentRuleRow()" style="padding:4px 8px; font-size:0.75rem;">취소</button>
+                </td>
+            `;
+        } else {
+            const displayType = rule.ruleType === 'schoolLevel' 
+                ? '<span style="color:#0284c7; font-weight:500;">[학교급]</span>' 
+                : '<span style="color:#475569; font-weight:500;">[키워드]</span>';
+
+            tr.innerHTML = `
+                <td style="text-align:center;">${displayType}</td>
+                <td>${rule.keyword}</td>
+                <td style="text-align:center;">${rule.baseMinutes}분</td>
+                <td style="text-align:right;">${rule.mainFee.toLocaleString()}원</td>
+                <td style="text-align:right;">${rule.subFee.toLocaleString()}원</td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <button class="btn-primary btn-sm" onclick="editPaymentRuleRow('${rule.id}')">수정</button>
+                    <button class="btn-danger btn-sm" onclick="deletePaymentRuleRow('${rule.id}')">삭제</button>
+                </td>
+            `;
+        }
+        tbody.appendChild(tr);
+    });
+}
+
+window.addPaymentRule = async function() {
+    const ruleType = document.getElementById('new-rule-type').value;
+    const keyword = ruleType === 'schoolLevel' 
+        ? document.getElementById('new-rule-schoolLevel').value 
+        : document.getElementById('new-rule-keyword').value.trim();
+
+    const minutes = parseInt(document.getElementById('new-rule-minutes').value, 10);
+    const mainFee = parseInt(document.getElementById('new-rule-mainfee').value, 10);
+    const subFee = parseInt(document.getElementById('new-rule-subfee').value, 10);
+
+    if (!keyword || isNaN(minutes) || isNaN(mainFee) || isNaN(subFee)) {
+        alert("모든 필드를 올바르게 입력해주세요.");
+        return;
+    }
+
+    const newRule = {
+        ruleType: ruleType,
+        keyword: keyword,
+        baseMinutes: minutes,
+        mainFee: mainFee,
+        subFee: subFee,
+        order: Date.now() // 임시 정렬값
+    };
+
+    try {
+        const newId = await savePaymentRule(newRule);
+        newRule.id = newId;
+        paymentRulesData.push(newRule);
+        
+        // 입력창 초기화
+        document.getElementById('new-rule-keyword').value = '';
+        document.getElementById('new-rule-minutes').value = '';
+        document.getElementById('new-rule-mainfee').value = '';
+        document.getElementById('new-rule-subfee').value = '';
+        
+        renderPaymentRules();
+    } catch (error) {
+        alert("규칙 저장에 실패했습니다.");
+    }
+};
+
+window.deletePaymentRuleRow = async function(id) {
+    if (!confirm("이 지급기준을 삭제하시겠습니까?")) return;
+    try {
+        await deletePaymentRule(id);
+        paymentRulesData = paymentRulesData.filter(r => r.id !== id);
+        renderPaymentRules();
+    } catch (error) {
+        alert("삭제에 실패했습니다.");
+    }
+};
+
+// 현재 화면의 데이터를 그룹핑하여 보여주기
+function renderPaymentApplyTable() {
+    const tbody = document.getElementById('payment-apply-tbody');
+    const tableRows = Array.from(document.getElementById('report-table-body').querySelectorAll('.report-row'));
+    
+    if (tableRows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">현재 조회된 수업 내역이 없습니다.</td></tr>';
+        return;
+    }
+
+    // 그룹화: [기관명 - 프로그램명] -> 대표 소요 시간 추출
+    const groups = {};
+
+    tableRows.forEach(row => {
+        // 체크박스가 선택된 항목만 그룹화 및 표시 (모달에 띄울 때부터 필터링)
+        const checkbox = row.querySelector('.row-checkbox');
+        if (!checkbox || !checkbox.checked) return;
+
+        const schoolName = row.children[4].textContent.trim();
+        const programName = row.children[5].textContent.trim();
+        const startTimeStr = row.getAttribute('data-start');
+        const endTimeStr = row.getAttribute('data-end');
+        const groupKey = `${schoolName} | ${programName}`;
+
+        if (!groups[groupKey]) {
+            // 시간 계산 (분)
+            let diffMinutes = 0;
+            if (startTimeStr && endTimeStr) {
+                const start = startTimeStr.split(':').map(Number);
+                const end = endTimeStr.split(':').map(Number);
+                if (start.length === 2 && end.length === 2) {
+                    diffMinutes = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
+                }
+            }
+            
+            // 키워드 및 학교급 매칭 로직
+            const matchedRules = paymentRulesData.filter(r => {
+                let targetName = schoolName;
+                const match = schoolName.match(/\(([^)]+)\)/);
+                if (match) {
+                    targetName = match[1].trim(); // 괄호 안의 이름 추출. 예: "수성미래교육관 (지산초)" -> "지산초"
+                }
+
+                if (r.ruleType === 'schoolLevel') {
+                    if (r.keyword === '초등학교') {
+                        return /(초|초등학교)$/.test(targetName);
+                    } else if (r.keyword === '중학교') {
+                        return /(중|중학교)$/.test(targetName);
+                    } else if (r.keyword === '고등학교') {
+                        return /(고|고등학교)$/.test(targetName);
+                    }
+                    return false;
+                } else {
+                    return schoolName.includes(r.keyword) || (r.keyword && programName.includes(r.keyword));
+                }
+            });
+            
+            groups[groupKey] = {
+                schoolName,
+                programName,
+                duration: diffMinutes > 0 ? diffMinutes : '알 수 없음',
+                matchedRules: matchedRules
+            };
+        }
+    });
+
+    tbody.innerHTML = '';
+    
+    Object.keys(groups).forEach(key => {
+        const g = groups[key];
+        const tr = document.createElement('tr');
+        
+        let selectHtml = `<select class="rule-select" data-key="${key}" style="width:100%; padding: 4px;">`;
+        if (g.matchedRules.length === 0) {
+            selectHtml += `<option value="">매칭된 규칙 없음</option>`;
+            // 매칭 안 된 경우 직접 선택할 수 있도록 전체 규칙 추가
+            paymentRulesData.forEach(r => {
+                selectHtml += `<option value="${r.id}">[수동선택] ${r.keyword} (${r.baseMinutes}분)</option>`;
+            });
+        } else {
+            g.matchedRules.forEach(r => {
+                selectHtml += `<option value="${r.id}">${r.keyword} (${r.baseMinutes}분 기준)</option>`;
+            });
+            // 다른 것도 고를 수 있도록 전체 규칙도 추가
+            selectHtml += `<optgroup label="기타 규칙">`;
+            paymentRulesData.filter(r => !g.matchedRules.find(mr => mr.id === r.id)).forEach(r => {
+                selectHtml += `<option value="${r.id}">${r.keyword} (${r.baseMinutes}분)</option>`;
+            });
+            selectHtml += `</optgroup>`;
+        }
+        selectHtml += `</select>`;
+
+        tr.innerHTML = `
+            <td>${g.schoolName}</td>
+            <td>${g.programName}</td>
+            <td style="text-align:center;">${g.duration}분</td>
+            <td>${selectHtml}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// 일괄 차시/강사비 적용 로직
+window.applyPaymentRules = async function() {
+    await window.flushUnsavedData();
+
+    const applyTbody = document.getElementById('payment-apply-tbody');
+    const ruleSelects = Array.from(applyTbody.querySelectorAll('.rule-select'));
+    const selectionMap = {}; // "schoolName | programName" -> rule ID
+
+    ruleSelects.forEach(sel => {
+        if (sel.value) {
+            selectionMap[sel.getAttribute('data-key')] = sel.value;
+        }
+    });
+
+    if (Object.keys(selectionMap).length === 0) {
+        alert("적용할 규칙이 선택되지 않았습니다.");
+        return;
+    }
+
+    if (!confirm("선택한 지급기준에 따라 차시와 강사비를 일괄 계산하시겠습니까?\n(기존 입력값은 덮어씌워집니다)")) {
+        return;
+    }
+
+    const tableRows = Array.from(document.getElementById('report-table-body').querySelectorAll('.report-row'));
+    let updateCount = 0;
+
+    tableRows.forEach(row => {
+        const checkbox = row.querySelector('.row-checkbox');
+        if (!checkbox || !checkbox.checked) return;
+
+        const schoolName = row.children[4].textContent.trim();
+        const programName = row.children[5].textContent.trim();
+        const startTimeStr = row.getAttribute('data-start');
+        const endTimeStr = row.getAttribute('data-end');
+        const groupKey = `${schoolName} | ${programName}`;
+
+        const selectedRuleId = selectionMap[groupKey];
+        if (!selectedRuleId) return;
+
+        const rule = paymentRulesData.find(r => r.id === selectedRuleId);
+        if (!rule) return;
+
+        // 소요 시간 계산
+        let diffMinutes = 0;
+        if (startTimeStr && endTimeStr) {
+            const start = startTimeStr.split(':').map(Number);
+            const end = endTimeStr.split(':').map(Number);
+            if (start.length === 2 && end.length === 2) {
+                diffMinutes = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
+            }
+        }
+
+        if (diffMinutes > 0 && rule.baseMinutes > 0) {
+            // 자투리 시간 버림 (Math.floor)
+            const rounds = Math.floor(diffMinutes / rule.baseMinutes);
+            
+            if (rounds > 0) {
+                const lessonInput = row.querySelector('.lesson-input');
+                const feeInput = row.querySelector('.fee-input');
+                
+                lessonInput.value = rounds;
+                
+                // 주강사 여부 확인
+                const role = row.getAttribute('data-role');
+                const isMain = role === '주강사';
+                const feeAmount = isMain ? rule.mainFee : rule.subFee;
+                feeInput.value = feeAmount.toLocaleString();
+                
+                // 임시 저장 큐에 등록
+                window.queueSaveRowData(lessonInput);
+                window.queueSaveRowData(feeInput);
+                updateCount++;
+            }
+        }
+    });
+
+    if (updateCount > 0) {
+        window.calculateAmount();
+        alert(`총 ${updateCount}건의 데이터에 차시 및 강사비가 적용되었습니다.`);
+        closePaymentModal();
+    } else {
+        alert("조건을 만족하여 업데이트된 내역이 없습니다. (수업 시간이 입력되어 있는지 확인하세요)");
+    }
 };
