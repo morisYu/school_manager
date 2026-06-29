@@ -19,7 +19,8 @@
 }
 
 .left-column {
-    flex: 0 0 240px;
+    flex: 2;
+    min-width: 250px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -131,7 +132,7 @@
     box-shadow: 0 14px 30px rgba(34, 62, 97, 0.14);
     border: 1px solid rgba(97, 134, 177, 0.25);
     padding: 24px 28px;
-    flex: 1;
+    flex: 8;
     min-width: 0; /* 내용에 의해 늘어나지 않도록 고정 */
     display: flex;
     align-items: center;
@@ -677,9 +678,11 @@ body {
 
 .container {
     padding: 0 20px 40px 20px;
-    max-width: 1400px; /* 강사 카드가 빈 내용일 때 과도하게 늘어나지 않고 자연스러운 크기로 설정 */
+    max-width: 1800px; /* PC에서는 최대 1800px까지, 모바일에서는 화면에 맞게 */
+    width: 100%;
     margin: 0 auto;
     overflow-x: visible;
+    box-sizing: border-box;
 }
 
 .header-box {
@@ -694,10 +697,10 @@ body {
 }
 
 .header-row {
-    display: grid;
-    grid-template-columns: 1.1fr 1.1fr 1fr 1fr 0.75fr;
+    display: flex;
+    flex-wrap: wrap;
     gap: 14px;
-    align-items: end;
+    align-items: flex-end;
     margin-bottom: 16px;
 }
 
@@ -705,15 +708,19 @@ body {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 150px;
+    flex: 1;
+    min-width: 120px;
 }
 
 .input-group-btn button {
-    width: 100%;
+    flex: 1; /* Make buttons grow to fill space if needed */
 }
 
 .input-group-btn {
+    flex: 1.6;
+    min-width: 0;
     justify-content: flex-end;
+    flex-wrap: wrap !important;
 }
 
 .input-group label {
@@ -767,6 +774,7 @@ button {
     font-weight: 900;
     cursor: pointer;
     transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+    white-space: nowrap;
 }
 
 .btn-search {

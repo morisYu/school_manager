@@ -1360,3 +1360,133 @@ window.applyPaymentRules = async function() {
         alert("조건을 만족하여 업데이트된 내역이 없습니다. (수업 시간이 입력되어 있는지 확인하세요)");
     }
 };
+
+// ─── 엑셀 다운로드 (템플릿 기반) ────────────────────────────────────────────────────────
+window.downloadExcel = async function() {
+    const name = document.getElementById('teacherSelect').value;
+    if (!name) {
+        alert("강사를 먼저 선택해주세요.");
+        return;
+    }
+
+    // 테이블에서 데이터 수집 (체크된 항목만)
+    const rows = document.querySelectorAll('#report-table-body .report-row');
+    const exportData = [];
+
+    rows.forEach((row) => {
+        const checkbox = row.querySelector('.row-checkbox');
+        // 체크박스가 없거나 해제되어 있으면 제외
+        if (!checkbox || !checkbox.checked) return;
+
+        const date = row.querySelector('.date-cell').innerText;
+        const school = row.children[4].innerText;
+        const program = row.children[5].innerText;
+        const role = row.children[6].innerText;
+        const lesson = row.querySelector('.lesson-input').value;
+        const fee = row.querySelector('.fee-input').value;
+        const amount = row.querySelector('.amount-cell').innerText;
+
+        exportData.push([
+            date,           // 날짜
+            school,         // 기관명
+            program,        // 프로그램명
+            role,           // 강사 구분
+            lesson,         // 차시
+            fee,            // 강사비
+            amount          // 합계금액
+        ]);
+    });
+
+    if (exportData.length === 0) {
+        alert("다운로드할 내역이 없습니다.");
+        return;
+    }
+
+    const btn = document.querySelector('.btn-excel');
+    if (btn) {
+        btn.innerText = '생성 중...';
+        btn.disabled = true;
+    }
+
+    try {
+        // 1. 템플릿 파일 가져오기 (루트 폴더의 template.xlsx 파일 가정)
+        const response = await fetch('../template.xlsx');
+        
+        const workbook = new ExcelJS.Workbook();
+        
+        if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            await workbook.xlsx.load(arrayBuffer);
+        } else {
+            console.warn("template.xlsx 템플릿 파일을 찾을 수 없어 새 시트로 생성합니다.");
+            const worksheet = workbook.addWorksheet('정산내역서');
+            worksheet.getCell('B1').value = '급여계산서';
+            worksheet.getRow(5).values = [null, '날짜', '기관명', '프로그램명', '강사 구분', '차시', '합계금액'];
+        }
+
+        const worksheet = workbook.worksheets[0];
+
+        // F3:G3 병합 셀에 강사명 안전하게 입력
+        const nameCell = worksheet.getCell('F3');
+        if (nameCell.isMerged) {
+            nameCell.master.value = `강사명: ${name}`;
+        } else {
+            nameCell.value = `강사명: ${name}`;
+        }
+
+        // 2. 데이터 맵핑 (내용 입력은 6행부터)
+        let startRowIndex = 6;
+        
+        // 데이터가 24줄(29행까지)을 초과할 경우 30행(합계행) 위에 새로운 행들을 삽입
+        if (response.ok && exportData.length > 24) {
+            const extraRows = exportData.length - 24;
+            
+            // 30행 위치에 필요한 만큼 빈 행 삽입 (기존 30행 합계는 아래로 밀려남)
+            const emptyRows = Array(extraRows).fill([]);
+            worksheet.spliceRows(30, 0, ...emptyRows);
+
+            // 29행(마지막 데이터행)의 스타일(테두리, 폰트 등)을 새로 생긴 행들에 복사
+            const styleRow = worksheet.getRow(29);
+            for (let i = 0; i < extraRows; i++) {
+                const newRow = worksheet.getRow(30 + i);
+                newRow.height = 30; // 새로 삽입되는 행의 높이를 30으로 설정
+                styleRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    newRow.getCell(colNumber).style = cell.style;
+                });
+            }
+
+            // 밑으로 밀려난 기존 합계행의 수식을 늘어난 범위에 맞춰 업데이트 (G열)
+            const totalRow = worksheet.getRow(30 + extraRows);
+            const sumCell = totalRow.getCell(7);
+            sumCell.value = { formula: `SUM(G6:G${29 + extraRows})` };
+        }
+
+        exportData.forEach((dataRow, idx) => {
+            const currentRow = worksheet.getRow(startRowIndex + idx);
+            
+            // B6 ~ G6 에 데이터 입력 (강사비 제외)
+            currentRow.getCell(2).value = dataRow[0]; // B: 날짜
+            currentRow.getCell(3).value = dataRow[1]; // C: 기관명
+            currentRow.getCell(4).value = dataRow[2]; // D: 프로그램명
+            currentRow.getCell(5).value = dataRow[3]; // E: 강사 구분
+            currentRow.getCell(6).value = Number(dataRow[4]) || 0; // F: 차시
+            currentRow.getCell(7).value = Number(dataRow[6].replace(/,/g, '')) || 0; // G: 합계금액
+        });
+
+        // 3. 엑셀 파일 다운로드
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        saveAs(blob, `정산내역서_${today}_${name}.xlsx`);
+
+    } catch (error) {
+        console.error("Excel 생성 중 오류 발생:", error);
+        alert("엑셀 생성 중 오류가 발생했습니다. 양식 파일(template.xlsx) 존재 여부를 확인해주세요.");
+    } finally {
+        if (btn) {
+            btn.innerText = '엑셀다운';
+            btn.disabled = false;
+        }
+    }
+};

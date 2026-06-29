@@ -73,6 +73,7 @@
                             <div class="input-group input-group-btn" style="flex-direction: row; gap: 8px;">
                                 <button class="btn-search" style="flex: 1;" onclick="loadReport()">조회하기</button>
                                 <button class="btn-print" style="flex: 1; font-size: 0.82rem;" onclick="openPaymentModal()">지급기준</button>
+                                <button class="btn-excel" style="flex: 1; font-size: 0.82rem; background-color: #107c41; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="downloadExcel()">엑셀다운</button>
                             </div>
                         </div>
                     </div>
@@ -398,6 +399,10 @@
             <button class="btn-modal-cancel" onclick="closePaymentModal()">닫기</button>
         </div>
     </div>
+
+    <!-- ExcelJS & FileSaver 라이브러리 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <script src="../js/utils.js"></script>
     <script type="module" src="../js/manage-handler.js"></script>
