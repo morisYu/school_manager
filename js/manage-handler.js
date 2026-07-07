@@ -63,7 +63,8 @@ onAuthStateChanged(auth, async (user) => {
             '학년': r.grade,
             '대상인원': r.targetCount,
             '차시': r.rounds !== undefined ? r.rounds : '',
-            '강사비': r.instructorFee !== undefined ? r.instructorFee : ''
+            '강사비': r.instructorFee !== undefined ? r.instructorFee : '',
+            '보조강사비': r.subInstructorFee !== undefined ? r.subInstructorFee : ''
         }));
 
     } catch (e) {
@@ -599,7 +600,13 @@ window.loadReport = async function () {
         else                   subTotal  += parseFloat(hours);
 
         let roundsVal = r['차시'] !== undefined ? r['차시'] : '';
-        let feeVal = r['강사비'] !== undefined ? r['강사비'] : '';
+        // 역할에 따라 해당 강사비 필드를 사용 (주강사: 강사비, 보조강사: 보조강사비)
+        let feeVal;
+        if (role === "주강사") {
+            feeVal = r['강사비'] !== undefined ? r['강사비'] : '';
+        } else {
+            feeVal = r['보조강사비'] !== undefined ? r['보조강사비'] : '';
+        }
 
         const feeStr = feeVal ? parseInt(feeVal, 10).toLocaleString() : '';
 
@@ -688,14 +695,14 @@ const pendingSaves = new Map();
 
 window.flushUnsavedData = async function() {
     const promises = [];
-    for (const [docId, data] of pendingSaves.entries()) {
-        const timeout = saveTimeouts.get(docId);
+    for (const [saveKey, data] of pendingSaves.entries()) {
+        const timeout = saveTimeouts.get(saveKey);
         if (timeout) {
             clearTimeout(timeout);
-            saveTimeouts.delete(docId);
+            saveTimeouts.delete(saveKey);
         }
         
-        promises.push(executeSave(docId, data));
+        promises.push(executeSave(data.docId, data));
     }
     pendingSaves.clear();
     if (promises.length > 0) {
@@ -710,6 +717,7 @@ window.queueSaveRowData = function(input) {
 
     const lessonInput = row.querySelector('.lesson-input');
     const feeInput = row.querySelector('.fee-input');
+    const role = row.getAttribute('data-role'); // 주강사 or 보조강사
 
     // 입력 중 상태 시각적 피드백
     lessonInput.classList.remove('saved', 'save-error');
@@ -721,40 +729,51 @@ window.queueSaveRowData = function(input) {
     const feeStr = feeInput.value;
 
     const rounds = roundsStr ? parseFloat(roundsStr) : null;
-    const instructorFee = feeStr ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
+    const feeValue = feeStr ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
 
-    pendingSaves.set(docId, { rounds, instructorFee, lessonInput, feeInput });
+    // 같은 docId로 주강사/보조강사가 각각 저장될 수 있으므로 복합 키 사용
+    const saveKey = `${docId}__${role}`;
+    pendingSaves.set(saveKey, { docId, rounds, feeValue, role, lessonInput, feeInput });
 
-    if (saveTimeouts.has(docId)) {
-        clearTimeout(saveTimeouts.get(docId));
+    if (saveTimeouts.has(saveKey)) {
+        clearTimeout(saveTimeouts.get(saveKey));
     }
 
     const timeout = setTimeout(() => {
-        saveTimeouts.delete(docId);
-        const data = pendingSaves.get(docId);
+        saveTimeouts.delete(saveKey);
+        const data = pendingSaves.get(saveKey);
         if (data) {
-            pendingSaves.delete(docId);
-            executeSave(docId, data);
+            pendingSaves.delete(saveKey);
+            executeSave(data.docId, data);
         }
     }, 800); // 800ms 디바운싱
     
-    saveTimeouts.set(docId, timeout);
+    saveTimeouts.set(saveKey, timeout);
 };
 
 async function executeSave(docId, data = null) {
     if (!data) return; // flush에서 넘어온 경우 이미 data를 받음
 
     try {
-        await updateSchedule(docId, {
-            rounds: data.rounds,
-            instructorFee: data.instructorFee
-        });
+        // 역할에 따라 저장할 필드를 분기
+        const updatePayload = { rounds: data.rounds };
+        if (data.role === '보조강사') {
+            updatePayload.subInstructorFee = data.feeValue;
+        } else {
+            updatePayload.instructorFee = data.feeValue;
+        }
+
+        await updateSchedule(docId, updatePayload);
 
         // 로컬 데이터 동기화
         const target = rawData.find(item => item.id === docId);
         if (target) {
             target['차시'] = data.rounds !== null ? data.rounds : '';
-            target['강사비'] = data.instructorFee !== null ? data.instructorFee : '';
+            if (data.role === '보조강사') {
+                target['보조강사비'] = data.feeValue !== null ? data.feeValue : '';
+            } else {
+                target['강사비'] = data.feeValue !== null ? data.feeValue : '';
+            }
         }
 
         if (data.lessonInput) data.lessonInput.classList.replace('saving', 'saved');

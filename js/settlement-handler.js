@@ -85,30 +85,32 @@ window.loadSettlementReport = function() {
 
     filtered.forEach(schedule => {
         const rounds = parseFloat(schedule.rounds) || 0;
-        const fee = parseFloat(schedule.instructorFee) || 0;
-        const amount = rounds * fee;
+        const mainFee = parseFloat(schedule.instructorFee) || 0;
+        const subFee = parseFloat(schedule.subInstructorFee) || 0;
 
-        const processInstructor = (name) => {
+        const processInstructor = (name, fee) => {
             if (!name) return;
             name = String(name).trim();
             if (name === '없음' || name === '미정') return; // '없음', '미정'으로 표시된 강사는 무시
 
             if (!settlementMap[name]) settlementMap[name] = { totalAmount: 0, hasAmount: false };
             
+            const amount = rounds * fee;
             if (amount > 0) {
                 settlementMap[name].totalAmount += amount;
                 settlementMap[name].hasAmount = true;
             }
         };
 
-        // 주강사 추가
+        // 주강사 추가 (주강사 단가 사용)
         if (schedule.mainInstructor) {
-            processInstructor(schedule.mainInstructor);
+            processInstructor(schedule.mainInstructor, mainFee);
         }
 
-        // 보조강사 추가
+        // 보조강사 추가 (보조강사 단가 사용, 없으면 주강사 단가로 펴백)
         const subs = normalizeSubInstructors(schedule.subInstructors || schedule.subInstructor);
-        subs.forEach(processInstructor);
+        const effectiveSubFee = subFee > 0 ? subFee : mainFee;
+        subs.forEach(name => processInstructor(name, effectiveSubFee));
     });
 
     // 테이블 렌더링
@@ -221,20 +223,18 @@ window.openDetailModal = function(instructorName) {
         if (isMain || isSub) {
             foundAny = true;
             const rounds = parseFloat(schedule.rounds) || 0;
-            const fee = parseFloat(schedule.instructorFee) || 0;
-            const amount = rounds * fee;
+            const mainFee = parseFloat(schedule.instructorFee) || 0;
+            const subFee = parseFloat(schedule.subInstructorFee) || 0;
+            // 보조강사 단가가 없으면 주강사 단가로 펴백 (하위호환)
+            const effectiveSubFee = subFee > 0 ? subFee : mainFee;
             
             let roleStr = [];
             if (isMain) roleStr.push('주강사');
             if (isSub) roleStr.push('보조강사');
 
-            // 합계금액이 없거나 0일 때 '-' 처리
-            let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
-
-            // 만약 주, 보조 둘다 속할 경우 금액이 2배인지 여부? 기존 로직은 두 번 집계하므로 여기선 1번만 추가하고 2배 처리 혹은 개별 처리.
-            // 보통 한 강사가 한 일정에 주/보조 동시가 아니지만, 혹시 그렇다면 각 역할을 따로 보여주거나 한 줄에 합침.
-            // 기존 로직은 각각 집계하므로 각각 출력하는 것이 정확.
             if (isMain) {
+                const amount = rounds * mainFee;
+                let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
                     <tr>
@@ -248,6 +248,8 @@ window.openDetailModal = function(instructorName) {
                 `;
             }
             if (isSub) {
+                const amount = rounds * effectiveSubFee;
+                let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
                     <tr>
