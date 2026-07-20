@@ -24,6 +24,7 @@
                     <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
                     <button class="nav-btn btn-program" onclick="location.href='program-manage.html'">📦 프로그램 관리</button>
                     <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-availability" onclick="location.href='availability.html'">🕐 강사 가용현황</button>
                     <button class="nav-btn btn-settlement" onclick="location.href='settlement.html'">💰 정산 관리</button>
                     <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
                 </div>
@@ -39,7 +40,12 @@
                     <!-- 강사 선택 드롭다운 -->
                     <div class="instructor-search-box">
                         <div class="input-group">
-                            <label>👤 강사 선택</label>
+                            <label style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span>👤 강사 선택</span>
+                                <label style="font-size: 0.8rem; font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                    <input type="checkbox" id="include-resigned-cb" onchange="loadInstructorList()"> 퇴사자 포함
+                                </label>
+                            </label>
                             <select id="teacherSelect" onchange="onInstructorChange()"></select>
                         </div>
                         <div class="instructor-action-btns">
@@ -96,6 +102,10 @@
                             <div class="profile-row">
                                 <span class="profile-label">소속</span>
                                 <span class="profile-value" id="profile-affiliation">-</span>
+                            </div>
+                            <div class="profile-row">
+                                <span class="profile-label">퇴사여부</span>
+                                <span class="profile-value" id="profile-resigned">-</span>
                             </div>
                             <div class="profile-row">
                                 <span class="profile-label">생년월일</span>
@@ -222,6 +232,14 @@
                     <div class="modal-form-group">
                         <label>입사일자</label>
                         <input type="date" id="modal-hire">
+                    </div>
+                    <div class="modal-form-group" style="display: flex; align-items: center; gap: 8px;">
+                        <label style="margin: 0;">퇴사 처리</label>
+                        <input type="checkbox" id="modal-is-resigned" style="width: auto; height: 18px; cursor: pointer;" onchange="document.getElementById('resignation-date-wrapper').style.display = this.checked ? 'block' : 'none'">
+                    </div>
+                    <div class="modal-form-group" id="resignation-date-wrapper" style="display: none;">
+                        <label>퇴사일자</label>
+                        <input type="date" id="modal-resignation-date">
                     </div>
                     <div class="modal-form-group">
                         <label>수업 가능 프로그램</label>

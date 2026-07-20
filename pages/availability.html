@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>강사 가용현황 — 출강 관리 시스템</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/availability.css">
+</head>
+<body style="display: none;">
+    <div id="main-content">
+        <div id="nav-overlay" class="nav-overlay"></div>
+
+        <div class="system-header">
+            <div class="header-container">
+                <div class="header-left">
+                    <a href="../index.html" class="header-logo">🏫 출강 관리 시스템</a>
+                </div>
+                <button id="hamburger-btn" class="hamburger-btn" aria-label="메뉴 열기" aria-expanded="false">
+                    <span></span><span></span><span></span>
+                </button>
+                <div id="mobile-nav" class="header-right">
+                    <button class="nav-btn btn-add" onclick="location.href='input.html'">📅 일정 추가</button>
+                    <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
+                    <button class="nav-btn btn-program" onclick="location.href='program-manage.html'">📦 프로그램 관리</button>
+                    <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
+                    <button class="nav-btn btn-availability" onclick="location.href='availability.html'">🕐 강사 가용현황</button>
+                    <button class="nav-btn btn-settlement" onclick="location.href='settlement.html'">💰 정산 관리</button>
+                    <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="availability-container">
+            <div class="page-title-area">
+                <h1>🕐 전체 강사 수업 불가능 시간 통합 조회</h1>
+                <p class="page-subtitle">모든 강사의 요일별 수업 불가능 시간을 한눈에 확인하고, 수업 배정에 참고하세요.</p>
+            </div>
+
+            <div class="filter-section">
+                <div class="day-filters">
+                    <button class="day-filter-btn" data-day="monday">월</button>
+                    <button class="day-filter-btn" data-day="tuesday">화</button>
+                    <button class="day-filter-btn" data-day="wednesday">수</button>
+                    <button class="day-filter-btn" data-day="thursday">목</button>
+                    <button class="day-filter-btn" data-day="friday">금</button>
+                    <button class="day-filter-btn" data-day="saturday">토</button>
+                    <button class="day-filter-btn" data-day="sunday">일</button>
+                </div>
+                <div class="time-filter">
+                    <label>시간대 필터</label>
+                    <input type="text" class="time-filter-input" id="filter-start" placeholder="09:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric">
+                    <span>~</span>
+                    <input type="text" class="time-filter-input" id="filter-end" placeholder="18:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric">
+                </div>
+                <div class="search-filter">
+                    <input type="text" id="search-instructor" placeholder="강사명 검색...">
+                </div>
+                <div class="affiliation-filter">
+                    <label>소속</label>
+                    <select id="filter-affiliation">
+                        <option value="">전체 소속</option>
+                    </select>
+                </div>
+                <div class="filter-actions">
+                    <button class="btn-filter-apply">필터 적용</button>
+                    <button class="btn-filter-reset">초기화</button>
+                </div>
+            </div>
+
+            <div class="stats-bar">
+                <span class="stat-pill" id="stat-total">전체 0명</span>
+                <span class="stat-pill stat-available" id="stat-available">제한없음 0명</span>
+                <span class="stat-pill stat-unavailable" id="stat-unavailable">제한있음 0명</span>
+            </div>
+
+            <div class="table-container">
+                <div class="loading-spinner" id="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <table class="availability-table" id="availability-table">
+                    <thead>
+                        <tr>
+                            <th>강사명</th>
+                            <th>월요일</th>
+                            <th>화요일</th>
+                            <th>수요일</th>
+                            <th>목요일</th>
+                            <th>금요일</th>
+                            <th>토요일</th>
+                            <th>일요일</th>
+                        </tr>
+                    </thead>
+                    <tbody id="availability-table-body">
+                    </tbody>
+                </table>
+                <div class="empty-state" id="empty-state" style="display: none;">등록된 강사가 없습니다.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="detail-popup-overlay" id="detail-popup" style="display: none;">
+        <div class="detail-popup-card">
+            <button class="detail-popup-close" id="detail-popup-close">✕</button>
+            <h3 id="detail-popup-name">강사명</h3>
+            <div class="detail-popup-body" id="detail-popup-body">
+                <!-- JS fills this -->
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/utils.js"></script>
+    <script type="module" src="../js/availability-handler.js"></script>
+    <script type="module" src="../js/auth-check.js"></script>
+</body>
+</html>

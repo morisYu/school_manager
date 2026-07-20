@@ -1,0 +1,603 @@
+/* ==========================================================================
+   강사 가용현황 통합 조회 페이지 스타일
+   ========================================================================== */
+
+/* ─── 1. 페이지 레이아웃 ──────────────────────────────────────────────────── */
+.availability-container {
+    width: 100%;
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 32px 32px 32px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ─── 2. 페이지 타이틀 ────────────────────────────────────────────────────── */
+.page-title-area {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.page-title-area h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--primary, #2c3e50);
+    margin: 0;
+}
+
+.page-subtitle {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin: 0;
+    font-weight: 500;
+}
+
+/* ─── 3. 필터 섹션 ────────────────────────────────────────────────────────── */
+.filter-section {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    background: #ffffff;
+    padding: 14px 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border: 1px solid #eef1f5;
+}
+
+/* 요일 필터 버튼 그룹 */
+.day-filters {
+    display: flex;
+    gap: 6px;
+}
+
+.day-filter-btn {
+    padding: 6px 14px;
+    border: 1px solid #dce3ea;
+    background-color: #f5f7fa;
+    color: #6c7a89;
+    border-radius: 20px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.day-filter-btn:hover {
+    background-color: #e8ecf1;
+    border-color: #c5cdd8;
+}
+
+.day-filter-btn.active {
+    background-color: var(--accent, #3498db);
+    color: #ffffff;
+    border-color: var(--accent, #3498db);
+    box-shadow: 0 2px 6px rgba(52, 152, 219, 0.35);
+}
+
+/* 시간대 필터 */
+.time-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.time-filter label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4a5568;
+    white-space: nowrap;
+}
+
+.time-filter-input {
+    width: 64px;
+    padding: 6px 10px;
+    border: 1px solid #dce3ea;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.time-filter-input:focus {
+    border-color: var(--accent, #3498db);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.time-filter span {
+    color: #9e9e9e;
+    font-weight: 600;
+}
+
+/* 검색 필터 */
+.search-filter input {
+    padding: 6px 14px;
+    border: 1px solid #dce3ea;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    min-width: 160px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-filter input:focus {
+    border-color: var(--accent, #3498db);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* 소속 필터 */
+.affiliation-filter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.affiliation-filter label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #4a5568;
+    white-space: nowrap;
+}
+
+.affiliation-filter select {
+    padding: 6px 12px;
+    border: 1px solid #dce3ea;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    min-width: 120px;
+}
+
+.affiliation-filter select:focus {
+    border-color: var(--accent, #3498db);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+/* 필터 액션 버튼 */
+.filter-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.btn-filter-apply {
+    padding: 6px 18px;
+    background-color: var(--primary, #2c3e50);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    font-family: inherit;
+}
+
+.btn-filter-apply:hover {
+    background-color: #1a252f;
+}
+
+.btn-filter-apply:active {
+    transform: translateY(1px);
+}
+
+.btn-filter-reset {
+    padding: 6px 14px;
+    background-color: #f5f7fa;
+    color: #6c7a89;
+    border: 1px solid #dce3ea;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-filter-reset:hover {
+    background-color: #e8ecf1;
+}
+
+/* ─── 4. 통계 바 ──────────────────────────────────────────────────────────── */
+.stats-bar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.stat-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 14px;
+    border-radius: 16px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    background-color: #f1f3f5;
+    color: #495057;
+}
+
+.stat-pill.stat-available {
+    background-color: #eaf6f4;
+    color: #0d7f72;
+}
+
+.stat-pill.stat-unavailable {
+    background-color: #fff0f0;
+    color: #c0392b;
+}
+
+/* ─── 5. 테이블 컨테이너 & 매트릭스 ──────────────────────────────────────── */
+.table-container {
+    flex: 1;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    overflow: auto;
+    border: 1px solid #eaedf1;
+    position: relative;
+}
+
+.availability-table {
+    width: auto;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    text-align: left;
+}
+
+/* 테이블 헤더 */
+.availability-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--primary, #2c3e50);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 13px 16px;
+    white-space: nowrap;
+    z-index: 10;
+    text-align: center;
+}
+
+.availability-table thead th:first-child {
+    text-align: left;
+    z-index: 15;
+    position: sticky;
+    left: 0;
+    border-right: 1px solid #465c72;
+}
+
+/* 테이블 바디 */
+.availability-table tbody tr {
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.availability-table tbody tr:nth-child(even) {
+    background-color: #fafbfc;
+}
+
+.availability-table tbody tr:hover {
+    background-color: #f0f4f8;
+}
+
+.availability-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.85rem;
+    color: #333;
+    vertical-align: middle;
+    text-align: center;
+}
+
+/* 강사명 셀 (sticky + 좌측 고정) */
+.instructor-name-cell {
+    position: sticky;
+    left: 0;
+    background-color: inherit;
+    z-index: 5;
+    font-weight: 700;
+    color: #1f3a66 !important;
+    cursor: pointer;
+    text-align: left !important;
+    border-right: 1px solid #eaedf1;
+    transition: color 0.15s;
+}
+
+.instructor-name-cell:hover {
+    color: var(--accent, #3498db) !important;
+    text-decoration: underline;
+}
+
+.availability-table tbody tr:nth-child(even) .instructor-name-cell {
+    background-color: #fafbfc;
+}
+
+.availability-table tbody tr:hover .instructor-name-cell {
+    background-color: #f0f4f8;
+}
+
+/* ─── 셀 내부 뱃지 ───────────────────────────────────────────────────────── */
+.cell-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    margin: 2px;
+}
+
+.badge-available {
+    background: #eaf6f4;
+    color: #0d7f72;
+    border: 1px solid #b8e6df;
+}
+
+.badge-partial {
+    background: #fff8e1;
+    color: #e67e22;
+    border: 1px solid #ffd89b;
+}
+
+.badge-unavailable {
+    background: #fff0f0;
+    color: #c0392b;
+    border: 1px solid #ffd3d3;
+}
+
+/* ─── 행 하이라이트 (시간 필터 결과) ──────────────────────────────────────── */
+.row-highlight-available {
+    box-shadow: inset 4px 0 0 var(--success, #27ae60);
+    background-color: rgba(39, 174, 96, 0.04) !important;
+}
+
+.row-highlight-available .instructor-name-cell {
+    background-color: rgba(39, 174, 96, 0.04) !important;
+}
+
+.row-highlight-unavailable {
+    box-shadow: inset 4px 0 0 #e74c3c;
+    background-color: rgba(231, 76, 60, 0.03) !important;
+}
+
+.row-highlight-unavailable .instructor-name-cell {
+    background-color: rgba(231, 76, 60, 0.03) !important;
+}
+
+/* ─── 6. 상세 팝업 ────────────────────────────────────────────────────────── */
+.detail-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.detail-popup-card {
+    background: #ffffff;
+    width: 480px;
+    max-width: 90vw;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    padding: 28px;
+    position: relative;
+    animation: popupSlideIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popupSlideIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.detail-popup-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.3rem;
+    color: #999;
+    cursor: pointer;
+    transition: color 0.15s;
+    line-height: 1;
+    padding: 4px;
+}
+
+.detail-popup-close:hover {
+    color: #333;
+}
+
+.detail-popup-card h3 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--primary, #2c3e50);
+    margin: 0 0 20px 0;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eaedf1;
+}
+
+.detail-days-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.detail-day-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border-bottom: 1px dashed #f0f0f0;
+    font-size: 0.88rem;
+    border-radius: 6px;
+}
+
+.detail-day-row:last-child {
+    border-bottom: none;
+}
+
+.detail-day-row strong {
+    font-weight: 700;
+    color: #2c3e50;
+    min-width: 56px;
+}
+
+.detail-day-available span {
+    color: #0d7f72;
+    font-weight: 600;
+}
+
+.detail-day-partial span {
+    color: #e67e22;
+    font-weight: 600;
+}
+
+.detail-day-unavailable span {
+    color: #c0392b;
+    font-weight: 600;
+}
+
+.detail-note {
+    margin-top: 16px;
+    padding: 14px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #eef1f5;
+}
+
+.detail-note strong {
+    display: block;
+    font-size: 0.82rem;
+    color: #4a5568;
+    margin-bottom: 6px;
+}
+
+.detail-note p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #555;
+    line-height: 1.5;
+}
+
+/* ─── 7. 빈 상태 ──────────────────────────────────────────────────────────── */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #a0b4cc;
+    text-align: center;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+/* ─── 8. 로딩 스피너 ──────────────────────────────────────────────────────── */
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+}
+
+.loading-spinner .spinner {
+    width: 36px;
+    height: 36px;
+    border: 4px solid #f0f0f0;
+    border-top: 4px solid var(--accent, #3498db);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ─── 9. 모바일 반응형 ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    html, body {
+        overflow: auto;
+    }
+
+    .availability-container {
+        padding: 0 14px 20px 14px;
+        gap: 12px;
+    }
+
+    .page-title-area h1 {
+        font-size: 1.15rem;
+    }
+
+    .filter-section {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .day-filters {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .time-filter {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .filter-actions {
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .search-filter input {
+        width: 100%;
+        min-width: unset;
+    }
+
+    .table-container {
+        border-radius: 8px;
+    }
+
+    .availability-table thead th,
+    .availability-table td {
+        padding: 8px 10px;
+        font-size: 0.78rem;
+    }
+
+    .cell-badge {
+        font-size: 0.7rem;
+        padding: 2px 6px;
+    }
+
+    .detail-popup-card {
+        width: 100%;
+        max-width: none;
+        margin: 16px;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .stats-bar {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+}

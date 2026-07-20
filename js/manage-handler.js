@@ -78,8 +78,9 @@ onAuthStateChanged(auth, async (user) => {
  */
 async function loadInstructorList() {
     const select = document.getElementById('teacherSelect');
+    const includeResigned = document.getElementById('include-resigned-cb')?.checked || false;
     try {
-        registeredInstructors = await getAllInstructors();
+        registeredInstructors = await getAllInstructors(includeResigned);
         select.innerHTML = '<option value="">강사 선택</option>';
         registeredInstructors.forEach(inst => {
             select.innerHTML += `<option value="${inst.name}">${inst.name}</option>`;
@@ -100,6 +101,7 @@ window.onInstructorChange = async function () {
         // 강사 미선택 시 카드는 빈 상태로 유지
         card.style.display = 'flex';
         document.getElementById('profile-name').textContent = '-';
+        document.getElementById('profile-resigned').textContent = '-';
         document.getElementById('profile-birth').textContent = '-';
         document.getElementById('profile-hire').textContent = '-';
         document.getElementById('profile-programs').textContent = '-';
@@ -119,6 +121,7 @@ window.onInstructorChange = async function () {
 
     // 카드 초기화
     document.getElementById('profile-name').textContent = name;
+    document.getElementById('profile-resigned').textContent = '조회 중...';
     document.getElementById('profile-birth').textContent = '조회 중...';
     document.getElementById('profile-hire').textContent = '조회 중...';
     document.getElementById('profile-programs').textContent = '조회 중...';
@@ -149,6 +152,11 @@ function renderProfileCard(name, profile) {
 
     if (profile) {
         document.getElementById('profile-affiliation').textContent = profile.affiliation || '-';
+        if (profile.isResigned && profile.resignationDate) {
+            document.getElementById('profile-resigned').innerHTML = `<span style="color:#e74c3c; font-weight:bold;">퇴사 (${formatDate(profile.resignationDate)})</span>`;
+        } else {
+            document.getElementById('profile-resigned').innerHTML = '<span style="color:#2ecc71; font-weight:bold;">재직중</span>';
+        }
         document.getElementById('profile-birth').textContent = formatDate(profile.birthDate) || '-';
         document.getElementById('profile-hire').textContent  = formatDate(profile.hireDate)  || '-';
         const programsContainer = document.getElementById('profile-programs');
@@ -213,6 +221,7 @@ function renderProfileCard(name, profile) {
                 noteSpan.className = 'avail-placeholder';
                 noteSpan.style.width = '100%';
                 noteSpan.style.marginTop = '4px';
+                noteSpan.style.whiteSpace = 'pre-wrap';
                 noteSpan.textContent = `📝 ${profile.availabilityNote}`;
                 badgesContainer.appendChild(noteSpan);
             }
@@ -230,6 +239,7 @@ function renderProfileCard(name, profile) {
         }
     } else {
         document.getElementById('profile-affiliation').textContent = '-';
+        document.getElementById('profile-resigned').textContent = '-';
         document.getElementById('profile-birth').textContent = '-';
         document.getElementById('profile-hire').textContent = '-';
         document.getElementById('profile-programs').textContent = '-';
@@ -250,6 +260,9 @@ window.openProfileModal = async function () {
     // 모달 폼에 현재 값 채우기
     document.getElementById('modal-name').value = name;
     document.getElementById('modal-affiliation').value = '';
+    document.getElementById('modal-is-resigned').checked = false;
+    document.getElementById('modal-resignation-date').value = '';
+    document.getElementById('resignation-date-wrapper').style.display = 'none';
     document.getElementById('modal-birth').value = '';
     document.getElementById('modal-hire').value = '';
     document.getElementById('modal-programs').value = '';
@@ -269,6 +282,17 @@ window.openProfileModal = async function () {
         const profile = await getInstructorProfile(name);
         if (profile) {
             document.getElementById('modal-affiliation').value = profile.affiliation || '';
+            
+            if (profile.isResigned) {
+                document.getElementById('modal-is-resigned').checked = true;
+                document.getElementById('modal-resignation-date').value = profile.resignationDate || '';
+                document.getElementById('resignation-date-wrapper').style.display = 'block';
+            } else {
+                document.getElementById('modal-is-resigned').checked = false;
+                document.getElementById('modal-resignation-date').value = '';
+                document.getElementById('resignation-date-wrapper').style.display = 'none';
+            }
+
             document.getElementById('modal-birth').value    = profile.birthDate || '';
             document.getElementById('modal-hire').value     = profile.hireDate  || '';
             document.getElementById('modal-programs').value = profile.programs  || '';
@@ -526,6 +550,14 @@ window.saveProfile = async function () {
     const name = document.getElementById('modal-name').value;
     if (!name) return;
 
+    const isResigned = document.getElementById('modal-is-resigned').checked;
+    const resignationDate = document.getElementById('modal-resignation-date').value;
+
+    if (isResigned && !resignationDate) {
+        alert('퇴사일자를 입력해주세요.');
+        return;
+    }
+
     const saveBtn = document.querySelector('.btn-modal-save');
     saveBtn.disabled = true;
     saveBtn.textContent = '저장 중...';
@@ -535,6 +567,8 @@ window.saveProfile = async function () {
         affiliation: document.getElementById('modal-affiliation').value,
         birthDate:  document.getElementById('modal-birth').value,
         hireDate:   document.getElementById('modal-hire').value,
+        isResigned: isResigned,
+        resignationDate: isResigned ? resignationDate : null,
         programs:   document.getElementById('modal-programs').value,
         note:       document.getElementById('modal-note').value,
         bankName:   document.getElementById('modal-bank-name').value,

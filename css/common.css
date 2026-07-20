@@ -94,6 +94,10 @@ body {
     background-color: #f39c12;
 }
 
+.btn-availability {
+    background-color: #16a085;
+}
+
 .btn-logout {
     background-color: #e74c3c;
     margin-left: 8px;

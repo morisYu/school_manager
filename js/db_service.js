@@ -58,16 +58,34 @@ export async function saveInstructorProfile(name, data) {
 
 /**
  * instructors 컬렉션에서 모든 강사 목록을 가져옵니다.
+ * @param {boolean} includeResigned 퇴사자 포함 여부 (기본값: false - 퇴사일이 지난 강사는 제외됨)
  * @returns {Promise<Array>} 강사 프로필 객체 배열 (name 오름차순)
  */
-export async function getAllInstructors() {
+export async function getAllInstructors(includeResigned = false) {
     try {
         const instructorsRef = collection(db, "instructors");
         const q = query(instructorsRef, orderBy("name", "asc"));
         const snapshot = await getDocs(q);
         const instructors = [];
+
+        // 오늘 날짜 (YYYY-MM-DD 형식)
+        const todayStr = new Date().toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).replace(/\. /g, '-').replace('.', ''); // 2026-07-20 형태 변환 (또는 단순 문자열 비교를 위해 로컬 날짜 기준 사용)
+
         snapshot.forEach((docSnap) => {
-            instructors.push({ id: docSnap.id, ...docSnap.data() });
+            const data = docSnap.data();
+            
+            if (!includeResigned && data.isResigned && data.resignationDate) {
+                // 퇴사일이 오늘이거나 오늘 이전이면 제외
+                if (data.resignationDate <= todayStr) {
+                    return; // skip this instructor
+                }
+            }
+
+            instructors.push({ id: docSnap.id, ...data });
         });
         return instructors;
     } catch (error) {
