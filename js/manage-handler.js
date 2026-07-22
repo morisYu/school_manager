@@ -63,6 +63,7 @@ onAuthStateChanged(auth, async (user) => {
             '학년': r.grade,
             '대상인원': r.targetCount,
             '차시': r.rounds !== undefined ? r.rounds : '',
+            '보조강사차시': r.subRounds !== undefined ? r.subRounds : '',
             '강사비': r.instructorFee !== undefined ? r.instructorFee : '',
             '보조강사비': r.subInstructorFee !== undefined ? r.subInstructorFee : ''
         }));
@@ -625,6 +626,8 @@ window.loadReport = async function () {
 
     let mainTotal = 0;
     let subTotal  = 0;
+    let mainRoundsTotal = 0;
+    let subRoundsTotal  = 0;
 
     filtered.forEach((r, index) => {
         const hours = calculateHours(r['시작시간'], r['종료시간']);
@@ -633,7 +636,20 @@ window.loadReport = async function () {
         if (role === "주강사") mainTotal += parseFloat(hours);
         else                   subTotal  += parseFloat(hours);
 
-        let roundsVal = r['차시'] !== undefined ? r['차시'] : '';
+        // 역할에 따라 해당 차시 필드를 사용 (주강사: 차시(rounds), 보조강사: 보조강사차시(subRounds))
+        let roundsVal;
+        if (role === "주강사") {
+            roundsVal = r['차시'] !== undefined ? r['차시'] : '';
+        } else {
+            // 보조강사: subRounds가 있으면 사용, 없으면 기존 rounds로 fallback (하위 호환)
+            roundsVal = r['보조강사차시'] !== undefined && r['보조강사차시'] !== '' ? r['보조강사차시'] : (r['차시'] !== undefined ? r['차시'] : '');
+        }
+
+        // 차시 합계 계산
+        const parsedRounds = parseFloat(roundsVal) || 0;
+        if (role === "주강사") mainRoundsTotal += parsedRounds;
+        else                   subRoundsTotal  += parsedRounds;
+
         // 역할에 따라 해당 강사비 필드를 사용 (주강사: 강사비, 보조강사: 보조강사비)
         let feeVal;
         if (role === "주강사") {
@@ -664,6 +680,11 @@ window.loadReport = async function () {
     document.getElementById('main-total-hours').innerText = mainTotal.toFixed(1);
     document.getElementById('sub-total-hours').innerText  = subTotal.toFixed(1);
     document.getElementById('total-hours').innerText      = (mainTotal + subTotal).toFixed(1);
+
+    // 차시 합계 표시
+    document.getElementById('main-total-rounds').innerText = mainRoundsTotal % 1 === 0 ? mainRoundsTotal : mainRoundsTotal.toFixed(1);
+    document.getElementById('sub-total-rounds').innerText  = subRoundsTotal % 1 === 0 ? subRoundsTotal : subRoundsTotal.toFixed(1);
+    document.getElementById('total-rounds').innerText      = (mainRoundsTotal + subRoundsTotal) % 1 === 0 ? (mainRoundsTotal + subRoundsTotal) : (mainRoundsTotal + subRoundsTotal).toFixed(1);
     
     // 초기 금액 합계 0으로 설정
     document.getElementById('main-total-amount').innerText = "0";
@@ -789,11 +810,13 @@ async function executeSave(docId, data = null) {
     if (!data) return; // flush에서 넘어온 경우 이미 data를 받음
 
     try {
-        // 역할에 따라 저장할 필드를 분기
-        const updatePayload = { rounds: data.rounds };
+        // 역할에 따라 저장할 필드를 분기 (차시: 주강사→rounds, 보조강사→subRounds)
+        const updatePayload = {};
         if (data.role === '보조강사') {
+            updatePayload.subRounds = data.rounds;
             updatePayload.subInstructorFee = data.feeValue;
         } else {
+            updatePayload.rounds = data.rounds;
             updatePayload.instructorFee = data.feeValue;
         }
 
@@ -802,10 +825,11 @@ async function executeSave(docId, data = null) {
         // 로컬 데이터 동기화
         const target = rawData.find(item => item.id === docId);
         if (target) {
-            target['차시'] = data.rounds !== null ? data.rounds : '';
             if (data.role === '보조강사') {
+                target['보조강사차시'] = data.rounds !== null ? data.rounds : '';
                 target['보조강사비'] = data.feeValue !== null ? data.feeValue : '';
             } else {
+                target['차시'] = data.rounds !== null ? data.rounds : '';
                 target['강사비'] = data.feeValue !== null ? data.feeValue : '';
             }
         }
