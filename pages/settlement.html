@@ -117,6 +117,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th class="excel-checkbox-cell" style="display:none; text-align:center; width: 40px;"><input type="checkbox" id="check-all-detail-reports" onchange="toggleAllDetailReportRows(this)" checked></th>
                         <th class="table-center">날짜</th>
                         <th class="table-center">기관명</th>
                         <th class="table-center">프로그램명</th>
@@ -131,9 +132,14 @@
             </table>
         </div>
         <div class="profile-modal-footer">
+            <button id="btn-settlement-excel" class="btn-modal-cancel" style="background: #107c41; color: white; border-color: #0f7239;" onclick="handleSettlementExcel()">엑셀 다운</button>
             <button class="btn-modal-cancel" onclick="closeDetailModal()">닫기</button>
         </div>
     </div>
+
+    <!-- ExcelJS & FileSaver 라이브러리 추가 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <!-- Firebase & Scripts -->
     <script src="../js/utils.js"></script>

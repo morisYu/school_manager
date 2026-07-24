@@ -4,6 +4,8 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/f
 
 let schedulesData = [];
 let instructorsMap = {}; // name -> profile object
+let currentDetailInstructor = "";
+let isExcelMode = false;
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
@@ -189,6 +191,18 @@ window.loadSettlementReport = function() {
 
 // 강사 상세 내역 모달
 window.openDetailModal = function(instructorName) {
+    currentDetailInstructor = instructorName;
+    isExcelMode = false;
+    const btnExcel = document.getElementById('btn-settlement-excel');
+    if (btnExcel) {
+        btnExcel.innerText = '엑셀 다운';
+    }
+    const checkAll = document.getElementById('check-all-detail-reports');
+    if (checkAll) {
+        checkAll.checked = true;
+    }
+    document.querySelectorAll('.excel-checkbox-cell').forEach(el => el.style.display = 'none');
+
     const start = document.getElementById('startDate').value;
     const end = document.getElementById('endDate').value;
     
@@ -237,13 +251,15 @@ window.openDetailModal = function(instructorName) {
                 let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
-                    <tr>
-                        <td class="table-center">${schedule.date}</td>
-                        <td class="table-center">${schedule.schoolName || '-'}</td>
-                        <td class="table-center">${schedule.programName || '-'}</td>
-                        <td class="table-center">주강사</td>
-                        <td class="table-center">${rounds}</td>
-                        <td class="table-amount">${displayAmount}</td>
+                    <tr class="detail-report-row">
+                        <td class="excel-checkbox-cell" style="display:none; text-align:center;"><input type="checkbox" class="row-checkbox" checked></td>
+                        <td class="date-cell table-center">${schedule.date}</td>
+                        <td class="school-cell table-center">${schedule.schoolName || '-'}</td>
+                        <td class="program-cell table-center">${schedule.programName || '-'}</td>
+                        <td class="role-cell table-center">주강사</td>
+                        <td class="lesson-cell table-center">${rounds}</td>
+                        <td class="fee-cell" style="display:none;">${mainFee}</td>
+                        <td class="amount-cell table-amount">${displayAmount}</td>
                     </tr>
                 `;
             }
@@ -252,13 +268,15 @@ window.openDetailModal = function(instructorName) {
                 let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
-                    <tr>
-                        <td class="table-center">${schedule.date}</td>
-                        <td class="table-center">${schedule.schoolName || '-'}</td>
-                        <td class="table-center">${schedule.programName || '-'}</td>
-                        <td class="table-center">보조강사</td>
-                        <td class="table-center">${rounds}</td>
-                        <td class="table-amount">${displayAmount}</td>
+                    <tr class="detail-report-row">
+                        <td class="excel-checkbox-cell" style="display:none; text-align:center;"><input type="checkbox" class="row-checkbox" checked></td>
+                        <td class="date-cell table-center">${schedule.date}</td>
+                        <td class="school-cell table-center">${schedule.schoolName || '-'}</td>
+                        <td class="program-cell table-center">${schedule.programName || '-'}</td>
+                        <td class="role-cell table-center">보조강사</td>
+                        <td class="lesson-cell table-center">${rounds}</td>
+                        <td class="fee-cell" style="display:none;">${effectiveSubFee}</td>
+                        <td class="amount-cell table-amount">${displayAmount}</td>
                     </tr>
                 `;
             }
@@ -266,12 +284,12 @@ window.openDetailModal = function(instructorName) {
     });
 
     if (!foundAny) {
-        tbody.innerHTML = '<tr><td colspan="6" class="table-center">출강 내역이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="table-center">출강 내역이 없습니다.</td></tr>';
     } else {
         // 총계 행 추가
         tbody.innerHTML += `
             <tr style="background-color: #f8f9fa; font-weight: bold;">
-                <td colspan="5" style="text-align: right; padding-right: 15px;">총 합계</td>
+                <td id="detail-total-colspan" colspan="5" style="text-align: right; padding-right: 15px;">총 합계</td>
                 <td class="table-amount" style="color: #e74c3c;">${totalDetailAmount > 0 ? totalDetailAmount.toLocaleString() : '-'}</td>
             </tr>
         `;
@@ -290,6 +308,15 @@ window.openDetailModal = function(instructorName) {
 };
 
 window.closeDetailModal = function() {
+    isExcelMode = false;
+    const btnExcel = document.getElementById('btn-settlement-excel');
+    if (btnExcel) {
+        btnExcel.innerText = '엑셀 다운';
+    }
+    document.querySelectorAll('.excel-checkbox-cell').forEach(el => el.style.display = 'none');
+    const totalTd = document.getElementById('detail-total-colspan');
+    if (totalTd) totalTd.colSpan = 5;
+
     const overlay = document.getElementById('detail-modal-overlay');
     const modal = document.getElementById('detail-modal');
 
@@ -300,4 +327,155 @@ window.closeDetailModal = function() {
         overlay.style.display = 'none';
         modal.style.display = 'none';
     }, { once: true });
+};
+
+window.toggleAllDetailReportRows = function(checkbox) {
+    const checkboxes = document.querySelectorAll('#detail-modal-tbody .row-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+};
+
+window.handleSettlementExcel = async function() {
+    if (!isExcelMode) {
+        // 전환: 선택 모드로 변경
+        isExcelMode = true;
+        document.getElementById('btn-settlement-excel').innerText = '선택 다운로드';
+        document.querySelectorAll('.excel-checkbox-cell').forEach(el => el.style.display = 'table-cell');
+        
+        // 체크박스 초기화
+        const checkAll = document.getElementById('check-all-detail-reports');
+        if (checkAll) checkAll.checked = true;
+        document.querySelectorAll('#detail-modal-tbody .row-checkbox').forEach(cb => cb.checked = true);
+        
+        // 합계 칸의 colspan 조정 (체크박스 열이 생겼으므로 6으로 변경)
+        const totalTd = document.getElementById('detail-total-colspan');
+        if (totalTd) totalTd.colSpan = 6;
+    } else {
+        // 다운로드 실행
+        await window.downloadSettlementExcel();
+    }
+};
+
+window.downloadSettlementExcel = async function() {
+    const rows = document.querySelectorAll('#detail-modal-tbody .detail-report-row');
+    const exportData = [];
+
+    rows.forEach((row) => {
+        const checkbox = row.querySelector('.row-checkbox');
+        if (!checkbox || !checkbox.checked) return;
+
+        const date = row.querySelector('.date-cell').innerText;
+        const school = row.querySelector('.school-cell').innerText;
+        const program = row.querySelector('.program-cell').innerText;
+        const role = row.querySelector('.role-cell').innerText;
+        const lesson = row.querySelector('.lesson-cell').innerText;
+        const fee = row.querySelector('.fee-cell').innerText;
+        const amount = row.querySelector('.amount-cell').innerText;
+
+        exportData.push([
+            date,
+            school,
+            program,
+            role,
+            lesson,
+            fee,
+            amount
+        ]);
+    });
+
+    if (exportData.length === 0) {
+        alert("다운로드할 내역이 없습니다.");
+        return;
+    }
+
+    const btn = document.getElementById('btn-settlement-excel');
+    if (btn) {
+        btn.innerText = '생성 중...';
+        btn.disabled = true;
+    }
+
+    try {
+        const response = await fetch('../template.xlsx');
+        const workbook = new ExcelJS.Workbook();
+        
+        if (response.ok) {
+            const arrayBuffer = await response.arrayBuffer();
+            await workbook.xlsx.load(arrayBuffer);
+        } else {
+            console.warn("template.xlsx 템플릿 파일을 찾을 수 없어 새 시트로 생성합니다.");
+            const worksheet = workbook.addWorksheet('정산내역서');
+            worksheet.getCell('B1').value = '급여계산서';
+            worksheet.getRow(5).values = [null, '날짜', '기관명', '프로그램명', '강사 구분', '차시', '합계금액'];
+        }
+
+        const worksheet = workbook.worksheets[0];
+        const nameCell = worksheet.getCell('F3');
+        if (nameCell.isMerged) {
+            nameCell.master.value = `강사명: ${currentDetailInstructor}`;
+        } else {
+            nameCell.value = `강사명: ${currentDetailInstructor}`;
+        }
+
+        let startRowIndex = 6;
+        
+        if (response.ok && exportData.length > 24) {
+            const extraRows = exportData.length - 24;
+            const emptyRows = Array(extraRows).fill([]);
+            worksheet.spliceRows(30, 0, ...emptyRows);
+
+            const styleRow = worksheet.getRow(29);
+            for (let i = 0; i < extraRows; i++) {
+                const newRow = worksheet.getRow(30 + i);
+                newRow.height = 30;
+                styleRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                    newRow.getCell(colNumber).style = cell.style;
+                });
+            }
+
+            const totalRow = worksheet.getRow(30 + extraRows);
+            const sumCell = totalRow.getCell(7);
+            sumCell.value = { formula: `SUM(G6:G${29 + extraRows})` };
+        }
+
+        exportData.forEach((dataRow, idx) => {
+            const currentRow = worksheet.getRow(startRowIndex + idx);
+            currentRow.getCell(2).value = dataRow[0];
+            currentRow.getCell(3).value = dataRow[1];
+            currentRow.getCell(4).value = dataRow[2];
+            currentRow.getCell(5).value = dataRow[3];
+            currentRow.getCell(6).value = Number(dataRow[4]) || 0;
+            // manage-handler.js 에서는 강사비 열을 비워둠. 여기서도 비워둠.
+            currentRow.getCell(7).value = Number(dataRow[6].replace(/,/g, '')) || 0;
+        });
+
+        // 페이지 설정: 1페이지 안에 모두 맞춤
+        // 템플릿의 여백이나 열 너비는 건드리지 않고, 인쇄 시 1페이지에 딱 맞게 들어가도록 스케일만 조정합니다.
+        if (worksheet.pageSetup) {
+            worksheet.pageSetup.fitToPage = true;
+            worksheet.pageSetup.fitToWidth = 1;
+            worksheet.pageSetup.fitToHeight = 1;
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+        saveAs(blob, `정산내역서_${today}_${currentDetailInstructor}.xlsx`);
+
+        // 다운로드 성공 후 초기화
+        isExcelMode = false;
+        if (btn) btn.innerText = '엑셀 다운';
+        document.querySelectorAll('.excel-checkbox-cell').forEach(el => el.style.display = 'none');
+        const totalTd = document.getElementById('detail-total-colspan');
+        if (totalTd) totalTd.colSpan = 5;
+
+    } catch (error) {
+        console.error("Excel 생성 중 오류 발생:", error);
+        alert("엑셀 생성 중 오류가 발생했습니다. 양식 파일(template.xlsx) 존재 여부를 확인해주세요.");
+    } finally {
+        if (btn) {
+            if (isExcelMode) btn.innerText = '선택 다운로드';
+            else btn.innerText = '엑셀 다운';
+            btn.disabled = false;
+        }
+    }
 };

@@ -79,7 +79,6 @@
                             <div class="input-group input-group-btn" style="flex-direction: row; gap: 8px;">
                                 <button class="btn-search" style="flex: 1;" onclick="loadReport()">조회하기</button>
                                 <button class="btn-print" style="flex: 1; font-size: 0.82rem;" onclick="openPaymentModal()">지급기준</button>
-                                <button class="btn-excel" style="flex: 1; font-size: 0.82rem; background-color: #107c41; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="downloadExcel()">엑셀다운</button>
                             </div>
                         </div>
                     </div>
@@ -95,14 +94,17 @@
                     <!-- 오른쪽: 정보 -->
                     <div class="profile-info">
                         <div class="profile-name-row">
-                            <div class="profile-name" id="profile-name">-</div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="profile-name" id="profile-name">-</div>
+                                <div class="affiliation-badge">
+                                    <span class="affil-label">🏢 소속</span>
+                                    <span class="affil-value" id="profile-affiliation">-</span>
+                                </div>
+                            </div>
                             <button class="btn-profile-edit" onclick="openProfileModal()">✏️ 정보 수정</button>
                         </div>
-                        <div class="profile-details">
-                            <div class="profile-row">
-                                <span class="profile-label">소속</span>
-                                <span class="profile-value" id="profile-affiliation">-</span>
-                            </div>
+                        <div class="profile-details" style="display: flex; flex-direction: column; gap: 4px;">
+                            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; width: 100%;">
                             <div class="profile-row">
                                 <span class="profile-label">퇴사여부</span>
                                 <span class="profile-value" id="profile-resigned">-</span>
@@ -116,12 +118,13 @@
                                 <span class="profile-value" id="profile-hire">-</span>
                             </div>
                             <div class="profile-row">
-                                <span class="profile-label">수업 프로그램</span>
-                                <span class="profile-value" id="profile-programs">-</span>
-                            </div>
-                            <div class="profile-row">
                                 <span class="profile-label">계좌정보</span>
                                 <span class="profile-value" id="profile-bank-info">-</span>
+                            </div>
+                            </div>
+                            <div class="profile-row" style="margin-top: 2px;">
+                                <span class="profile-label">수업 프로그램</span>
+                                <span class="profile-value" id="profile-programs">-</span>
                             </div>
                         </div>
 
@@ -421,9 +424,6 @@
         </div>
     </div>
 
-    <!-- ExcelJS & FileSaver 라이브러리 추가 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <script src="../js/utils.js"></script>
     <script type="module" src="../js/manage-handler.js"></script>
