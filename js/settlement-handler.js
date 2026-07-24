@@ -408,6 +408,22 @@ window.downloadSettlementExcel = async function() {
         }
 
         const worksheet = workbook.worksheets[0];
+
+        const startDateInput = document.getElementById('startDate');
+        const startVal = startDateInput ? startDateInput.value : '';
+        if (startVal) {
+            const dateObj = new Date(startVal);
+            const yyyy = dateObj.getFullYear();
+            const m = dateObj.getMonth() + 1;
+            const b1Cell = worksheet.getCell('B1');
+            const titleStr = `${yyyy}년 ${m}월 급여계산서`;
+            if (b1Cell.isMerged) {
+                b1Cell.master.value = titleStr;
+            } else {
+                b1Cell.value = titleStr;
+            }
+        }
+
         const nameCell = worksheet.getCell('F3');
         if (nameCell.isMerged) {
             nameCell.master.value = `강사명: ${currentDetailInstructor}`;
