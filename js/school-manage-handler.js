@@ -149,9 +149,12 @@ function displaySchoolInfo(school) {
 
     infoCard.innerHTML = `
         <div class="school-header">
-            <div class="school-title-box">
-                <h2 id="info-school-name"></h2>
+            <div class="school-title-box" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                <h2 id="info-school-name" style="margin: 0;"></h2>
                 <span id="info-school-type" class="school-type-tag"></span>
+                <span id="info-school-code" class="school-type-tag" style="display: none; background: #f5f5f5; color: #333; border: 1px solid #ddd;">코드: -</span>
+                <span id="info-school-classes" class="school-type-tag" style="display: none; cursor: pointer; background: #e8f5e9; color: #2e7d32;" onclick="window.toggleGradeDetails()">학급수: -</span>
+                <span id="info-school-students" class="school-type-tag" style="display: none; cursor: pointer; background: #fff3e0; color: #e65100;" onclick="window.toggleGradeDetails()">학생수: -</span>
             </div>
             <div class="school-action-container" style="display: flex; flex-direction: column; align-items: flex-end; gap: 5px;">
                 <div id="info-school-region" style="color: #666; font-size: 0.9rem;"></div>
@@ -161,6 +164,45 @@ function displaySchoolInfo(school) {
                 </div>
             </div>
         </div>
+        
+        <!-- 학년별 상세 데이터 (숨김 기본) -->
+        <div id="grade-details-panel" style="display: none; width: 100%; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+            <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: #333;">학년별 상세 현황</h4>
+            <table style="width: 100%; text-align: center; border-collapse: collapse; font-size: 0.85rem;">
+                <thead>
+                    <tr style="background: #f1f3f5;">
+                        <th style="padding: 6px; border: 1px solid #ddd;">구분</th>
+                        <th style="padding: 6px; border: 1px solid #ddd;">1학년</th>
+                        <th style="padding: 6px; border: 1px solid #ddd;">2학년</th>
+                        <th style="padding: 6px; border: 1px solid #ddd;">3학년</th>
+                        <th style="padding: 6px; border: 1px solid #ddd;">4학년</th>
+                        <th style="padding: 6px; border: 1px solid #ddd;">5학년</th>
+                        <th style="padding: 6px; border: 1px solid #ddd;">6학년</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th style="padding: 6px; border: 1px solid #ddd; background: #f8f9fa;">학급수</th>
+                        <td id="gd-c-1" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-c-2" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-c-3" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-c-4" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-c-5" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-c-6" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                    </tr>
+                    <tr>
+                        <th style="padding: 6px; border: 1px solid #ddd; background: #f8f9fa;">학생수</th>
+                        <td id="gd-s-1" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-s-2" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-s-3" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-s-4" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-s-5" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                        <td id="gd-s-6" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
         <div class="info-layout">
             <div class="info-left">
                 <div class="info-item">
@@ -214,6 +256,31 @@ function displaySchoolInfo(school) {
     document.getElementById('info-school-manager-phone').textContent = school.managerPhone || '-';
     document.getElementById('info-school-manager-email').textContent = school.managerEmail || '-';
     
+    // 신규 뱃지 데이터 바인딩
+    document.getElementById('info-school-code').textContent = '코드: ' + (school.schoolCode || '미등록');
+    document.getElementById('info-school-code').style.display = 'inline-block';
+    
+    if (school.classStats) {
+        document.getElementById('info-school-classes').textContent = '학급수: ' + (school.classStats.totalClasses || 0);
+        document.getElementById('info-school-students').textContent = '학생수: ' + (school.classStats.totalStudents || 0);
+        document.getElementById('info-school-classes').style.display = 'inline-block';
+        document.getElementById('info-school-students').style.display = 'inline-block';
+        
+        for (let i = 1; i <= 6; i++) {
+            const gradeData = school.classStats['grade' + i] || {};
+            document.getElementById('gd-c-' + i).textContent = gradeData.classes || 0;
+            const stCount = Math.floor((gradeData.classes || 0) * (gradeData.studentsPerClass || 0));
+            document.getElementById('gd-s-' + i).textContent = stCount;
+        }
+    } else {
+        document.getElementById('info-school-classes').style.display = 'none';
+        document.getElementById('info-school-students').style.display = 'none';
+        for (let i = 1; i <= 6; i++) {
+            document.getElementById('gd-c-' + i).textContent = 0;
+            document.getElementById('gd-s-' + i).textContent = 0;
+        }
+    }
+
     const homeLink = document.getElementById('info-school-home');
     if (school.website && school.website !== '-') {
         homeLink.innerHTML = `<a href="${school.website}" target="_blank">${school.website} (이동)</a>`;
@@ -226,6 +293,20 @@ function displaySchoolInfo(school) {
     // 수정 모드를 위한 현재 데이터 보관
     currentSchoolId = school.id; // db_service.js에서 가져온 문서 ID
 }
+
+/**
+ * 학년별 상세 현황 패널 토글
+ */
+window.toggleGradeDetails = function() {
+    const panel = document.getElementById("grade-details-panel");
+    if (panel) {
+        if (panel.style.display === "none" || panel.style.display === "") {
+            panel.style.display = "block";
+        } else {
+            panel.style.display = "none";
+        }
+    }
+};
 
 /**
  * 학교 정보 수정 모드 토글

@@ -60,12 +60,54 @@
 
                 <!-- 우측: 학교 정보 카드 -->
                 <div id="school-info" class="school-info-card">
-                    <div class="school-header">
-                        <div class="school-title-box">
-                            <h2 id="info-school-name">학교명</h2>
-                            <span id="info-school-type" class="school-type-tag">초등</span>
-                        </div>
-                        <div id="info-school-region" style="color: #666; font-size: 0.9rem;">시 / 구</div>
+                        <div class="school-header">
+                            <div class="school-title-box" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+                                <h2 id="info-school-name" style="margin: 0;">학교명</h2>
+                                <span id="info-school-type" class="school-type-tag">초등</span>
+                                <span id="info-school-code" class="badge" style="background: #e0e0e0; color: #333; padding: 4px 8px; border-radius: 4px; display: none;">코드: -</span>
+                                <span id="info-school-classes" class="badge clickable-badge" style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; display: none;" onclick="toggleGradeDetails()">학급수: -</span>
+                                <span id="info-school-students" class="badge clickable-badge" style="background: #e8f5e9; color: #388e3c; padding: 4px 8px; border-radius: 4px; display: none;" onclick="toggleGradeDetails()">학생수: -</span>
+                            </div>
+                            
+                            <!-- 학년별 상세 데이터 (숨김 기본) -->
+                            <div id="grade-details-panel" style="display: none; width: 100%; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0;">
+                                <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 14px; color: #333;">학년별 상세 현황</h4>
+                                <table style="width: 100%; text-align: center; border-collapse: collapse; font-size: 0.85rem;">
+                                    <thead>
+                                        <tr style="background: #f1f3f5;">
+                                            <th style="padding: 6px; border: 1px solid #ddd;">구분</th>
+                                            <th style="padding: 6px; border: 1px solid #ddd;">1학년</th>
+                                            <th style="padding: 6px; border: 1px solid #ddd;">2학년</th>
+                                            <th style="padding: 6px; border: 1px solid #ddd;">3학년</th>
+                                            <th style="padding: 6px; border: 1px solid #ddd;">4학년</th>
+                                            <th style="padding: 6px; border: 1px solid #ddd;">5학년</th>
+                                            <th style="padding: 6px; border: 1px solid #ddd;">6학년</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <th style="padding: 6px; border: 1px solid #ddd; background: #f8f9fa;">학급수</th>
+                                            <td id="gd-c-1" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-c-2" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-c-3" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-c-4" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-c-5" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-c-6" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                        </tr>
+                                        <tr>
+                                            <th style="padding: 6px; border: 1px solid #ddd; background: #f8f9fa;">학생수</th>
+                                            <td id="gd-s-1" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-s-2" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-s-3" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-s-4" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-s-5" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                            <td id="gd-s-6" style="padding: 6px; border: 1px solid #ddd;">-</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div id="info-school-region" style="color: #666; font-size: 0.9rem; margin-top: 10px;">시/도 구/군</div>
                         <div class="school-action-btns">
                             <button id="btn-edit-school" class="btn-edit-small" onclick="toggleEditSchoolMode()">수정</button>
                             <button id="btn-save-school" class="btn-save-small" onclick="saveSchoolChanges()" style="display: none;">저장</button>
@@ -111,7 +153,10 @@
 
             <!-- 출강 이력 목록 테이블 -->
             <div class="history-section">
-                <h3>📖 최근 출강 이력</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>📖 최근 출강 이력</h3>
+                    <button class="btn-import-csv" onclick="openCsvModal()" style="padding: 6px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">CSV 일괄 업데이트</button>
+                </div>
                 <div class="table-wrapper">
                     <table>
                         <thead>
@@ -132,9 +177,78 @@
                 </div>
             </div>
         </div>
+
+        <!-- CSV 일괄 업데이트 모달 -->
+        <div id="csv-modal" class="modal-overlay" style="display: none;">
+            <div class="modal-content" style="max-width: 800px; width: 90%;">
+                <div class="modal-header">
+                    <h2>학교 데이터 일괄 업데이트 (CSV)</h2>
+                    <button class="close-btn" onclick="closeCsvModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <!-- 알림 및 링크 뱃지 -->
+                    <div style="background-color: #fff3cd; color: #856404; padding: 12px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 500;">ℹ️ 학교 알리미에서 최신 CSV 파일을 먼저 다운로드해주세요.</span>
+                        <a href="https://www.schoolinfo.go.kr/ng/go/pnnggo_a01_l2.do" target="_blank" style="background-color: #ffc107; color: #333; padding: 6px 12px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.85rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">학교 알리미 바로가기</a>
+                    </div>
+                    
+                    <div class="file-upload-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div class="upload-box" style="border: 1px dashed #ccc; padding: 15px; border-radius: 8px;">
+                            <label style="font-weight: bold; display: block; margin-bottom: 10px; color: var(--primary-color);">1. 학교 기본정보 CSV</label>
+                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
+                                <div style="display: flex; align-items: center;"><label style="width: 40px; font-weight: bold;">초등</label> <input type="file" id="csv-basic-e" accept=".csv"></div>
+                                <div style="display: flex; align-items: center;"><label style="width: 40px; font-weight: bold;">중등</label> <input type="file" id="csv-basic-m" accept=".csv"></div>
+                                <div style="display: flex; align-items: center;"><label style="width: 40px; font-weight: bold;">고등</label> <input type="file" id="csv-basic-h" accept=".csv"></div>
+                            </div>
+                        </div>
+                        <div class="upload-box" style="border: 1px dashed #ccc; padding: 15px; border-radius: 8px;">
+                            <label style="font-weight: bold; display: block; margin-bottom: 10px; color: var(--primary-color);">2. 학급/학생수 CSV</label>
+                            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.9rem;">
+                                <div style="display: flex; align-items: center;"><label style="width: 40px; font-weight: bold;">초등</label> <input type="file" id="csv-student-e" accept=".csv"></div>
+                                <div style="display: flex; align-items: center;"><label style="width: 40px; font-weight: bold;">중등</label> <input type="file" id="csv-student-m" accept=".csv"></div>
+                                <div style="display: flex; align-items: center;"><label style="width: 40px; font-weight: bold;">고등</label> <input type="file" id="csv-student-h" accept=".csv"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <button id="btn-analyze-csv" class="btn-search" style="padding: 10px 20px;">분석 및 미리보기</button>
+                    </div>
+
+                    <!-- 미리보기 영역 -->
+                    <div id="csv-preview-section" style="display: none;">
+                        <p style="font-size: 0.85rem; color: #666; margin-bottom: 5px;">💡 각 뱃지를 클릭하면 해당 항목만 필터링해서 볼 수 있습니다.</p>
+                        <div class="preview-summary" style="display: flex; gap: 15px; margin-bottom: 10px; user-select: none;">
+                            <span class="badge new-badge" onclick="filterCsvPreview('new')" style="background: #e3f2fd; color: #1976d2; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: transform 0.1s;">신규: <span id="count-new">0</span></span>
+                            <span class="badge update-badge" onclick="filterCsvPreview('update')" style="background: #e8f5e9; color: #388e3c; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: transform 0.1s;">업데이트: <span id="count-update">0</span></span>
+                            <span class="badge closed-badge" onclick="filterCsvPreview('closed')" style="background: #ffebee; color: #d32f2f; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: transform 0.1s;">폐교: <span id="count-closed">0</span></span>
+                            <span class="badge review-badge" onclick="filterCsvPreview('review')" style="background: #fff3e0; color: #f57c00; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: transform 0.1s;">검토필요: <span id="count-review">0</span></span>
+                        </div>
+                        <div class="table-wrapper" style="max-height: 300px; overflow-y: auto;">
+                            <table id="csv-preview-table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="background-color: #f5f5f5;">
+                                        <th style="padding: 8px; border-bottom: 1px solid #ddd; white-space: nowrap; width: 130px;">상태</th>
+                                        <th style="padding: 8px; border-bottom: 1px solid #ddd;">학교코드</th>
+                                        <th style="padding: 8px; border-bottom: 1px solid #ddd;">학교명(기존 ➔ 변경)</th>
+                                        <th style="padding: 8px; border-bottom: 1px solid #ddd; white-space: nowrap; width: 150px;">지역</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="csv-preview-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="margin-top: 20px; text-align: right; border-top: 1px solid #eee; padding-top: 15px;">
+                    <button class="btn-cancel" onclick="closeCsvModal()" style="padding: 8px 16px; margin-right: 10px; cursor: pointer;">취소</button>
+                    <button id="btn-save-csv" class="btn-save" style="padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; display: none;">DB 일괄 적용</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 스크립트 연결 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="../js/utils.js"></script>
     <script type="module" src="../js/school-manage-handler.js"></script>
     <script type="module" src="../js/auth-check.js"></script>

@@ -141,6 +141,82 @@ export async function getSchools() {
 }
 
 /**
+ * 새로운 학교를 추가합니다.
+ * @param {Object} data 학교 정보 객체
+ * @returns {Promise<string>} 추가된 문서 ID
+ */
+export async function addSchool(data) {
+    try {
+        const schoolsRef = collection(db, "schools");
+        const docRef = await addDoc(schoolsRef, {
+            ...data,
+            createdAt: new Date().toISOString()
+        });
+        return docRef.id;
+    } catch (error) {
+        console.error("🏫 addSchool 에러:", error);
+        throw error;
+    }
+}
+
+/**
+ * 기존 학교 정보를 업데이트합니다.
+ * @param {string} docId 문서 ID
+ * @param {Object} data 업데이트할 객체
+ * @returns {Promise<boolean>} 성공 여부
+ */
+export async function updateSchool(docId, data) {
+    try {
+        const schoolRef = doc(db, "schools", docId);
+        await updateDoc(schoolRef, {
+            ...data,
+            updatedAt: new Date().toISOString()
+        });
+        return true;
+    } catch (error) {
+        console.error("🏫 updateSchool 에러:", error);
+        throw error;
+    }
+}
+
+/**
+ * 학교 목록을 일괄 업데이트/추가합니다.
+ * @param {Array} newSchools 추가할 학교 배열
+ * @param {Array} updateSchools 업데이트할 학교 배열 (docId 필수)
+ */
+export async function bulkUpdateSchools(newSchools, updateSchools) {
+    try {
+        // writeBatch는 한 번에 500개까지만 처리가 가능하므로 분할 처리해야 합니다.
+        // 현재는 심플한 구현을 위해 순차적으로 처리하되 Promise.all로 병렬 요청을 보냅니다.
+        // 완벽한 트랜잭션을 원한다면 청크(chunk) 단위로 batch 처리를 할 수 있습니다.
+        const promises = [];
+        const schoolsRef = collection(db, "schools");
+
+        newSchools.forEach(school => {
+            promises.push(addDoc(schoolsRef, {
+                ...school,
+                createdAt: new Date().toISOString()
+            }));
+        });
+
+        updateSchools.forEach(school => {
+            const { docId, ...dataToUpdate } = school;
+            const schoolRef = doc(db, "schools", docId);
+            promises.push(updateDoc(schoolRef, {
+                ...dataToUpdate,
+                updatedAt: new Date().toISOString()
+            }));
+        });
+
+        await Promise.all(promises);
+        return true;
+    } catch (error) {
+        console.error("🏫 bulkUpdateSchools 에러:", error);
+        throw error;
+    }
+}
+
+/**
  * =========================================================
  * [Schedules 컬렉션 관련 기능]
  * Schema: { region, date, startTime, endTime, programName, schoolName, schoolId, grade, targetCount, mainInstructor, subInstructor, equipType, equipCount, note, color }
