@@ -5,7 +5,6 @@ repomix-output.xml
 
 # Node.js
 node_modules/
-package-lock.json
 
 # 로그 및 기타 설정 파일
 *.log
@@ -21,6 +20,10 @@ dev_report/walkthrough*.md
 # ==============================
 # 🔒 보안 민감 파일
 # ==============================
+.env
+.env.local
+.env.*
+!.env.example
 
 # Firebase 서비스 계정 키 (절대 업로드 금지)
 json/schoolmanage87-serviceAccountKey.json
@@ -29,10 +32,3 @@ json/serviceAccountKey.json
 
 # Firebase 설정 (API Key 포함)
 # js/firebase_config.js (실제 사이트 작동을 위해 추적 허용)
-
-# 마이그레이션용 원본 데이터
-json/schools.json
-json/schedules.json
-
-# 마이그레이션 스크립트 (서비스 키 경로 포함)
-js/migrate.js
