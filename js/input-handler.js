@@ -1,4 +1,4 @@
-import { addSchedule, getSchools, checkInstructorAvailability } from './db_service.js';
+import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -82,6 +82,26 @@ document.getElementById('lectureForm').addEventListener('submit', async function
                 btn.disabled = false;
                 btn.innerText = originalText;
                 return;
+            }
+        }
+
+        // ─── 아르바이트생 시급 및 시간 스냅샷 ─────────────────────
+        payloadData.partTimeFees = {};
+        payloadData.partTimeHours = {};
+        
+        let calculatedHours = 0;
+        if (payloadData.startTime && payloadData.endTime) {
+            const [sh, sm] = payloadData.startTime.split(':').map(Number);
+            const [eh, em] = payloadData.endTime.split(':').map(Number);
+            calculatedHours = (eh + em / 60) - (sh + sm / 60);
+            if (calculatedHours < 0) calculatedHours = 0;
+        }
+
+        for (const name of instructorsToCheck) {
+            const profile = await getInstructorProfile(name);
+            if (profile && profile.employmentType === 'part-time') {
+                payloadData.partTimeFees[name] = profile.hourlyWage || 13000;
+                payloadData.partTimeHours[name] = calculatedHours;
             }
         }
 

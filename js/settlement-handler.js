@@ -90,13 +90,34 @@ window.loadSettlementReport = function() {
         const mainFee = parseFloat(schedule.instructorFee) || 0;
         const subFee = parseFloat(schedule.subInstructorFee) || 0;
 
-        const processInstructor = (name, fee) => {
+        const processInstructor = (name, baseFee, isSub = false) => {
             if (!name) return;
             name = String(name).trim();
             if (name === '없음' || name === '미정') return; // '없음', '미정'으로 표시된 강사는 무시
 
             if (!settlementMap[name]) settlementMap[name] = { totalAmount: 0, hasAmount: false };
             
+            const profile = instructorsMap[name] || {};
+            let rounds = parseFloat(isSub ? (schedule.subRounds || schedule.rounds) : schedule.rounds) || 0;
+            let fee = baseFee;
+
+            if (profile.employmentType === 'part-time') {
+                if (schedule.partTimeFees && schedule.partTimeFees[name] !== undefined) {
+                    fee = parseFloat(schedule.partTimeFees[name]);
+                } else {
+                    fee = parseFloat(profile.hourlyWage) || 13000;
+                }
+                
+                if (schedule.partTimeHours && schedule.partTimeHours[name] !== undefined) {
+                    rounds = parseFloat(schedule.partTimeHours[name]);
+                } else if (schedule.startTime && schedule.endTime) {
+                    const [sh, sm] = schedule.startTime.split(':').map(Number);
+                    const [eh, em] = schedule.endTime.split(':').map(Number);
+                    rounds = (eh + em / 60) - (sh + sm / 60);
+                    if (rounds < 0) rounds = 0;
+                }
+            }
+
             const amount = rounds * fee;
             if (amount > 0) {
                 settlementMap[name].totalAmount += amount;
@@ -106,13 +127,13 @@ window.loadSettlementReport = function() {
 
         // 주강사 추가 (주강사 단가 사용)
         if (schedule.mainInstructor) {
-            processInstructor(schedule.mainInstructor, mainFee);
+            processInstructor(schedule.mainInstructor, mainFee, false);
         }
 
         // 보조강사 추가 (보조강사 단가 사용, 없으면 주강사 단가로 펴백)
         const subs = normalizeSubInstructors(schedule.subInstructors || schedule.subInstructor);
         const effectiveSubFee = subFee > 0 ? subFee : mainFee;
-        subs.forEach(name => processInstructor(name, effectiveSubFee));
+        subs.forEach(name => processInstructor(name, effectiveSubFee, true));
     });
 
     // 테이블 렌더링
@@ -236,18 +257,34 @@ window.openDetailModal = function(instructorName) {
 
         if (isMain || isSub) {
             foundAny = true;
-            const rounds = parseFloat(schedule.rounds) || 0;
+            const profile = instructorsMap[instructorName] || {};
+            const isPartTime = profile.employmentType === 'part-time';
+            const fallbackWage = parseFloat(profile.hourlyWage) || 13000;
+            
+            let partTimeFee = fallbackWage;
+            if (schedule.partTimeFees && schedule.partTimeFees[instructorName] !== undefined) {
+                partTimeFee = parseFloat(schedule.partTimeFees[instructorName]);
+            }
+            
+            let partTimeHours = 0;
+            if (schedule.partTimeHours && schedule.partTimeHours[instructorName] !== undefined) {
+                partTimeHours = parseFloat(schedule.partTimeHours[instructorName]);
+            } else if (schedule.startTime && schedule.endTime) {
+                const [sh, sm] = schedule.startTime.split(':').map(Number);
+                const [eh, em] = schedule.endTime.split(':').map(Number);
+                partTimeHours = (eh + em / 60) - (sh + sm / 60);
+                if (partTimeHours < 0) partTimeHours = 0;
+            }
+
             const mainFee = parseFloat(schedule.instructorFee) || 0;
             const subFee = parseFloat(schedule.subInstructorFee) || 0;
-            // 보조강사 단가가 없으면 주강사 단가로 펴백 (하위호환)
             const effectiveSubFee = subFee > 0 ? subFee : mainFee;
             
-            let roleStr = [];
-            if (isMain) roleStr.push('주강사');
-            if (isSub) roleStr.push('보조강사');
-
             if (isMain) {
-                const amount = rounds * mainFee;
+                const rounds = isPartTime ? partTimeHours : (parseFloat(schedule.rounds) || 0);
+                const fee = isPartTime ? partTimeFee : mainFee;
+                const roleText = isPartTime ? '아르바이트' : '주강사';
+                const amount = rounds * fee;
                 let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
@@ -256,15 +293,18 @@ window.openDetailModal = function(instructorName) {
                         <td class="date-cell table-center">${schedule.date}</td>
                         <td class="school-cell table-center">${schedule.schoolName || '-'}</td>
                         <td class="program-cell table-center">${schedule.programName || '-'}</td>
-                        <td class="role-cell table-center">주강사</td>
+                        <td class="role-cell table-center">${roleText}</td>
                         <td class="lesson-cell table-center">${rounds}</td>
-                        <td class="fee-cell" style="display:none;">${mainFee}</td>
+                        <td class="fee-cell" style="display:none;">${fee}</td>
                         <td class="amount-cell table-amount">${displayAmount}</td>
                     </tr>
                 `;
             }
             if (isSub) {
-                const amount = rounds * effectiveSubFee;
+                const rounds = isPartTime ? partTimeHours : (parseFloat(schedule.subRounds || schedule.rounds) || 0);
+                const fee = isPartTime ? partTimeFee : effectiveSubFee;
+                const roleText = isPartTime ? '아르바이트' : '보조강사';
+                const amount = rounds * fee;
                 let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
@@ -273,9 +313,9 @@ window.openDetailModal = function(instructorName) {
                         <td class="date-cell table-center">${schedule.date}</td>
                         <td class="school-cell table-center">${schedule.schoolName || '-'}</td>
                         <td class="program-cell table-center">${schedule.programName || '-'}</td>
-                        <td class="role-cell table-center">보조강사</td>
+                        <td class="role-cell table-center">${roleText}</td>
                         <td class="lesson-cell table-center">${rounds}</td>
-                        <td class="fee-cell" style="display:none;">${effectiveSubFee}</td>
+                        <td class="fee-cell" style="display:none;">${fee}</td>
                         <td class="amount-cell table-amount">${displayAmount}</td>
                     </tr>
                 `;
@@ -404,7 +444,13 @@ window.downloadSettlementExcel = async function() {
             console.warn("template.xlsx 템플릿 파일을 찾을 수 없어 새 시트로 생성합니다.");
             const worksheet = workbook.addWorksheet('정산내역서');
             worksheet.getCell('B1').value = '급여계산서';
-            worksheet.getRow(5).values = [null, '날짜', '기관명', '프로그램명', '강사 구분', '차시', '합계금액'];
+            
+            const profile = instructorsMap[currentDetailInstructor] || {};
+            const isPartTime = profile.employmentType === 'part-time';
+            const colLesson = isPartTime ? '시간' : '차시';
+            const colFee = isPartTime ? '시급' : '강사비';
+            
+            worksheet.getRow(5).values = [null, '날짜', '기관명', '프로그램명', '역할', colLesson, colFee];
         }
 
         const worksheet = workbook.worksheets[0];
