@@ -7,5 +7,10 @@
   },
   "scripts": {
     "start": "npx serve -p 8000"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "protobufjs@7.6.5": true,
+    "puppeteer@25.3.0": true
   }
 }
