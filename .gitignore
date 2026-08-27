@@ -31,5 +31,6 @@ json/serviceAccountKey.json
 *-serviceAccountKey.json
 
 # Firebase 설정 (API Key 포함) — 절대 커밋 금지
-# 로컬에는 파일이 존재해야 하며, firebase_config.example.js를 복사하여 생성하세요.
-js/firebase_config.js
+# Firebase 설정 (API Key 포함)
+# 브라우저에서 읽어야 하므로 배포를 위해 Git 추적을 허용합니다. (대신 Firebase Auth 승인된 도메인 설정을 필수 적용하세요)
+# js/firebase_config.js
