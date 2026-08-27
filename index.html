@@ -145,13 +145,16 @@
                     <!-- Row 3: 주강사 (고정) + 보조강사 (동적) -->
                     <div class="form-group row3-main" style="grid-column: span 5;">
                         <label>주강사</label>
-                        <input type="text" id="edit-main">
+                        <input type="text" id="edit-main" list="instructor-datalist">
                     </div>
                     <div class="dynamic-list-group" style="grid-column: span 15;">
                         <label>보조강사</label>
                         <div class="dynamic-list" id="edit-sub-list"></div>
                         <button type="button" class="btn-add-item" onclick="addSubInstructorRow('edit-sub-list')">+ 보조강사 추가</button>
                     </div>
+
+                    <!-- 강사 자동완성 공유 datalist (주강사 + 보조강사 공용) -->
+                    <datalist id="instructor-datalist"></datalist>
 
                     <!-- Row 4: 교구 (동적) -->
                     <div class="dynamic-list-group" style="grid-column: span 20;">

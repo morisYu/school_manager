@@ -30,5 +30,6 @@ json/schoolmanage87-serviceAccountKey.json
 json/serviceAccountKey.json
 *-serviceAccountKey.json
 
-# Firebase 설정 (API Key 포함)
-# js/firebase_config.js (실제 사이트 작동을 위해 추적 허용)
+# Firebase 설정 (API Key 포함) — 절대 커밋 금지
+# 로컬에는 파일이 존재해야 하며, firebase_config.example.js를 복사하여 생성하세요.
+js/firebase_config.js

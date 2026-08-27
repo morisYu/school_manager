@@ -56,7 +56,6 @@ onAuthStateChanged(auth, async (user) => {
 
         // 로그인 상태: 활동 시간 갱신
         updateLastActivity();
-        console.log("Logged in as:", user.email);
         showMainSystem();
     } else {
         // 로그아웃 상태

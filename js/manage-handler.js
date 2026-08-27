@@ -2,6 +2,7 @@
 import { getAllSchedules, getAllInstructors, getInstructorProfile, saveInstructorProfile, deleteInstructor as dbDeleteInstructor, updateSchedule, getPrograms, getPaymentRules, savePaymentRule, deletePaymentRule } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+import { uploadImage } from './storage-service.js'; // 강사 사진 Storage 업로드용
 
 let rawData = [];
 let programsData = []; // 프로그램 목록 저장용
@@ -192,12 +193,23 @@ function renderProfileCard(name, profile) {
             document.getElementById('profile-note').innerHTML = '<span class="empty-placeholder">입력된 비고가 없습니다.</span>';
         }
 
-        // ─── 계좌 정보 렌더링 ──────────────────────────────────────────
+        // ─── 계좌 정보 렌더링 (XSS 방지: createElement 사용, 계좌번호 DOM 미기재) ──
         const bankInfoContainer = document.getElementById('profile-bank-info');
+        bankInfoContainer.innerHTML = '';
         if (profile.bankName && profile.accountNumber && profile.accountHolder) {
-            bankInfoContainer.innerHTML = `<button class="btn-bank-info" onclick="openBankModal('${profile.bankName}', '${profile.accountNumber}', '${profile.accountHolder}')">🏦 ${profile.bankName}</button>`;
+            const bankBtn = document.createElement('button');
+            bankBtn.className = 'btn-bank-info';
+            bankBtn.textContent = `🏦 ${profile.bankName}`;
+            // 계좌번호는 클로저에만 보관 — DOM/HTML 속성에 노출되지 않음
+            bankBtn.addEventListener('click', () => {
+                openBankModal(profile.bankName, profile.accountNumber, profile.accountHolder);
+            });
+            bankInfoContainer.appendChild(bankBtn);
         } else {
-            bankInfoContainer.innerHTML = '<span class="empty-placeholder">계좌 정보가 없습니다.</span>';
+            const emptySpan = document.createElement('span');
+            emptySpan.className = 'empty-placeholder';
+            emptySpan.textContent = '계좌 정보가 없습니다.';
+            bankInfoContainer.appendChild(emptySpan);
         }
 
         // ─── 가용 시간 요약 렌더링 ────────────────────────────────────
@@ -254,8 +266,10 @@ function renderProfileCard(name, profile) {
 
         const img = document.getElementById('profile-photo-img');
         const placeholder = document.getElementById('profile-photo-placeholder');
-        if (profile.photoBase64) {
-            img.src = profile.photoBase64;
+        // photoUrl(신규 Storage URL) 또는 photoBase64(레거시) 순서로 지원
+        const photoSrc = profile.photoUrl || profile.photoBase64 || null;
+        if (photoSrc) {
+            img.src = photoSrc;
             img.style.display = 'block';
             placeholder.style.display = 'none';
         } else {
@@ -340,12 +354,15 @@ window.openProfileModal = async function () {
             document.getElementById('modal-account-number').value = profile.accountNumber || '';
             document.getElementById('modal-account-holder').value = profile.accountHolder || '';
 
-            if (profile.photoBase64) {
-                previewImg.src = profile.photoBase64;
+            // photoUrl(신규 Storage URL) 또는 photoBase64(레거시) 순서로 기존 사진 로드
+            // → 저장 시 base64는 자동으로 Storage에 업로드되어 마이그레이션됨
+            const existingPhoto = profile.photoUrl || profile.photoBase64 || null;
+            if (existingPhoto) {
+                previewImg.src = existingPhoto;
                 previewImg.style.display = 'block';
                 previewPlaceholder.style.display = 'none';
-                // 기존 사진을 유지하기 위해 pendingPhotoBase64에 기존 값 저장
-                pendingPhotoBase64 = profile.photoBase64;
+                // URL 또는 base64를 pendingPhotoBase64에 보관 (저장 로직이 구분하여 처리)
+                pendingPhotoBase64 = existingPhoto;
             }
             
             // 가용 시간 UI 렌더링
@@ -611,6 +628,34 @@ window.saveProfile = async function () {
     saveBtn.disabled = true;
     saveBtn.textContent = '저장 중...';
 
+    // ─── 사진 처리: Firebase Storage 업로드 ─────────────────────────────
+    // pendingPhotoBase64는 새 base64, 기존 Storage URL, 또는 null(삭제) 중 하나
+    let photoUrl = null;
+    let photoBase64ToSave = null;
+
+    if (pendingPhotoBase64 === null) {
+        // 사진 삭제 → photoUrl, photoBase64 모두 null로 저장
+    } else if (pendingPhotoBase64.startsWith('http')) {
+        // 이미 Storage URL → 변경 없이 유지
+        photoUrl = pendingPhotoBase64;
+    } else if (pendingPhotoBase64.startsWith('data:')) {
+        // 새 base64 이미지 → Firebase Storage에 업로드 후 URL 저장
+        try {
+            saveBtn.textContent = '사진 업로드 중...';
+            const res = await fetch(pendingPhotoBase64);
+            const blob = await res.blob();
+            const file = new File([blob], `${name}_profile.jpg`, { type: 'image/jpeg' });
+            photoUrl = await uploadImage(file, 'instructors');
+            // 업로드 성공 → base64 제거 (Firestore 용량 절약)
+        } catch (uploadErr) {
+            console.error('사진 Storage 업로드 실패, base64로 폴백합니다:', uploadErr);
+            // 폴백: 업로드 실패 시 기존 방식대로 base64 유지 (데이터 유실 방지)
+            photoBase64ToSave = pendingPhotoBase64;
+        }
+    }
+    saveBtn.textContent = '저장 중...';
+    // ────────────────────────────────────────────────────────────────────
+
     const profileData = {
         name: name,
         affiliation: document.getElementById('modal-affiliation').value,
@@ -625,7 +670,8 @@ window.saveProfile = async function () {
         bankName:   document.getElementById('modal-bank-name').value,
         accountNumber: document.getElementById('modal-account-number').value,
         accountHolder: document.getElementById('modal-account-holder').value,
-        photoBase64: pendingPhotoBase64 || null,
+        photoUrl: photoUrl,           // Storage URL (신규 방식)
+        photoBase64: photoBase64ToSave, // base64 (레거시 폴백 또는 업로드 실패 시)
         availability: collectAvailabilityData(),
         availabilityNote: document.getElementById('modal-availability-note')?.value?.trim() || ''
     };

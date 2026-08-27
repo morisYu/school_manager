@@ -1,32 +1,40 @@
-import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile } from './db_service.js';
+import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile, getAllInstructors } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
-// 학교 목록 데이터 로드 및 자동완성 설정
+// 학교 목록 + 강사 목록 데이터 로드 및 자동완성 설정
 onAuthStateChanged(auth, async (user) => {
     if (!user) return;
 
     try {
-        const schools = await getSchools();
+        const [schools, instructors] = await Promise.all([
+            getSchools(),
+            getAllInstructors() // 재직 중인 강사만 로드
+        ]);
+
+        // ─── 학교 자동완성 ───────────────────────────────────
         const dataList = document.getElementById('school-list');
-        
         if (dataList && Array.isArray(schools)) {
             schools.forEach(school => {
                 if (school.searchAlias) {
-                    // 1. 별칭 자체 제안
                     const option1 = document.createElement('option');
                     option1.value = school.searchAlias;
                     dataList.appendChild(option1);
 
-                    // 2. 기관명 (별칭) 형식 제안 (예: 학교 (별칭))
                     const option2 = document.createElement('option');
                     option2.value = `${school.schoolName.replace('등학교', '')} (${school.searchAlias})`;
                     dataList.appendChild(option2);
                 }
             });
         }
+
+        // ─── 강사 자동완성 ───────────────────────────────────
+        // 전역 캐시에 강사명 저장 (utils.js의 addSubInstructorRow에서 참조)
+        window._instructorNames = instructors.map(inst => inst.name);
+        populateInstructorDatalist('instructor-datalist');
+
     } catch (error) {
-        console.error("Error loading schools for suggestions:", error);
+        console.error("Error loading data for suggestions:", error);
     }
 });
 
@@ -57,8 +65,23 @@ document.getElementById('lectureForm').addEventListener('submit', async function
             region: document.getElementById('input-region').value
         };
 
-        // ─── 강사 가용 시간 충돌 확인 ───────────────────────────
+        // ─── 미등록 강사명 경고 ──────────────────────────────────
         const instructorsToCheck = [payloadData.mainInstructor, ...payloadData.subInstructors].filter(n => n && n !== '미정');
+        if (window._instructorNames.length > 0) {
+            const unregistered = instructorsToCheck.filter(n => !window._instructorNames.includes(n));
+            if (unregistered.length > 0) {
+                const proceed = confirm(
+                    `⚠️ 강사 관리에 등록되지 않은 이름이 있습니다:\n\n  • ${unregistered.join('\n  • ')}\n\n오입력이 아닌지 확인해주세요.\n[확인] 그래도 저장  /  [취소] 수정`
+                );
+                if (!proceed) {
+                    btn.disabled = false;
+                    btn.innerText = originalText;
+                    return;
+                }
+            }
+        }
+
+        // ─── 강사 가용 시간 충돌 확인 ───────────────────────────
         const warnings = [];
 
         for (const name of instructorsToCheck) {

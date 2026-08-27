@@ -1,4 +1,4 @@
-import { getSchedulesByDate } from './db_service.js';
+import { getSchedulesByDate, getAllInstructors } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -96,16 +96,21 @@ window.initCalendar = async function() {
     const savedDate = sessionStorage.getItem('calendarCurrentDate');
     const initialDate = savedDate ? new Date(savedDate) : new Date();
 
-    // 달력 초기화 전, 현재 표시될 연도를 기준으로 앞뒤 1년치 공휴일 미리 캐싱
+    // 달력 초기화 전, 현재 표시될 연도를 기준으로 앞뒤 1년치 공휴일 미리 캐싱, 강사 목록 로드
     const initYear = initialDate.getFullYear();
-    const [prevHols, currHols, nextHols] = await Promise.all([
+    const [prevHols, currHols, nextHols, instructors] = await Promise.all([
         fetchHolidays(initYear - 1),
         fetchHolidays(initYear),
-        fetchHolidays(initYear + 1)
+        fetchHolidays(initYear + 1),
+        getAllInstructors() // 강사 자동완성을 위해 재직 중인 강사 목록 로드
     ]);
     
     Object.assign(window.holidayEventsMap, prevHols, currHols, nextHols);
     window.allHolidayDates = Object.keys(window.holidayEventsMap);
+
+    // 강사 자동완성 데이터 설정
+    window._instructorNames = instructors.map(inst => inst.name);
+    populateInstructorDatalist('instructor-datalist');
 
     const calendar = new FullCalendar.Calendar(calendarEl, {
         initialDate: initialDate,

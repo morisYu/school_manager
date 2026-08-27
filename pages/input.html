@@ -100,13 +100,18 @@
                         <!-- Row 3: 주강사 + 보조강사 -->
                         <div class="form-group row3-main" style="grid-column: span 5;">
                             <label>주강사</label>
-                            <input type="text" id="mainTeacher" placeholder="미입력 시 '미정'으로 저장">
+                            <input type="text" id="mainTeacher"
+                                   placeholder="미입력 시 '미정'으로 저장"
+                                   list="instructor-datalist">
                         </div>
                         <div class="dynamic-list-group" style="grid-column: span 15;">
                             <label>보조강사 / 아르바이트</label>
                             <div class="dynamic-list" id="input-sub-list"></div>
                             <button type="button" class="btn-add-item" onclick="addSubInstructorRow('input-sub-list')">+ 보조/알바 추가</button>
                         </div>
+
+                        <!-- 강사 자동완성 공유 datalist (주강사 + 보조강사 공용) -->
+                        <datalist id="instructor-datalist"></datalist>
 
                         <!-- Row 4: 교구 -->
                         <div class="dynamic-list-group" style="grid-column: span 20;">

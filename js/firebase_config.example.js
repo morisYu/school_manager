@@ -7,14 +7,14 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-aut
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-storage.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCr4pQC9kAS5QG0s3VDRdEYDqd08uducSY",
-  authDomain: "schoolmanage87.firebaseapp.com",
-  databaseURL: "https://schoolmanage87-default-rtdb.firebaseio.com",
-  projectId: "schoolmanage87",
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT_ID",
   storageBucket: "schoolmanage87.firebasestorage.app",
-  messagingSenderId: "994976889761",
-  appId: "1:994976889761:web:23e06a6fefc3af95bc69e0",
-  measurementId: "G-48F460MVRZ"
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "1:YOUR_SENDER_ID:web:23e06a6fefc3af95bc69e0",
+  measurementId: "YOUR_MEASUREMENT_ID"
 };
 
 // Initialize Firebase

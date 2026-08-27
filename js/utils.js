@@ -38,6 +38,31 @@ function calculateHours(startStr, endStr) {
 }
 
 // ============================================================
+// 강사 목록 자동완성 (datalist) 유틸리티
+// ============================================================
+
+/**
+ * 전역 강사 목록 캐시 (페이지 로드 후 한 번만 조회)
+ * input-handler.js 또는 calendar-main.js에서 채워줍니다.
+ */
+window._instructorNames = window._instructorNames || [];
+
+/**
+ * <datalist> 요소에 등록된 강사 목록을 채웁니다.
+ * @param {string} datalistId - 채울 datalist 요소의 ID
+ */
+function populateInstructorDatalist(datalistId) {
+    const datalist = document.getElementById(datalistId);
+    if (!datalist) return;
+    datalist.innerHTML = '';
+    window._instructorNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        datalist.appendChild(opt);
+    });
+}
+
+// ============================================================
 // 동적 보조강사 / 교구 행 관리 유틸리티
 // ============================================================
 
@@ -53,7 +78,8 @@ function addSubInstructorRow(containerId, value = '') {
     const row = document.createElement('div');
     row.className = 'dynamic-row';
     row.innerHTML = `
-        <input type="text" class="sub-instructor-input" value="${value}" placeholder="보조강사명">
+        <input type="text" class="sub-instructor-input" value="${value}"
+               placeholder="보조강사명" list="instructor-datalist">
         <button type="button" class="btn-remove-item" onclick="removeDynamicRow(this)" title="삭제">×</button>
     `;
     container.appendChild(row);

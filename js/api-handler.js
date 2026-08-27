@@ -54,6 +54,22 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
                 payloadData.mainInstructor,
                 ...payloadData.subInstructors
             ].filter(n => n && n !== '미정');
+
+            // ─── 미등록 강사명 경고 ──────────────────────────────────
+            if (window._instructorNames && window._instructorNames.length > 0) {
+                const unregistered = instructorsToCheck.filter(n => !window._instructorNames.includes(n));
+                if (unregistered.length > 0) {
+                    const proceed = confirm(
+                        `⚠️ 강사 관리에 등록되지 않은 이름이 있습니다:\n\n  • ${unregistered.join('\n  • ')}\n\n오입력이 아닌지 확인해주세요.\n[확인] 그래도 저장  /  [취소] 수정`
+                    );
+                    if (!proceed) {
+                        const mainField = document.getElementById('edit-main');
+                        if (mainField) mainField.focus();
+                        return;
+                    }
+                }
+            }
+
             const warnings = [];
 
             for (const name of instructorsToCheck) {
