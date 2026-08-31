@@ -72,7 +72,9 @@
                         </div>
                         <div class="form-group row1-program">
                             <label>프로그램명</label>
-                            <input type="text" id="program" required>
+                            <input type="text" id="program" list="program-list" placeholder="프로그램 선택" required>
+                            <datalist id="program-list"></datalist>
+                            <small>원하는 프로그램이 없나요? 먼저 <a href="program-manage.html">[프로그램 관리]</a> 페이지에서 프로그램을 등록해 주세요.</small>
                         </div>
 
                         <!-- Row 2: 날짜, 시작시간, 종료시간, 학년, 대상인원 -->

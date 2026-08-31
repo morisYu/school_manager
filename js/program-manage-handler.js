@@ -3,7 +3,9 @@ import {
     addProgram, 
     updateProgram, 
     deleteProgram,
-    getSchedulesByProgramName
+    getSchedulesByProgramName,
+    getAllSchedules,
+    updateSchedule
 } from './db_service.js';
 import { uploadImage, deleteImage } from './storage-service.js';
 import { printProgramAsPDF } from './program-pdf.js';
@@ -836,4 +838,130 @@ function setupHistoryFilters() {
     };
     newSearch.addEventListener('input', onFilter);
     newYear.addEventListener('change', onFilter);
+}
+
+// =========================================================
+// 데이터 클렌징 (미등록 일정 정리) 관련 함수
+// =========================================================
+
+const btnCleanseData = document.getElementById('btn-cleanse-data');
+const cleanseModal = document.getElementById('cleanse-modal');
+const cleanseTbody = document.getElementById('cleanse-tbody');
+const btnApplyCleanse = document.getElementById('btn-apply-cleanse');
+let mismatchGroups = {};
+
+if (btnCleanseData) {
+    btnCleanseData.addEventListener('click', openCleanseModal);
+}
+if (btnApplyCleanse) {
+    btnApplyCleanse.addEventListener('click', applyCleanseData);
+}
+
+async function openCleanseModal() {
+    cleanseModal.style.display = 'flex';
+    cleanseTbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">데이터를 분석 중입니다...</td></tr>';
+    
+    try {
+        const allSchedules = await getAllSchedules();
+        const validProgramNames = programsData.map(p => p.programName);
+        
+        mismatchGroups = {};
+        
+        allSchedules.forEach(s => {
+            const progName = s.programName;
+            if (progName && !validProgramNames.includes(progName)) {
+                if (!mismatchGroups[progName]) {
+                    mismatchGroups[progName] = [];
+                }
+                mismatchGroups[progName].push(s);
+            }
+        });
+        
+        renderCleanseTable();
+        
+    } catch (error) {
+        cleanseTbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#e74c3c;">오류 발생: ${error.message}</td></tr>`;
+    }
+}
+
+function renderCleanseTable() {
+    cleanseTbody.innerHTML = '';
+    const keys = Object.keys(mismatchGroups);
+    
+    if (keys.length === 0) {
+        cleanseTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#27ae60;font-weight:bold;padding:30px;">🎉 미매칭 프로그램명이 없습니다. 완벽합니다!</td></tr>';
+        btnApplyCleanse.disabled = true;
+        return;
+    }
+    
+    btnApplyCleanse.disabled = false;
+    
+    let optionsHtml = '<option value="">-- 변경 안함 --</option>';
+    const sortedValid = programsData.map(p => p.programName).sort();
+    sortedValid.forEach(name => {
+        optionsHtml += `<option value="${name}">${name}</option>`;
+    });
+
+    keys.forEach(badName => {
+        const count = mismatchGroups[badName].length;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color:#e74c3c; font-weight:bold;">"${badName}"</td>
+            <td>${count}건</td>
+            <td>
+                <select class="cleanse-select" data-badname="${badName}" style="width:100%; padding:8px; border:1px solid #bdc3c7; border-radius:4px;">
+                    ${optionsHtml}
+                </select>
+            </td>
+        `;
+        cleanseTbody.appendChild(tr);
+    });
+}
+
+async function applyCleanseData() {
+    const selects = document.querySelectorAll('.cleanse-select');
+    const updates = [];
+    
+    selects.forEach(sel => {
+        const newName = sel.value;
+        if (newName) {
+            const badName = sel.dataset.badname;
+            const schedulesToUpdate = mismatchGroups[badName];
+            schedulesToUpdate.forEach(s => {
+                updates.push({ docId: s.id, newProgramName: newName });
+            });
+        }
+    });
+    
+    if (updates.length === 0) {
+        alert("선택된 변경 사항이 없습니다.");
+        return;
+    }
+    
+    if (!confirm(`총 ${updates.length}건의 일정을 수정하시겠습니까?`)) {
+        return;
+    }
+    
+    btnApplyCleanse.textContent = "적용 중...";
+    btnApplyCleanse.disabled = true;
+    
+    try {
+        await Promise.all(updates.map(u => updateSchedule(u.docId, { programName: u.newProgramName })));
+        
+        alert(`성공적으로 ${updates.length}건이 수정되었습니다.`);
+        
+        cleanseModal.style.display = 'none';
+        
+        // 내역 갱신
+        const activeTabBtn = document.querySelector('.tab-btn.active');
+        if (activeTabBtn && activeTabBtn.dataset.tab === 'tab-history' && currentSelectedId) {
+            loadClassHistory();
+        }
+        
+    } catch (error) {
+        alert(`일괄 수정 중 오류가 발생했습니다: ${error.message}`);
+    } finally {
+        btnApplyCleanse.textContent = "💾 일괄 수정 적용";
+        btnApplyCleanse.disabled = false;
+    }
 }

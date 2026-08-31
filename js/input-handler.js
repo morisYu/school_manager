@@ -1,4 +1,4 @@
-import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile, getAllInstructors } from './db_service.js';
+import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile, getAllInstructors, getPrograms } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -7,9 +7,10 @@ onAuthStateChanged(auth, async (user) => {
     if (!user) return;
 
     try {
-        const [schools, instructors] = await Promise.all([
+        const [schools, instructors, programs] = await Promise.all([
             getSchools(),
-            getAllInstructors() // 재직 중인 강사만 로드
+            getAllInstructors(), // 재직 중인 강사만 로드
+            getPrograms()
         ]);
 
         // ─── 학교 자동완성 ───────────────────────────────────
@@ -32,6 +33,17 @@ onAuthStateChanged(auth, async (user) => {
         // 전역 캐시에 강사명 저장 (utils.js의 addSubInstructorRow에서 참조)
         window._instructorNames = instructors.map(inst => inst.name);
         populateInstructorDatalist('instructor-datalist');
+
+        // ─── 프로그램 자동완성 ───────────────────────────────────
+        const programList = document.getElementById('program-list');
+        if (programList && Array.isArray(programs)) {
+            window._programNames = programs.map(p => p.programName);
+            programs.forEach(prog => {
+                const option = document.createElement('option');
+                option.value = prog.programName;
+                programList.appendChild(option);
+            });
+        }
 
     } catch (error) {
         console.error("Error loading data for suggestions:", error);
@@ -64,6 +76,16 @@ document.getElementById('lectureForm').addEventListener('submit', async function
             note: document.getElementById('note').value,
             region: document.getElementById('input-region').value
         };
+
+        // ─── 유효한 프로그램명 확인 ──────────────────────────────
+        if (window._programNames && window._programNames.length > 0) {
+            if (!window._programNames.includes(payloadData.programName)) {
+                alert(`⚠️ '${payloadData.programName}'은(는) 등록되지 않은 프로그램입니다.\n[프로그램 관리] 페이지에서 먼저 등록해 주세요.`);
+                btn.disabled = false;
+                btn.innerText = originalText;
+                return;
+            }
+        }
 
         // ─── 미등록 강사명 경고 ──────────────────────────────────
         const instructorsToCheck = [payloadData.mainInstructor, ...payloadData.subInstructors].filter(n => n && n !== '미정');
