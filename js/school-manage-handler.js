@@ -1,7 +1,7 @@
 import { getSchools, getAllSchedules } from './db_service.js';
 import { db, auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
-import { doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+import { doc, updateDoc, deleteDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 let schoolData = [];
 let historyData = [];
@@ -485,3 +485,303 @@ function filterAndDisplayHistory(school, start, end) {
         `;
     });
 }
+
+// ==========================================
+// CSV 일괄 업데이트 모달 UI 제어
+// ==========================================
+window.openCsvModal = function() {
+    const modal = document.getElementById('csv-modal');
+    if (modal) {
+        modal.style.display = 'block';
+        // 모달을 열 때 초기화 로직 추가 가능
+        document.getElementById('csv-preview-section').style.display = 'none';
+        document.getElementById('btn-save-csv').style.display = 'none';
+    }
+};
+
+window.closeCsvModal = function() {
+    const modal = document.getElementById('csv-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+};
+
+window.filterCsvPreview = function(filterType) {
+    const rows = document.querySelectorAll('.preview-row');
+    rows.forEach(row => {
+        if (filterType === 'all') row.style.display = 'table-row';
+        else if (row.classList.contains('status-' + filterType)) row.style.display = 'table-row';
+        else row.style.display = 'none';
+    });
+};
+
+let parsedUpdates = [];
+
+window.analyzeCsvFiles = async function() {
+    parsedUpdates = [];
+    const studentInputs = ['csv-student-e', 'csv-student-m', 'csv-student-h'];
+    const basicInputs = ['csv-basic-e', 'csv-basic-m', 'csv-basic-h'];
+    
+    let allStudentData = [];
+    let allBasicData = [];
+    
+    const parseFile = (file) => {
+        return new Promise((resolve, reject) => {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => resolve(results.data),
+                error: (err) => reject(err)
+            });
+        });
+    };
+
+    try {
+        for (const id of studentInputs) {
+            const el = document.getElementById(id);
+            if (el && el.files.length > 0) {
+                const data = await parseFile(el.files[0]);
+                allStudentData = allStudentData.concat(data);
+            }
+        }
+        
+        for (const id of basicInputs) {
+            const el = document.getElementById(id);
+            if (el && el.files.length > 0) {
+                const data = await parseFile(el.files[0]);
+                allBasicData = allBasicData.concat(data);
+            }
+        }
+    } catch (e) {
+        alert("CSV 파싱 중 오류가 발생했습니다: " + e.message);
+        return;
+    }
+
+    if (allStudentData.length === 0 && allBasicData.length === 0) {
+        alert("업로드된 파일이 없습니다.");
+        return;
+    }
+
+    const updatesMap = new Map();
+
+    const normalizeName = (name) => {
+        if (!name) return '';
+        return name.replace(/\(검토필요\)/g, '').replace(/\s+/g, '').trim();
+    };
+
+    const allData = [...allBasicData, ...allStudentData];
+
+    // 통합 데이터 처리 (어느 입력칸에 넣었든 상관없이 컬럼명 기준으로 정보 추출)
+    for (const row of allData) {
+        const code = row['정보공시 학교코드'] || row['학교코드'];
+        if (!code) continue;
+        
+        const rowName = row['학교명'];
+        const normRowName = normalizeName(rowName);
+        
+        // 기존 맵(이번 파싱 중 등록된 데이터) 우선 확인
+        let existingSchool = updatesMap.get(code);
+        
+        // 맵에 없다면 기존 DB(schoolData)에서 매칭 (1순위: 코드, 2순위: 이름)
+        if (!existingSchool) {
+            existingSchool = schoolData.find(s => s.id === code || s.schoolId === code || s.schoolCode === code);
+            if (!existingSchool) {
+                existingSchool = schoolData.find(s => normalizeName(s.schoolName) === normRowName);
+            }
+        }
+
+        // --- 기본 정보 추출 ---
+        const basicInfo = {};
+        if (row['시도교육청'] || row['지역']) basicInfo.city = row['시도교육청'] || row['지역'];
+        
+        let extractedAddress = row['학교도로명 주소'] || row['도로명주소'] || row['소재지도로명주소'] || row['주소'] || '';
+        let addressDetail = row['학교도로명 상세주소'] || '';
+        if (extractedAddress) {
+            basicInfo.address = (extractedAddress + ' ' + addressDetail).trim();
+        }
+        
+        if (row['학교도로명 우편번호'] || row['우편번호']) basicInfo.zipCode = String(row['학교도로명 우편번호'] || row['우편번호']);
+        if (row['전화번호'] || row['대표번호'] || row['대표전화']) basicInfo.mainPhone = row['전화번호'] || row['대표번호'] || row['대표전화'];
+        if (row['홈페이지 주소'] || row['홈페이지주소'] || row['홈페이지']) basicInfo.website = row['홈페이지 주소'] || row['홈페이지주소'] || row['홈페이지'];
+        if (row['설립구분']) basicInfo.schoolType = row['설립구분'];
+
+        // --- 학급/학생수 추출 ---
+        let classStats = null;
+        if (row['학급수(계)'] !== undefined || row['학생수(계)'] !== undefined) {
+            classStats = {
+                totalClasses: Number(row["학급수(계)"]) || 0,
+                totalStudents: Number(row["학생수(계)"]) || 0,
+            };
+            for(let i=1; i<=6; i++) {
+                classStats['grade'+i] = {
+                    classes: Number(row[`${i}학년 학급수`]) || 0,
+                    studentsPerClass: Number(row[`${i}학년 학급당 학생수`]) || 0
+                };
+            }
+        }
+
+        // --- 별칭 자동 생성 ---
+        const generateAlias = (name) => {
+            if (!name) return '';
+            let cleanName = name.replace(/\(.*\)/g, '').trim(); // (검토필요) 등 제거
+            if (cleanName.endsWith('초등학교')) return cleanName.replace('초등학교', '초');
+            if (cleanName.endsWith('중학교')) return cleanName.replace('중학교', '중');
+            if (cleanName.endsWith('고등학교')) return cleanName.replace('고등학교', '고');
+            if (cleanName.endsWith('대학교')) return cleanName.replace('대학교', '대');
+            return '';
+        };
+
+        // 병합 처리
+        let mergedSchool = { ...(existingSchool || {}) };
+        mergedSchool.id = existingSchool && existingSchool.id ? existingSchool.id : code;
+        mergedSchool.schoolId = code;
+        mergedSchool.schoolCode = code;
+        if (!mergedSchool.schoolName || mergedSchool.schoolName === '미상') {
+            mergedSchool.schoolName = rowName || '미상';
+        }
+        if (!mergedSchool.searchAlias) {
+            mergedSchool.searchAlias = generateAlias(mergedSchool.schoolName);
+        }
+        
+        // 기본정보 병합 (CSV에 데이터가 있을 때만 덮어쓰기)
+        Object.keys(basicInfo).forEach(key => {
+            if (basicInfo[key]) mergedSchool[key] = basicInfo[key];
+        });
+        
+        // 학급/학생수 병합
+        if (classStats) {
+            mergedSchool.classStats = classStats;
+        }
+
+        updatesMap.set(code, {
+            ...mergedSchool,
+            _status: (existingSchool && existingSchool._status) ? existingSchool._status : (existingSchool && Object.keys(existingSchool).length > 0 ? 'update' : 'new'),
+            _newName: rowName || mergedSchool.schoolName,
+            _region: mergedSchool.city || ''
+        });
+    }
+    
+    const tbody = document.getElementById('csv-preview-body');
+    tbody.innerHTML = '';
+    
+    let cntNew = 0, cntUpdate = 0;
+
+    updatesMap.forEach((val, code) => {
+        parsedUpdates.push(val);
+        const st = val._status;
+        if (st === 'new') cntNew++;
+        else if (st === 'update') cntUpdate++;
+        
+        const tr = document.createElement('tr');
+        tr.className = `preview-row status-${st}`;
+        
+        let badgeHtml = '';
+        if (st === 'new') badgeHtml = '<span class="badge" style="background:#e3f2fd; color:#1976d2; padding:3px 6px; border-radius:4px;">신규</span>';
+        else if (st === 'update') badgeHtml = '<span class="badge" style="background:#e8f5e9; color:#388e3c; padding:3px 6px; border-radius:4px;">업데이트</span>';
+        
+        tr.innerHTML = `
+            <td style="padding:8px; border-bottom:1px solid #ddd;">${badgeHtml}</td>
+            <td style="padding:8px; border-bottom:1px solid #ddd;">${code}</td>
+            <td style="padding:8px; border-bottom:1px solid #ddd;">${val.schoolName} ${val._newName && val._newName !== val.schoolName ? `➔ <b>${val._newName}</b>` : ''}</td>
+            <td style="padding:8px; border-bottom:1px solid #ddd;">${val._region || '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    document.getElementById('count-new').textContent = cntNew;
+    document.getElementById('count-update').textContent = cntUpdate;
+    
+    document.getElementById('csv-preview-section').style.display = 'block';
+    if (parsedUpdates.length > 0) {
+        document.getElementById('btn-save-csv').style.display = 'inline-block';
+    }
+};
+
+window.saveCsvToDb = async function() {
+    if (parsedUpdates.length === 0) return;
+    const btn = document.getElementById('btn-save-csv');
+    btn.disabled = true;
+    btn.textContent = '저장 중...';
+    
+    try {
+        const { bulkUpdateSchools } = await import('./db_service.js');
+        const newSchools = parsedUpdates.filter(s => s._status === 'new').map(s => {
+            const copy = {...s};
+            if (s._newName) copy.schoolName = s._newName;
+            delete copy._status; delete copy._newName; delete copy._region;
+            return copy;
+        });
+        const updateSchools = parsedUpdates.filter(s => s._status === 'update').map(s => {
+            const copy = {...s};
+            if (s._newName) copy.schoolName = s._newName;
+            delete copy._status; delete copy._newName; delete copy._region;
+            copy.docId = copy.id; // required by bulkUpdateSchools
+            return copy;
+        });
+        
+        await bulkUpdateSchools(newSchools, updateSchools);
+        alert(`성공적으로 ${newSchools.length}개 추가, ${updateSchools.length}개 업데이트 되었습니다!`);
+        closeCsvModal();
+        location.reload();
+    } catch(e) {
+        alert('저장 중 오류 발생: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = 'DB 일괄 적용';
+    }
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnAnalyze = document.getElementById('btn-analyze-csv');
+    if (btnAnalyze) {
+        btnAnalyze.addEventListener('click', window.analyzeCsvFiles);
+    }
+    
+    const btnSave = document.getElementById('btn-save-csv');
+    if (btnSave) {
+        btnSave.addEventListener('click', window.saveCsvToDb);
+    }
+});
+
+// ==========================================
+// 깡통 학교 임시 삭제 유틸
+// ==========================================
+window.cleanupDuplicates = async function() {
+    if (!confirm("최근 잘못 생성된 주소 없는 깡통 학교 데이터를 전부 삭제하시겠습니까? (삭제된 데이터는 복구할 수 없습니다)")) return;
+    
+    try {
+        const todayStr = new Date();
+        todayStr.setHours(0, 0, 0, 0); // 오늘 자정 기준
+        const todayIso = todayStr.toISOString();
+        
+        // 전체 학교를 가져와서 클라이언트에서 필터링 (createdAt이 없거나 updatedAt만 있는 경우도 처리하기 위해)
+        const snap = await getDocs(collection(db, "schools"));
+        
+        let deleteCount = 0;
+        const promises = [];
+        
+        snap.forEach(d => {
+            const data = d.data();
+            const createdToday = data.createdAt && data.createdAt >= todayIso;
+            const updatedToday = data.updatedAt && data.updatedAt >= todayIso;
+            
+            // 오늘 생성되었거나 업데이트되었으면서, 주소가 비어있는 경우 삭제 대상
+            if ((createdToday || updatedToday) && (!data.address || data.address.trim() === '')) {
+                promises.push(deleteDoc(d.ref));
+                deleteCount++;
+            }
+        });
+        
+        if (deleteCount === 0) {
+            alert("삭제할 깡통 학교가 없습니다. (혹은 예전에 만들어진 학교라서 보호되었습니다)");
+            return;
+        }
+        
+        await Promise.all(promises);
+        alert(`총 ${deleteCount}개의 깡통 데이터를 성공적으로 삭제했습니다!\n확인을 누르시면 페이지가 새로고침됩니다.`);
+        location.reload();
+        
+    } catch(e) {
+        alert("삭제 중 오류 발생: " + e.message);
+        console.error(e);
+    }
+};

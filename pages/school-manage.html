@@ -151,11 +151,13 @@
                 </div>
             </div>
 
-            <!-- 출강 이력 목록 테이블 -->
             <div class="history-section">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <h3>📖 최근 출강 이력</h3>
-                    <button class="btn-import-csv" onclick="openCsvModal()" style="padding: 6px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">CSV 일괄 업데이트</button>
+                    <div>
+                        <button class="btn-import-csv" onclick="cleanupDuplicates()" style="padding: 6px 12px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">🗑️ [긴급] 깡통 학교 삭제</button>
+                        <button class="btn-import-csv" onclick="openCsvModal()" style="padding: 6px 12px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">CSV 일괄 업데이트</button>
+                    </div>
                 </div>
                 <div class="table-wrapper">
                     <table>

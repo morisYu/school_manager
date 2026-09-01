@@ -19,7 +19,7 @@ const MAX_WIDTH = 800; // 리사이즈 최대 폭 (px)
  * @returns {Promise<Blob>} 리사이즈된 이미지 Blob
  */
 function resizeImage(file, maxWidth = MAX_WIDTH) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const img = new Image();
         const reader = new FileReader();
 
@@ -40,28 +40,35 @@ function resizeImage(file, maxWidth = MAX_WIDTH) {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
                 canvas.toBlob((blob) => {
-                    resolve(blob);
+                    if (blob) resolve(blob);
+                    else reject(new Error("Canvas to Blob failed"));
                 }, 'image/jpeg', 0.85);
             };
+            img.onerror = () => reject(new Error("Image loading failed"));
             img.src = e.target.result;
         };
+        reader.onerror = () => reject(new Error("File reading failed"));
         reader.readAsDataURL(file);
     });
 }
 
-/**
- * 이미지를 Firebase Storage에 업로드합니다.
- * @param {File} file 업로드할 이미지 파일
- * @param {string} folder 저장 폴더 경로 (예: 'programs/photos')
- * @returns {Promise<string>} 업로드된 이미지의 다운로드 URL
- */
 export async function uploadImage(file, folder = 'programs') {
     try {
         const resized = await resizeImage(file);
         const fileName = `${folder}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
         const storageRef = ref(storage, fileName);
-        await uploadBytes(storageRef, resized);
-        const url = await getDownloadURL(storageRef);
+        
+        // 업로드가 무한 대기하는 현상을 방지하기 위해 15초 타임아웃 추가
+        const uploadPromise = async () => {
+            await uploadBytes(storageRef, resized);
+            return await getDownloadURL(storageRef);
+        };
+        
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Storage upload timeout")), 3000);
+        });
+
+        const url = await Promise.race([uploadPromise(), timeoutPromise]);
         return url;
     } catch (error) {
         console.error("📷 uploadImage 에러:", error);

@@ -642,10 +642,19 @@ window.saveProfile = async function () {
         // 새 base64 이미지 → Firebase Storage에 업로드 후 URL 저장
         try {
             saveBtn.textContent = '사진 업로드 중...';
-            const res = await fetch(pendingPhotoBase64);
-            const blob = await res.blob();
-            const file = new File([blob], `${name}_profile.jpg`, { type: 'image/jpeg' });
-            photoUrl = await uploadImage(file, 'instructors');
+            // fetch(dataUrl) 대신 직접 base64 디코딩하여 File 객체 생성 (일부 브라우저 멈춤 현상 방지)
+            const arr = pendingPhotoBase64.split(',');
+            const mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length;
+            const u8arr = new Uint8Array(n);
+            while(n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            const blob = new Blob([u8arr], { type: mime });
+            blob.name = `${name}_profile.jpg`; // 명시적으로 name 속성 할당
+            
+            photoUrl = await uploadImage(blob, 'instructors');
             // 업로드 성공 → base64 제거 (Firestore 용량 절약)
         } catch (uploadErr) {
             console.error('사진 Storage 업로드 실패, base64로 폴백합니다:', uploadErr);

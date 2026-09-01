@@ -186,26 +186,33 @@ export async function updateSchool(docId, data) {
  */
 export async function bulkUpdateSchools(newSchools, updateSchools) {
     try {
-        // writeBatch는 한 번에 500개까지만 처리가 가능하므로 분할 처리해야 합니다.
-        // 현재는 심플한 구현을 위해 순차적으로 처리하되 Promise.all로 병렬 요청을 보냅니다.
-        // 완벽한 트랜잭션을 원한다면 청크(chunk) 단위로 batch 처리를 할 수 있습니다.
         const promises = [];
         const schoolsRef = collection(db, "schools");
 
         newSchools.forEach(school => {
-            promises.push(addDoc(schoolsRef, {
-                ...school,
-                createdAt: new Date().toISOString()
-            }));
+            const targetId = school.id || school.schoolCode;
+            if (targetId) {
+                const docRef = doc(db, "schools", targetId);
+                promises.push(setDoc(docRef, {
+                    ...school,
+                    createdAt: new Date().toISOString()
+                }, { merge: true }));
+            } else {
+                promises.push(addDoc(schoolsRef, {
+                    ...school,
+                    createdAt: new Date().toISOString()
+                }));
+            }
         });
 
         updateSchools.forEach(school => {
             const { docId, ...dataToUpdate } = school;
-            const schoolRef = doc(db, "schools", docId);
-            promises.push(updateDoc(schoolRef, {
+            const targetId = docId || school.id || school.schoolCode;
+            const schoolRef = doc(db, "schools", targetId);
+            promises.push(setDoc(schoolRef, {
                 ...dataToUpdate,
                 updatedAt: new Date().toISOString()
-            }));
+            }, { merge: true }));
         });
 
         await Promise.all(promises);
