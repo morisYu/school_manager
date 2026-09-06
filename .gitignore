@@ -14,8 +14,8 @@ node_modules/
 dev_report/implementation_plan*.md
 dev_report/walkthrough*.md
 
-# AI 참고 데이터
-.agent/
+# AI 참고 데이터 (다른 PC와 공유하기 위해 Git 추적 허용)
+# .agent/
 
 # ==============================
 # 🔒 보안 민감 파일
