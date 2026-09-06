@@ -136,9 +136,13 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
             window.closeModal();
         }
 
-        // 성공 시 캐시 지우고 페이지 리로드
+        // 성공 시 캐시 지우고 캘린더 업데이트 (새로고침 방지)
         sessionStorage.removeItem('cached_historyData');
-        location.reload();
+        if (window.myCalendar) {
+            window.myCalendar.refetchEvents();
+        } else {
+            location.reload();
+        }
 
     } catch (e) {
         console.error('Logic Error:', e);
