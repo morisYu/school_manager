@@ -174,18 +174,68 @@ function renderProfileCard(name, profile) {
         document.getElementById('profile-birth').textContent = formatDate(profile.birthDate) || '-';
         document.getElementById('profile-hire').textContent  = formatDate(profile.hireDate)  || '-';
         const programsContainer = document.getElementById('profile-programs');
-        programsContainer.innerHTML = ''; // 기존 내용 초기화
-        const programsStr = profile.programs || '';
-        if (programsStr.trim()) {
-            const programs = programsStr.split(',').map(p => p.trim()).filter(p => p);
-            programs.forEach(p => {
+        programsContainer.innerHTML = ''; 
+        
+        const mainPrograms = new Set();
+        const subPrograms = new Set();
+        
+        if (typeof rawData !== 'undefined') {
+            rawData.forEach(r => {
+                const prog = r['프로그램명'];
+                if (!prog) return;
+                
+                if (r['주강사'] === name) {
+                    mainPrograms.add(prog);
+                }
+                const subs = r['보조강사들'] || [];
+                if (subs.includes(name)) {
+                    subPrograms.add(prog);
+                }
+            });
+        }
+
+        const manualProgramsStr = profile.programs || '';
+        const manualPrograms = manualProgramsStr.split(',').map(p => p.trim()).filter(p => p);
+        manualPrograms.forEach(p => {
+            if (!mainPrograms.has(p) && !subPrograms.has(p)) {
+                mainPrograms.add(p); // default to main
+            }
+        });
+
+        if (mainPrograms.size === 0 && subPrograms.size === 0) {
+            programsContainer.textContent = '-';
+        } else {
+            mainPrograms.forEach(p => {
                 const badge = document.createElement('span');
                 badge.className = 'program-badge';
-                badge.textContent = p;
+                badge.style.backgroundColor = '#eff6ff';
+                badge.style.color = '#1d4ed8';
+                badge.style.border = '1px solid #bfdbfe';
+                badge.style.padding = '2px 8px';
+                badge.style.borderRadius = '12px';
+                badge.style.fontSize = '0.8rem';
+                badge.style.fontWeight = '600';
+                badge.style.marginRight = '4px';
+                badge.style.display = 'inline-block';
+                badge.textContent = `[주] ${p}`;
                 programsContainer.appendChild(badge);
             });
-        } else {
-            programsContainer.textContent = '-';
+            subPrograms.forEach(p => {
+                if (mainPrograms.has(p)) return; // 주강사로 이미 있으면 보조강사 뱃지는 생략
+                const badge = document.createElement('span');
+                badge.className = 'program-badge';
+                badge.style.backgroundColor = '#ecfdf5';
+                badge.style.color = '#047857';
+                badge.style.border = '1px solid #a7f3d0';
+                badge.style.padding = '2px 8px';
+                badge.style.borderRadius = '12px';
+                badge.style.fontSize = '0.8rem';
+                badge.style.fontWeight = '600';
+                badge.style.marginRight = '4px';
+                badge.style.display = 'inline-block';
+                badge.textContent = `[보조] ${p}`;
+                programsContainer.appendChild(badge);
+            });
         }
         if (profile?.note) {
             document.getElementById('profile-note').textContent = profile.note;

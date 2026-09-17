@@ -3,11 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>강사 가용현황 — 출강 관리 시스템</title>
+    <title>출강 배정 보드 — 출강 관리 시스템</title>
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/availability.css">
 </head>
 <body style="display: none;">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
     <div id="main-content">
         <div id="nav-overlay" class="nav-overlay"></div>
 
@@ -24,93 +30,772 @@
                     <button class="nav-btn btn-school" onclick="location.href='school-manage.html'">🏫 학교 관리</button>
                     <button class="nav-btn btn-program" onclick="location.href='program-manage.html'">📦 프로그램 관리</button>
                     <button class="nav-btn btn-manage" onclick="location.href='manage.html'">📊 강사 관리</button>
-                    <button class="nav-btn btn-availability" onclick="location.href='availability.html'">🕐 강사 가용현황</button>
+                    <button class="nav-btn btn-availability" onclick="location.href='availability.html'">🕐 출강 배정 보드</button>
                     <button class="nav-btn btn-settlement" onclick="location.href='settlement.html'">💰 정산 관리</button>
                     <button class="nav-btn btn-logout" onclick="handleLogout()">로그아웃</button>
                 </div>
             </div>
         </div>
 
-        <div class="availability-container">
-            <div class="page-title-area">
-                <h1>🕐 전체 강사 수업 불가능 시간 통합 조회</h1>
-                <p class="page-subtitle">모든 강사의 요일별 수업 불가능 시간을 한눈에 확인하고, 수업 배정에 참고하세요.</p>
-            </div>
-
-            <div class="filter-section">
-                <div class="day-filters">
-                    <button class="day-filter-btn" data-day="monday">월</button>
-                    <button class="day-filter-btn" data-day="tuesday">화</button>
-                    <button class="day-filter-btn" data-day="wednesday">수</button>
-                    <button class="day-filter-btn" data-day="thursday">목</button>
-                    <button class="day-filter-btn" data-day="friday">금</button>
-                    <button class="day-filter-btn" data-day="saturday">토</button>
-                    <button class="day-filter-btn" data-day="sunday">일</button>
-                </div>
-                <div class="time-filter">
-                    <label>시간대 필터</label>
-                    <input type="text" class="time-filter-input" id="filter-start" placeholder="09:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric">
-                    <span>~</span>
-                    <input type="text" class="time-filter-input" id="filter-end" placeholder="18:00" maxlength="5" oninput="autoColon(this)" inputmode="numeric">
-                </div>
-                <div class="search-filter">
-                    <input type="text" id="search-instructor" placeholder="강사명 검색...">
-                </div>
-                <div class="affiliation-filter">
-                    <label>소속</label>
-                    <select id="filter-affiliation">
-                        <option value="">전체 소속</option>
-                    </select>
-                </div>
-                <div class="filter-actions">
-                    <button class="btn-filter-apply">필터 적용</button>
-                    <button class="btn-filter-reset">초기화</button>
-                </div>
-            </div>
-
-            <div class="stats-bar">
-                <span class="stat-pill" id="stat-total">전체 0명</span>
-                <span class="stat-pill stat-available" id="stat-available">제한없음 0명</span>
-                <span class="stat-pill stat-unavailable" id="stat-unavailable">제한있음 0명</span>
-            </div>
-
-            <div class="table-container">
-                <div class="loading-spinner" id="loading-spinner">
-                    <div class="spinner"></div>
-                </div>
-                <table class="availability-table" id="availability-table">
-                    <thead>
-                        <tr>
-                            <th>강사명</th>
-                            <th>월요일</th>
-                            <th>화요일</th>
-                            <th>수요일</th>
-                            <th>목요일</th>
-                            <th>금요일</th>
-                            <th>토요일</th>
-                            <th>일요일</th>
-                        </tr>
-                    </thead>
-                    <tbody id="availability-table-body">
-                    </tbody>
-                </table>
-                <div class="empty-state" id="empty-state" style="display: none;">등록된 강사가 없습니다.</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="detail-popup-overlay" id="detail-popup" style="display: none;">
-        <div class="detail-popup-card">
-            <button class="detail-popup-close" id="detail-popup-close">✕</button>
-            <h3 id="detail-popup-name">강사명</h3>
-            <div class="detail-popup-body" id="detail-popup-body">
-                <!-- JS fills this -->
-            </div>
-        </div>
+        <div id="root" style="height: calc(100vh - 64px); overflow: hidden;"></div>
     </div>
 
     <script src="../js/utils.js"></script>
-    <script type="module" src="../js/availability-handler.js"></script>
     <script type="module" src="../js/auth-check.js"></script>
+    <script type="module">
+        import { getAllSchedules, getAllInstructors, updateSchedule } from '../js/db_service.js';
+        window.dbApi = { getAllSchedules, getAllInstructors, updateSchedule };
+    </script>
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        const mapInstructors = (dbInstructors, dbSchedules) => {
+            const getProgramsFromHistory = (instName) => {
+                const mainSet = new Set();
+                const subSet = new Set();
+                if (dbSchedules) {
+                    dbSchedules.forEach(r => {
+                        const isMain = r.mainInstructor === instName;
+                        let isSub = false;
+                        if (r.subInstructors && r.subInstructors.includes(instName)) isSub = true;
+                        if (r.subInstructor === instName) isSub = true;
+                        
+                        if (r.programName) {
+                            if (isMain) mainSet.add(r.programName);
+                            if (isSub) subSet.add(r.programName);
+                        }
+                    });
+                }
+                return { main: Array.from(mainSet), sub: Array.from(subSet) };
+            };
+
+            const formatAvailability = (availability) => {
+                if (!availability) return '';
+                const dayLabels = {
+                    monday: '월', tuesday: '화', wednesday: '수', thursday: '목',
+                    friday: '금', saturday: '토', sunday: '일'
+                };
+                const parts = [];
+                for (const [key, label] of Object.entries(dayLabels)) {
+                    const slots = availability[key];
+                    if (slots && slots.length > 0) {
+                        const slotStrings = slots.map(slot => {
+                            if (slot.start === '00:00' && slot.end === '23:59') return '전일';
+                            return `${slot.start}~${slot.end}`;
+                        });
+                        parts.push(`${label}(${slotStrings.join(', ')})`);
+                    }
+                }
+                return parts.join(', ');
+            };
+
+            return dbInstructors.map(inst => {
+                const timesStr = formatAvailability(inst.availability);
+                const manualProgs = inst.programs ? inst.programs.split(',').map(s=>s.trim()).filter(Boolean) : [];
+                const history = getProgramsFromHistory(inst.name);
+                const combinedSubjects = [...new Set([...manualProgs, ...history.main, ...history.sub])];
+                
+                const subjectRoles = combinedSubjects.map(sub => {
+                    let role = 'manual';
+                    if (history.main.includes(sub)) role = 'main';
+                    else if (history.sub.includes(sub)) role = 'sub';
+                    return { name: sub, role };
+                });
+                
+                return {
+                    id: inst.name,
+                    name: inst.name,
+                    organization: inst.affiliation || '프리랜서',
+                    subjects: combinedSubjects,
+                    subjectRoles: subjectRoles,
+                    availableDays: [],
+                    unavailableTimes: timesStr || '없음',
+                    rawUnavailableTimes: timesStr // For programmatic overlap checking
+                };
+            });
+        };
+
+        const mapSchedules = (dbSchedules) => {
+            const grouped = {};
+            const days = ['일', '월', '화', '수', '목', '금', '토'];
+            
+            for (const doc of dbSchedules) {
+                if (!doc.date || typeof doc.date !== 'string') continue;
+                const key = `${doc.date}_${doc.startTime}_${doc.endTime}_${doc.schoolName}`;
+                if (!grouped[key]) {
+                    const dateObj = new Date(doc.date);
+                    const dayStr = days[dateObj.getDay()] || '';
+                    const parts = doc.date.split('-');
+                    const shortDate = parts.length === 3 ? `${parseInt(parts[1])}/${parseInt(parts[2])}` : doc.date;
+
+                    grouped[key] = {
+                        id: key,
+                        date: shortDate,
+                        fullDate: doc.date,
+                        day: dayStr,
+                        location: doc.schoolName,
+                        time: `${doc.startTime} ~ ${doc.endTime}`,
+                        subjects: [],
+                        selectedSubject: null,
+                        subjectDetails: {}
+                    };
+                }
+                
+                const baseSubj = doc.programName || '미지정';
+                let subj = baseSubj;
+                let counter = 2;
+                while (grouped[key].subjectDetails[subj]) {
+                    subj = `${baseSubj} #${counter}`;
+                    counter++;
+                }
+
+                grouped[key].subjects.push(subj);
+                
+                let subActive = false;
+                let subAssigned = null;
+                if (Array.isArray(doc.subInstructors) && doc.subInstructors.length > 0) {
+                    subActive = true;
+                    if (doc.subInstructors[0] && doc.subInstructors[0] !== '미정') subAssigned = doc.subInstructors[0];
+                } else if (doc.subInstructor && doc.subInstructor !== '미정') {
+                    subActive = true;
+                    subAssigned = doc.subInstructor;
+                } else if (doc.subInstructor === '미정') {
+                    subActive = true;
+                }
+
+                grouped[key].subjectDetails[subj] = {
+                    docId: doc.id,
+                    main: {
+                        status: doc.mainInstructor && doc.mainInstructor !== '미정' ? 'Confirmed' : ((doc.proposedMainInstructorId || doc.proposedInstructorId) ? 'Pending' : 'Open'),
+                        proposedInstructorId: doc.proposedMainInstructorId || doc.proposedInstructorId || null,
+                        assignedInstructorId: doc.mainInstructor && doc.mainInstructor !== '미정' ? doc.mainInstructor : null,
+                        rejectedInstructorIds: doc.rejectedMainInstructorIds || doc.rejectedInstructorIds || []
+                    },
+                    sub: {
+                        isActive: subActive,
+                        status: subAssigned ? 'Confirmed' : (doc.proposedSubInstructorId ? 'Pending' : 'Open'),
+                        proposedInstructorId: doc.proposedSubInstructorId || null,
+                        assignedInstructorId: subAssigned,
+                        rejectedInstructorIds: doc.rejectedSubInstructorIds || []
+                    }
+                };
+            }
+            
+            return Object.values(grouped).map(c => {
+                c.selectedSubject = c.subjects[0];
+                return c;
+            }).sort((a, b) => a.fullDate.localeCompare(b.fullDate));
+        };
+
+        function AssignmentDashboard() {
+            const [classes, setClasses] = useState([]);
+            const [instructors, setInstructors] = useState([]);
+            const [isLoading, setIsLoading] = useState(true);
+
+            React.useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        const [dbInstructors, dbSchedules] = await Promise.all([
+                            window.dbApi.getAllInstructors(),
+                            window.dbApi.getAllSchedules()
+                        ]);
+                        setInstructors(mapInstructors(dbInstructors, dbSchedules));
+                        setClasses(mapSchedules(dbSchedules));
+                    } catch (e) {
+                        console.error(e);
+                        alert('데이터를 불러오는데 실패했습니다.');
+                    } finally {
+                        setIsLoading(false);
+                    }
+                };
+                
+                const checkDbApi = setInterval(() => {
+                    if (window.dbApi) {
+                        clearInterval(checkDbApi);
+                        loadData();
+                    }
+                }, 50);
+            }, []);
+
+            const [selectedClassId, setSelectedClassId] = useState(null);
+            const [selectedInstructorId, setSelectedInstructorId] = useState(null);
+            const [cart, setCart] = useState([]);
+            
+            const [filterOrg, setFilterOrg] = useState('');
+            const [filterDay, setFilterDay] = useState('');
+            const [filterSubject, setFilterSubject] = useState('');
+
+            const [classStartDate, setClassStartDate] = useState('');
+            const [classEndDate, setClassEndDate] = useState('');
+
+            const visibleClasses = useMemo(() => {
+                return classes.filter((c) => {
+                    const hasOpenOrPending = Object.values(c.subjectDetails).some(d => {
+                        if (d.main.status === 'Open' || d.main.status === 'Pending') return true;
+                        if (d.sub.isActive && (d.sub.status === 'Open' || d.sub.status === 'Pending')) return true;
+                        return false;
+                    });
+                    if (!hasOpenOrPending) return false;
+
+                    if (!c.date || !c.date.includes('/')) return true;
+
+                    const currentYear = new Date().getFullYear();
+                    const [month, day] = c.date.split('/');
+                    const classDateStr = `${currentYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                    
+                    if (classStartDate && classDateStr < classStartDate) return false;
+                    if (classEndDate && classDateStr > classEndDate) return false;
+
+                    return true;
+                });
+            }, [classes, classStartDate, classEndDate]);
+
+            const canInstructorTeach = (cls, instructorId) => {
+                if (!instructorId) return true;
+                const inst = instructors.find((i) => i.id === instructorId);
+                if (!inst) return false;
+                
+                const canTeachSubject = inst.subjects.includes(cls.selectedSubject);
+                const noTimeConflict = !checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes);
+                
+                return canTeachSubject && noTimeConflict;
+            };
+
+            const visibleInstructors = useMemo(() => {
+                let list = instructors;
+                
+                if (filterOrg) list = list.filter(i => i.organization === filterOrg);
+                if (filterDay) list = list.filter(i => i.availableDays.includes(filterDay));
+                if (filterSubject) list = list.filter(i => i.subjects.includes(filterSubject));
+
+                return list;
+            }, [instructors, filterOrg, filterDay, filterSubject]);
+
+            const handleToggleCart = (classId, subject) => {
+                setCart((prev) => {
+                    const exists = prev.find((item) => item.classId === classId && item.subject === subject);
+                    if (exists) return prev.filter((item) => !(item.classId === classId && item.subject === subject));
+                    return [...prev, { classId, subject, role: '주강사' }];
+                });
+            };
+
+            const handleRoleChange = (classId, subject, role) => {
+                setCart((prev) => prev.map((item) => (item.classId === classId && item.subject === subject ? { ...item, role } : item)));
+            };
+            
+            const handleSubjectChange = (classId, subject) => {
+                setClasses((prev) => prev.map((c) => (c.id === classId ? { ...c, selectedSubject: subject } : c)));
+                
+                if (selectedClassId === classId) {
+                    const cls = classes.find((c) => c.id === classId);
+                    if (cls && cls.subjectDetails[subject]) {
+                        const detail = cls.subjectDetails[subject];
+                        if (detail.main.status === 'Confirmed' && detail.main.assignedInstructorId) {
+                            setSelectedInstructorId(detail.main.assignedInstructorId);
+                        } else if (detail.main.proposedInstructorId) {
+                            setSelectedInstructorId(detail.main.proposedInstructorId);
+                        } else if (detail.sub.isActive && detail.sub.status === 'Confirmed' && detail.sub.assignedInstructorId) {
+                            setSelectedInstructorId(detail.sub.assignedInstructorId);
+                        } else if (detail.sub.isActive && detail.sub.proposedInstructorId) {
+                            setSelectedInstructorId(detail.sub.proposedInstructorId);
+                        } else {
+                            setSelectedInstructorId(null);
+                        }
+                    }
+                }
+            };
+
+            const handleAcceptClass = async (classId, subject, roleKey, e) => {
+                e.stopPropagation();
+                
+                const cls = classes.find(c => c.id === classId);
+                const detail = cls.subjectDetails[subject];
+                const rData = detail[roleKey];
+                
+                try {
+                    const updateData = {};
+                    if (roleKey === 'main') {
+                        updateData.mainInstructor = rData.proposedInstructorId;
+                        updateData.proposedMainInstructorId = null;
+                    } else {
+                        updateData.subInstructor = rData.proposedInstructorId;
+                        updateData.subInstructors = [rData.proposedInstructorId];
+                        updateData.proposedSubInstructorId = null;
+                    }
+                    
+                    await window.dbApi.updateSchedule(detail.docId, updateData);
+                    
+                    setClasses((prev) => prev.map((c) => {
+                        if (c.id === classId) {
+                            return {
+                                ...c,
+                                subjectDetails: {
+                                    ...c.subjectDetails,
+                                    [subject]: { 
+                                        ...c.subjectDetails[subject], 
+                                        [roleKey]: {
+                                            ...c.subjectDetails[subject][roleKey],
+                                            status: 'Confirmed', 
+                                            assignedInstructorId: rData.proposedInstructorId
+                                        }
+                                    }
+                                }
+                            };
+                        }
+                        return c;
+                    }));
+                    setCart((prev) => prev.filter((item) => !(item.classId === classId && item.subject === subject && (item.role === '주강사' ? 'main' : 'sub') === roleKey)));
+                } catch (err) {
+                    console.error(err);
+                    alert('배정 확정 처리 중 오류가 발생했습니다.');
+                }
+            };
+
+            const handleRejectClass = async (classId, subject, roleKey, e) => {
+                e.stopPropagation();
+                
+                const cls = classes.find(c => c.id === classId);
+                const detail = cls.subjectDetails[subject];
+                const rData = detail[roleKey];
+                
+                const prevRejected = rData.rejectedInstructorIds || [];
+                const newlyRejected = rData.proposedInstructorId;
+                const newRejectedArray = newlyRejected && !prevRejected.includes(newlyRejected) ? [...prevRejected, newlyRejected] : prevRejected;
+                
+                try {
+                    const updateData = {};
+                    if (roleKey === 'main') {
+                        updateData.proposedMainInstructorId = null;
+                        updateData.rejectedMainInstructorIds = newRejectedArray;
+                    } else {
+                        updateData.proposedSubInstructorId = null;
+                        updateData.rejectedSubInstructorIds = newRejectedArray;
+                    }
+
+                    await window.dbApi.updateSchedule(detail.docId, updateData);
+                    
+                    setClasses((prev) => prev.map((c) => {
+                        if (c.id === classId) {
+                            return {
+                                ...c,
+                                subjectDetails: {
+                                    ...c.subjectDetails,
+                                    [subject]: { 
+                                        ...c.subjectDetails[subject],
+                                        [roleKey]: { 
+                                            ...rData, 
+                                            status: 'Open', 
+                                            proposedInstructorId: null,
+                                            rejectedInstructorIds: newRejectedArray
+                                        }
+                                    }
+                                }
+                            };
+                        }
+                        return c;
+                    }));
+                    setSelectedInstructorId(null);
+                } catch (err) {
+                    console.error(err);
+                    alert('거절 처리 중 오류가 발생했습니다.');
+                }
+            };
+
+            const generatedMessage = useMemo(() => {
+                if (cart.length === 0) return '';
+
+                const cartItemsWithDate = cart.map((item) => {
+                    const cls = classes.find((c) => c.id === item.classId);
+                    return { item, cls };
+                }).filter(x => x.cls);
+
+                cartItemsWithDate.sort((a, b) => {
+                    if (a.cls.fullDate < b.cls.fullDate) return -1;
+                    if (a.cls.fullDate > b.cls.fullDate) return 1;
+                    if (a.cls.time < b.cls.time) return -1;
+                    if (a.cls.time > b.cls.time) return 1;
+                    return 0;
+                });
+
+                const blocks = cartItemsWithDate.map(({ item, cls }) => {
+                    const cleanSubject = item.subject.replace(/ #\d+$/, '');
+                    return `${cls.date} (${cls.day}) ${cls.location}\n시간: ${cls.time}\n주제: ${cleanSubject}\n구분: ${item.role}`;
+                });
+
+                return `${blocks.join('\n\n')}\n\n위 일정들 가능하신지 확인 부탁드립니다.`;
+            }, [cart, classes]);
+
+            const checkTimeOverlap = (classDay, classTimeStr, unavailStr) => {
+                if (!unavailStr) return false;
+                
+                const timeToMinutes = (t) => {
+                    const [h, m] = t.split(':').map(Number);
+                    return h * 60 + (m || 0);
+                };
+
+                const cParts = classTimeStr.replace('-', '~').split('~').map(s => s.trim());
+                if (cParts.length !== 2) return false;
+                const cStart = timeToMinutes(cParts[0]);
+                const cEnd = timeToMinutes(cParts[1]);
+                
+                const chunks = unavailStr.split(',').map(s => s.trim());
+                for (const chunk of chunks) {
+                    const match = chunk.match(/([월화수목금토일])\((.+)\)/);
+                    if (!match) continue;
+                    
+                    const [_, uDay, uTime] = match;
+                    if (uDay !== classDay) continue;
+                    
+                    if (uTime === '전일') return true;
+                    
+                    const uParts = uTime.replace('-', '~').split('~').map(s => s.trim());
+                    if (uParts.length !== 2) continue;
+                    
+                    const uStart = timeToMinutes(uParts[0]);
+                    const uEnd = timeToMinutes(uParts[1]);
+                    
+                    if (cStart < uEnd && uStart < cEnd) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            const handleCopyAndPropose = async () => {
+                if (cart.length === 0) return alert('장바구니에 수업을 담아주세요.');
+                
+                const inst = instructors.find(i => i.id === selectedInstructorId);
+                if (!inst) return alert('문자를 발송할 대상을 2번 패널에서 선택해주세요.');
+                
+                let overlapDetails = [];
+                cart.forEach(item => {
+                    const cls = classes.find((c) => c.id === item.classId);
+                    if (cls && checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes)) {
+                        overlapDetails.push(`- ${cls.location} ${item.subject} (${cls.date} ${cls.day} ${cls.time})`);
+                    }
+                });
+
+                if (overlapDetails.length > 0) {
+                    const proceed = window.confirm(`⚠️ [일정 중복 경고]\n\n선택한 강사의 불가 일정과 겹치는 수업이 있습니다:\n${overlapDetails.join('\n')}\n\n그래도 제안을 진행하시겠습니까?`);
+                    if (!proceed) return;
+                }
+
+                try {
+                    await navigator.clipboard.writeText(generatedMessage);
+                    
+                    const updatePromises = cart.map(item => {
+                        const cls = classes.find(c => c.id === item.classId);
+                        const detail = cls.subjectDetails[item.subject];
+                        
+                        const updateData = {};
+                        if (item.role === '주강사') {
+                            updateData.proposedMainInstructorId = selectedInstructorId;
+                        } else {
+                            updateData.proposedSubInstructorId = selectedInstructorId;
+                        }
+                        return window.dbApi.updateSchedule(detail.docId, updateData);
+                    });
+                    
+                    await Promise.all(updatePromises);
+                    
+                    setClasses((prev) => prev.map((c) => {
+                        const hasCartItems = cart.some(item => item.classId === c.id);
+                        if (!hasCartItems) return c;
+                        
+                        const newSubjectDetails = { ...c.subjectDetails };
+                        cart.forEach(item => {
+                            if (item.classId === c.id) {
+                                const roleKey = item.role === '주강사' ? 'main' : 'sub';
+                                newSubjectDetails[item.subject] = {
+                                    ...newSubjectDetails[item.subject],
+                                    [roleKey]: {
+                                        ...newSubjectDetails[item.subject][roleKey],
+                                        status: 'Pending',
+                                        proposedInstructorId: selectedInstructorId
+                                    }
+                                };
+                            }
+                        });
+                        return { ...c, subjectDetails: newSubjectDetails };
+                    }));
+                    setCart([]);
+                    setSelectedInstructorId(null);
+                    setSelectedClassId(null);
+                    alert('문자가 클립보드에 복사되었으며, 해당 수업들의 상태가 [제안중]으로 변경되었습니다.');
+                } catch (err) {
+                    console.error(err);
+                    alert('제안 처리 중 오류가 발생했습니다.');
+                }
+            };
+
+            // Using pure lucide feather icons rendering via SVG directly or simply text emojis for simplicity in Babel
+            if (isLoading) {
+                return <div className="flex h-full items-center justify-center text-slate-500 font-bold text-lg bg-slate-100">DB 데이터를 불러오는 중입니다...</div>;
+            }
+
+            return (
+                <div className="flex h-full bg-slate-100 p-6 gap-6 font-sans overflow-hidden text-left">
+                    <div className="flex flex-col w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 flex flex-col bg-slate-50 gap-3">
+                            <div className="flex justify-between items-center">
+                                <h2 className="font-bold text-lg text-slate-800">1. 배정 대기 수업</h2>
+                                <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">{visibleClasses.length}건</span>
+                            </div>
+                            <div className="flex gap-2 items-center">
+                                <input type="date" className="text-xs border border-slate-300 rounded p-1.5 flex-1 outline-none text-slate-700 bg-white" value={classStartDate} onChange={e => setClassStartDate(e.target.value)} />
+                                <span className="text-slate-400 text-xs font-bold">~</span>
+                                <input type="date" className="text-xs border border-slate-300 rounded p-1.5 flex-1 outline-none text-slate-700 bg-white" value={classEndDate} onChange={e => setClassEndDate(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {visibleClasses.length === 0 && <div className="text-center text-slate-400 py-10">대기 중인 수업이 없습니다.</div>}
+                            {visibleClasses.map((cls) => {
+                                const isSelected = selectedClassId === cls.id;
+                                const currentDetail = cls.subjectDetails[cls.selectedSubject];
+                                const isCarted = cart.some((item) => item.classId === cls.id && item.subject === cls.selectedSubject);
+                                const isMatch = canInstructorTeach(cls, selectedInstructorId);
+                                const isPending = currentDetail.status === 'Pending';
+                                const isConfirmed = currentDetail.status === 'Confirmed';
+                                const rejectedIds = currentDetail.rejectedInstructorIds || [];
+                                return (
+                                    <div key={cls.id} onClick={() => {
+                                            if (isSelected) {
+                                                setSelectedClassId(null);
+                                            } else {
+                                                setSelectedClassId(cls.id);
+                                                if (currentDetail.status === 'Confirmed' && currentDetail.assignedInstructorId) {
+                                                    setSelectedInstructorId(currentDetail.assignedInstructorId);
+                                                } else if (currentDetail.proposedInstructorId) {
+                                                    setSelectedInstructorId(currentDetail.proposedInstructorId);
+                                                } else {
+                                                    setSelectedInstructorId(null);
+                                                }
+                                            }
+                                         }}
+                                         className={`relative p-4 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden ${isSelected ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500 bg-indigo-50/50' : 'border-indigo-100/50 bg-gradient-to-br from-indigo-50/40 to-blue-50/20 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-0.5'} ${!isMatch && selectedInstructorId ? 'opacity-40 grayscale' : 'opacity-100'}`}>
+                                        
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-indigo-500' : 'bg-indigo-200/60'}`}></div>
+                                        
+                                        <div className="flex items-start gap-3 pl-1">
+                                            <input type="checkbox" disabled={isConfirmed} checked={isCarted} onChange={() => handleToggleCart(cls.id, cls.selectedSubject)} onClick={(e) => e.stopPropagation()} className="mt-1 w-4 h-4 cursor-pointer accent-indigo-600 disabled:opacity-50" />
+                                            <div className="flex-1 space-y-1.5">
+                                                <div className="flex justify-between items-start">
+                                                    <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">📍 {cls.location}</h3>
+                                                </div>
+                                                <div className="text-sm text-slate-600 flex items-center gap-4">
+                                                    <span>📅 {cls.date} ({cls.day})</span>
+                                                    <span>⏰ {cls.time}</span>
+                                                </div>
+                                            {cls.subjects.length > 0 && (
+                                                <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-100/60 pt-2.5">
+                                                    {cls.subjects.map(subject => {
+                                                        const isSel = cls.selectedSubject === subject;
+                                                        const detail = cls.subjectDetails[subject];
+                                                        const mainStat = detail.main.status;
+                                                        const subStat = detail.sub.isActive ? detail.sub.status : 'Confirmed';
+                                                        
+                                                        let subjStatus = 'Open';
+                                                        if (mainStat === 'Confirmed' && subStat === 'Confirmed') subjStatus = 'Confirmed';
+                                                        else if (mainStat === 'Pending' || subStat === 'Pending') subjStatus = 'Pending';
+
+                                                        let btnClass = "text-[11px] px-2 py-1 rounded-md font-bold transition-all ";
+                                                        
+                                                        if (subjStatus === 'Confirmed') {
+                                                            btnClass += isSel ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-200" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200";
+                                                        } else if (subjStatus === 'Pending') {
+                                                            btnClass += isSel ? "bg-amber-500 text-white shadow-md ring-2 ring-amber-200" : "bg-amber-100 text-amber-700 hover:bg-amber-200";
+                                                        } else {
+                                                            btnClass += isSel ? "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-200" : "bg-slate-100 text-slate-600 hover:bg-slate-200";
+                                                        }
+
+                                                        return (
+                                                            <button
+                                                                key={subject}
+                                                                onClick={(e) => { e.stopPropagation(); handleSubjectChange(cls.id, subject); }}
+                                                                className={btnClass}
+                                                            >
+                                                                {subject}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            {(() => {
+                                                const currentDetail = cls.subjectDetails[cls.selectedSubject];
+                                                return (
+                                                    <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
+                                                        {['main', 'sub'].map(roleKey => {
+                                                            const rData = currentDetail[roleKey];
+                                                            if (roleKey === 'sub' && !rData.isActive) return null;
+                                                            
+                                                            const isPending = rData.status === 'Pending';
+                                                            const isConfirmed = rData.status === 'Confirmed';
+                                                            const roleLabel = roleKey === 'main' ? '주강사' : '보조강사';
+                                                            const rejectedIds = rData.rejectedInstructorIds || [];
+
+                                                            return (
+                                                                <div key={roleKey} className={`p-2 rounded border ${isPending ? 'bg-amber-50 border-amber-200' : isConfirmed ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                                                                    <div className="flex justify-between items-center mb-1">
+                                                                        <span className="font-bold text-xs text-slate-700">{roleLabel}</span>
+                                                                        <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${isPending ? 'bg-amber-200 text-amber-800' : isConfirmed ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                                                                            {isPending ? `제안중 (${instructors.find(i=>i.id===rData.proposedInstructorId)?.name || ''})` : isConfirmed ? `배정완료 (${instructors.find(i=>i.id===rData.assignedInstructorId)?.name || ''})` : '모집중'}
+                                                                        </span>
+                                                                    </div>
+                                                                    
+                                                                    {rejectedIds.length > 0 && (
+                                                                        <div className="text-[10px] text-rose-500 flex items-start gap-1 mb-1">
+                                                                            <span className="font-bold">거절이력:</span>
+                                                                            <span>{rejectedIds.map(id => instructors.find(i => i.id === id)?.name).join(', ')}</span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {isPending && (
+                                                                        <div className="flex gap-1 mt-1.5">
+                                                                            <button onClick={(e) => {
+                                                                                if (!selectedInstructorId) {
+                                                                                    e.stopPropagation();
+                                                                                    alert('배정을 확정할 강사를 2번 패널에서 먼저 선택해주세요.');
+                                                                                    return;
+                                                                                }
+                                                                                handleAcceptClass(cls.id, cls.selectedSubject, roleKey, e);
+                                                                            }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1 rounded text-[11px] font-medium transition-colors">수락 (확정)</button>
+                                                                            <button onClick={(e) => handleRejectClass(cls.id, cls.selectedSubject, roleKey, e)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 rounded text-[11px] font-medium transition-colors">거절</button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })()}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="flex flex-col w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 flex flex-col bg-slate-50 gap-3">
+                            <div className="flex justify-between items-center">
+                                <h2 className="font-bold text-lg text-slate-800">2. 강사 리스트</h2>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                                <select className="text-xs border border-slate-300 rounded p-1.5 outline-none bg-white text-slate-700" value={filterOrg} onChange={e => setFilterOrg(e.target.value)}>
+                                    <option value="">소속 전체</option>
+                                    {[...new Set(instructors.map(i => i.organization))].map(org => <option key={org} value={org}>{org}</option>)}
+                                </select>
+                                <select className="text-xs border border-slate-300 rounded p-1.5 outline-none bg-white text-slate-700" value={filterDay} onChange={e => setFilterDay(e.target.value)}>
+                                    <option value="">요일 전체</option>
+                                    {['월','화','수','목','금','토','일'].map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                                <select className="text-xs border border-slate-300 rounded p-1.5 outline-none bg-white text-slate-700" value={filterSubject} onChange={e => setFilterSubject(e.target.value)}>
+                                    <option value="">주제 전체</option>
+                                    {[...new Set(instructors.flatMap(i => i.subjects))].map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {visibleInstructors.length === 0 && <div className="text-center text-slate-400 py-10">조건에 맞는 강사가 없습니다.</div>}
+                            {visibleInstructors.map((inst) => {
+                                const isSelected = selectedInstructorId === inst.id;
+                                const selectedCls = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
+                                const isUnavailable = selectedCls ? checkTimeOverlap(selectedCls.day, selectedCls.time, inst.rawUnavailableTimes) : false;
+
+                                return (
+                                    <div 
+                                        key={inst.id} 
+                                        onClick={() => setSelectedInstructorId(isSelected ? null : inst.id)}
+                                        className={`relative p-4 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden flex justify-between items-start ${isSelected ? 'border-teal-500 shadow-md ring-1 ring-teal-500 bg-teal-50/50' : 'border-teal-100/50 bg-gradient-to-br from-teal-50/40 to-emerald-50/20 shadow-sm hover:shadow-md hover:border-teal-300 hover:-translate-y-0.5'} ${isUnavailable ? 'opacity-40 grayscale hover:opacity-80' : 'opacity-100'}`}
+                                    >
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-teal-500' : 'bg-teal-200/60'}`}></div>
+
+                                        <div className="flex-1 space-y-2 pl-1">
+                                            {/* 1행: 이름, 소속 */}
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-bold text-slate-800 text-lg">{inst.name}</span>
+                                                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">{inst.organization}</span>
+                                            </div>
+                                            
+                                            {/* 2행: 불가 일정 */}
+                                            <p className="text-xs text-slate-500">
+                                                불가 일정: <span className={inst.unavailableTimes === '없음' ? "text-slate-400 font-medium" : "text-rose-600 font-medium"}>{inst.unavailableTimes}</span>
+                                            </p>
+
+                                            {/* 3행: 프로그램 뱃지 */}
+                                            <div className="flex gap-1.5 flex-wrap pt-1">
+                                                {inst.subjectRoles && inst.subjectRoles.map(sub => {
+                                                    let badgeClass = "text-[11px] px-1.5 py-0.5 rounded border shadow-sm ";
+                                                    if (sub.role === 'main') {
+                                                        badgeClass += "bg-blue-50 text-blue-700 border-blue-200";
+                                                    } else if (sub.role === 'sub') {
+                                                        badgeClass += "bg-emerald-50 text-emerald-700 border-emerald-200";
+                                                    } else {
+                                                        badgeClass += "bg-slate-50 text-slate-600 border-slate-200";
+                                                    }
+                                                    return (
+                                                        <span key={sub.name} className={badgeClass}>
+                                                            {sub.name}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="flex flex-col w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div className="p-5 border-b border-slate-100 bg-slate-50">
+                            <h2 className="font-bold text-lg text-slate-800">3. 제안 장바구니 & 문자 폼</h2>
+                        </div>
+                        <div className="flex-1 flex flex-col p-5 gap-4 overflow-hidden">
+                            <div className="max-h-[40%] overflow-y-auto space-y-2 pr-2">
+                                {cart.length === 0 ? (
+                                    <div className="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">1번 패널에서 제안할 수업을 체크해주세요.</div>
+                                ) : (
+                                    cart.map((item) => {
+                                        const cls = classes.find((c) => c.id === item.classId);
+                                        if (!cls) return null;
+                                        return (
+                                            <div key={`${item.classId}-${item.subject}`} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex justify-between items-center gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-slate-800 truncate">{cls.date} ({cls.day}) {cls.location}</p>
+                                                    <p className="text-xs text-slate-500 truncate">{cls.time} | {item.subject}</p>
+                                                </div>
+                                                <select className="text-sm border-slate-300 rounded bg-white text-slate-700 py-1 pl-2 pr-2 outline-none" value={item.role} onChange={(e) => handleRoleChange(item.classId, item.subject, e.target.value)}>
+                                                    <option value="주강사">주강사</option>
+                                                    <option value="보조강사">보조강사</option>
+                                                </select>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                            <div className="flex-1 flex flex-col gap-2">
+                                <label className="text-sm font-bold text-slate-700 flex justify-between items-end">
+                                    <span>생성된 문자 텍스트</span>
+                                </label>
+                                <textarea readOnly value={generatedMessage} className="flex-1 w-full p-4 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 text-sm leading-relaxed resize-none focus:outline-none" placeholder="여기에 문자가 자동 완성됩니다." />
+                            </div>
+                            <div className="flex flex-col mt-2">
+                                {!selectedInstructorId && cart.length > 0 && (
+                                    <p className="text-xs text-rose-500 text-center mb-2 font-medium">제안 문자를 복사하려면 2번 패널에서 대상 강사를 선택해주세요.</p>
+                                )}
+                                <button onClick={handleCopyAndPropose} disabled={cart.length === 0 || !selectedInstructorId} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 shadow-sm">
+                                    문자 텍스트 복사 및 제안중으로 변경
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AssignmentDashboard />);
+    </script>
 </body>
 </html>
