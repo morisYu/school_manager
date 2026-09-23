@@ -5,7 +5,8 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/f
 // onAuthStateChanged는 auth_handler.js에서 통합 관리하고, 
 // 여기서는 초기화 함수만 전역으로 노출하여 화면이 준비되었을 때 호출하도록 변경합니다.
 // 공휴일 관련 전역 상태
-window.isUnassignedFilterActive = false;
+window.isInstructorFilterActive = false;
+window.instructorFilterName = '';
 window.allHolidayDates = [];
 window.holidayEventsMap = {};
 
@@ -58,31 +59,6 @@ async function fetchHolidays(year) {
     }
 }
 
-// 동적 CSS 필터 스타일 업데이트 함수
-function updateFilterStyle(filterName) {
-    let styleEl = document.getElementById('fc-filter-dynamic-style');
-    if (!styleEl) {
-        styleEl = document.createElement('style');
-        styleEl.id = 'fc-filter-dynamic-style';
-        document.head.appendChild(styleEl);
-    }
-    
-    if (filterName === null) {
-        styleEl.innerHTML = '';
-        return;
-    }
-    
-    const target = filterName.trim() === '' ? '미정' : filterName.trim();
-    
-    styleEl.innerHTML = `
-        .fc-show-unassigned .event-wrapper[data-teachers*="${target}"],
-        .fc-show-unassigned .event-list-item[data-teachers*="${target}"] {
-            --event-bg: #fff0f0 !important;
-            --event-color: #e74c3c !important;
-            border: 1px solid #ffcfcf !important;
-        }
-    `;
-}
 
 // onAuthStateChanged 리스너가 상단(5라인)에 이미 존재하므로 중복 방지를 위해 여기서는 제거합니다.
 
@@ -143,21 +119,30 @@ window.initCalendar = async function() {
                     const input = document.getElementById('instructor-search-input');
                     const searchName = input ? input.value.trim() : '';
                     
-                    if (calendarEl.classList.contains('fc-show-unassigned') && window.instructorFilterName === searchName) {
-                        // 검색어가 같을 때 클릭하면 필터 해제
-                        calendarEl.classList.remove('fc-show-unassigned');
+                    if (calendarEl.classList.contains('fc-show-filtered') && window.instructorFilterName === searchName) {
+                        // 같은 검색어로 클릭 → 필터 해제
+                        calendarEl.classList.remove('fc-show-filtered');
                         btn.classList.remove('fc-button-active');
                         btn.innerText = '강사 검색';
                         if (input) input.value = '';
                         window.instructorFilterName = '';
-                        updateFilterStyle(null);
+                        window.isInstructorFilterActive = false;
+                        // CSS 클래스 제거만으로 시각적 리셋 완료 (refetch 불필요)
                     } else {
-                        // 필터 적용 (빈칸이면 '미정' 검색)
+                        // 빈칸 검색 차단
+                        if (!searchName) {
+                            alert('강사명을 입력해주세요.');
+                            if (input) input.focus();
+                            return;
+                        }
+                        // 필터 적용
                         window.instructorFilterName = searchName;
-                        calendarEl.classList.add('fc-show-unassigned');
+                        window.isInstructorFilterActive = true;
+                        calendarEl.classList.add('fc-show-filtered');
                         btn.classList.add('fc-button-active');
                         btn.innerText = '필터 해제';
-                        updateFilterStyle(searchName);
+                        // 이벤트 재렌더링으로 data-match 속성 및 하이라이트 적용
+                        window.myCalendar.refetchEvents();
                     }
                 }
             }
@@ -304,6 +289,27 @@ window.initCalendar = async function() {
 
             const teachersData = [mainTeacher, ...subTeachers].join(',');
 
+            // ── 미정 판정 (상시 표시) ──
+            const rawMainTeacher = (p['주강사'] || '').trim();
+            const isMainUnassigned = !rawMainTeacher || rawMainTeacher === '미정';
+            const isSubUnassigned = subTeachers.some(t => !t.trim() || t.trim() === '미정');
+            const isUnassigned = isMainUnassigned || isSubUnassigned;
+            const unassignedAttr = isUnassigned ? ' data-unassigned="true"' : '';
+            const unassignedBadge = isUnassigned ? '<span class="unassigned-badge">미정</span>' : '';
+
+            // ── 강사 검색 필터 매칭 판정 ──
+            const isFilterActive = !!window.isInstructorFilterActive;
+            const filterName = window.instructorFilterName || '';
+            const isMatch = isFilterActive && filterName && teachersData.includes(filterName);
+            const matchAttr = isMatch ? ' data-match="true"' : '';
+
+            // 매칭 시 강사명 하이라이트 처리
+            let displayTeacherText = teacherText;
+            if (isMatch && filterName) {
+                const escaped = filterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                displayTeacherText = teacherText.replace(new RegExp(escaped, 'g'), `<span class="highlight-teacher">${filterName}</span>`);
+            }
+
             if (arg.view.type === 'listWeek') {
                 const grade = p['학년'] || '';
                 const count = p['대상인원'] || '';
@@ -319,12 +325,12 @@ window.initCalendar = async function() {
 
                 return {
                     html: `
-                    <div class="event-list-item" data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
+                    <div class="event-list-item"${unassignedAttr}${matchAttr} data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
                         <div class="list-col col-time" title="${timeDisplay}(${durationValue})">${timeDisplay}</div>
                         <div class="list-col col-inst" title="${institution}">${institution}</div>
                         <div class="list-col col-prog" title="${program}">${program}</div>
                         <div class="list-col col-target" title="${targetText}">${targetText}</div>
-                        <div class="list-col col-teacher" title="${teacherText}">${teacherText}</div>
+                        <div class="list-col col-teacher" title="${teacherText}">${isUnassigned ? unassignedBadge : displayTeacherText}</div>
                         <div class="list-col col-tool" title="${toolText}">${toolText}</div>
                         <div class="list-col col-note" title="${note}">${note}</div>
                     </div>`
@@ -333,13 +339,14 @@ window.initCalendar = async function() {
 
             return {
                 html: `
-                <div class="event-wrapper" data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
+                <div class="event-wrapper"${unassignedAttr}${matchAttr} data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
                     <div class="event-line1">
                         <span class="event-time"><strong>${startTime}(${durationValue})</strong> |</span>
+                        ${unassignedBadge}
                         <span class="event-institution">${institution}</span>
                     </div>
                     <div class="event-line2">
-                        ${program}, ${teacherText}, ${toolText}
+                        ${program}, ${displayTeacherText}, ${toolText}
                     </div>
                 </div>`
             };
@@ -366,7 +373,7 @@ window.initCalendar = async function() {
                     const input = document.createElement('input');
                     input.type = 'text';
                     input.id = 'instructor-search-input';
-                    input.placeholder = '강사명(빈칸:미정)';
+                    input.placeholder = '강사명 입력';
                     input.className = 'instructor-search-input';
                     
                     // Enter 키 입력 시 검색 실행
@@ -383,7 +390,7 @@ window.initCalendar = async function() {
                 // 필터 활성화 상태라면 버튼 텍스트와 스타일을 복원
                 // (FullCalendar 재렌더링으로 인해 리셋될 수 있으므로 항상 동기화)
                 const calendarEl = document.getElementById('calendar');
-                const isFilterActive = calendarEl && calendarEl.classList.contains('fc-show-unassigned');
+                const isFilterActive = calendarEl && calendarEl.classList.contains('fc-show-filtered');
                 if (isFilterActive) {
                     filterBtn.innerText = '필터 해제';
                     filterBtn.classList.add('fc-button-active');
