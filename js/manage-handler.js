@@ -92,6 +92,7 @@ async function loadInstructorList() {
         select.innerHTML = '<option value="">로드 실패</option>';
     }
 }
+window.loadInstructorList = loadInstructorList;
 
 // ─── 강사 선택 시 프로필 카드 표시 ────────────────────────────────────────────
 
