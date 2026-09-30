@@ -182,6 +182,9 @@ window.loadSettlementReport = function() {
 
         const profile = instructorsMap[name] || {};
         const affiliation = profile.affiliation || '-';
+        const empTypeLabel = profile.employmentType === 'part-time' ? '알바' : '강사';
+        const displayAffiliation = affiliation !== '-' ? `${affiliation}(${empTypeLabel})` : `(${empTypeLabel})`;
+        
         const birth6 = getBirth6Digits(profile.birthDate);
         const bankName = profile.bankName || '-';
         const accountNum = profile.accountNumber || '-';
@@ -194,7 +197,7 @@ window.loadSettlementReport = function() {
                         <strong>${name}</strong>
                     </div>
                 </td>
-                <td class="table-center">${affiliation}</td>
+                <td class="table-center">${displayAffiliation}</td>
                 <td class="table-center">${birth6}</td>
                 <td class="table-center">${bankName}</td>
                 <td class="table-center">${accountNum}</td>
