@@ -1,4 +1,4 @@
-import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile, getAllInstructors, getPrograms } from './db_service.js';
+import { addSchedule, getSchools, checkInstructorAvailability, getInstructorProfile, getAllInstructors, getPrograms, normalizeProgramName } from './db_service.js';
 import { auth } from './firebase_config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -65,7 +65,7 @@ document.getElementById('lectureForm').addEventListener('submit', async function
             date: document.getElementById('date').value,
             startTime: document.getElementById('startTime').value,
             endTime: document.getElementById('endTime').value,
-            programName: document.getElementById('program').value,
+            programName: normalizeProgramName(document.getElementById('program').value),
             schoolName: document.getElementById('institution').value,
             grade: document.getElementById('grade').value,
             targetCount: Number(document.getElementById('students').value) || 0,

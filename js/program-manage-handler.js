@@ -8,6 +8,11 @@ import {
     updateSchedule
 } from './db_service.js';
 import { uploadImage, deleteImage } from './storage-service.js';
+import {
+    normalizeProgramName,
+    auditProgramNameSpaces,
+    executeNormalizeProgramNames
+} from './db_service.js';
 import { printProgramAsPDF } from './program-pdf.js';
 
 // DOM Elements
@@ -479,7 +484,9 @@ window.removeMaterial = function(index) {
 
 // 프로그램 저장 처리
 async function handleSaveProgram() {
-    const name = formName.value.trim();
+    const rawName = formName.value.trim();
+    const name = normalizeProgramName(rawName);
+    formName.value = name;
     if (!name) {
         alert("프로그램명을 입력해주세요.");
         return;
@@ -963,5 +970,244 @@ async function applyCleanseData() {
     } finally {
         btnApplyCleanse.textContent = "💾 일괄 수정 적용";
         btnApplyCleanse.disabled = false;
+    }
+}
+
+
+// =========================================================
+// 프로그램 명칭 공백 정제 (GALAXY탐사 (과학) -> GALAXY탐사(과학))
+// =========================================================
+const btnNormalizeSpaces = document.getElementById('btn-normalize-spaces');
+const normalizeModal = document.getElementById('normalize-modal');
+const normalizeModalBody = document.getElementById('normalize-modal-body');
+const btnCloseNormalizeModal = document.getElementById('btn-close-normalize-modal');
+const btnCancelNormalize = document.getElementById('btn-cancel-normalize');
+const btnExecuteNormalize = document.getElementById('btn-execute-normalize');
+const normalizeStatusMsg = document.getElementById('normalize-status-msg');
+
+let currentAuditResult = null;
+
+if (btnNormalizeSpaces) {
+    btnNormalizeSpaces.addEventListener('click', openNormalizeModal);
+}
+if (btnCloseNormalizeModal) {
+    btnCloseNormalizeModal.addEventListener('click', () => normalizeModal.style.display = 'none');
+}
+if (btnCancelNormalize) {
+    btnCancelNormalize.addEventListener('click', () => normalizeModal.style.display = 'none');
+}
+if (btnExecuteNormalize) {
+    btnExecuteNormalize.addEventListener('click', handleExecuteNormalize);
+}
+
+async function openNormalizeModal() {
+    normalizeModal.style.display = 'flex';
+    normalizeStatusMsg.textContent = '';
+    btnExecuteNormalize.disabled = true;
+    normalizeModalBody.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+            <div style="font-size: 2em; margin-bottom: 10px;">🔍</div>
+            <div>데이터베이스 전체에서 프로그램명 괄호 앞 공백을 검사 중입니다...</div>
+        </div>
+    `;
+
+    try {
+        currentAuditResult = await auditProgramNameSpaces();
+        renderNormalizeModalBody(currentAuditResult);
+    } catch (error) {
+        normalizeModalBody.innerHTML = `
+            <div style="text-align: center; color: #e74c3c; padding: 30px;">
+                검사 중 오류가 발생했습니다: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderNormalizeModalBody(result) {
+    if (!result || !result.hasChanges) {
+        btnExecuteNormalize.disabled = true;
+        normalizeModalBody.innerHTML = `
+            <div style="text-align: center; padding: 40px 20px;">
+                <div style="font-size: 3em; margin-bottom: 15px;">🎉</div>
+                <h3 style="color: #27ae60; margin: 0 0 10px 0; font-size: 1.3em;">모든 명칭이 표준 규격입니다</h3>
+                <p style="color: #7f8c8d; margin: 0; line-height: 1.6;">
+                    괄호 앞 공백(' <code> ( </code>')이 포함된 프로그램, 수업 일정, 강사 정보가 없습니다.<br>
+                    정제할 항목이 발견되지 않았습니다.
+                </p>
+            </div>
+        `;
+        return;
+    }
+
+    btnExecuteNormalize.disabled = false;
+
+    const duplicateCount = result.programs.filter(p => p.isDuplicate).length;
+
+    let html = `
+        <div style="margin-bottom: 18px; color: #34495e; font-size: 0.95em; line-height: 1.5;">
+            프로그램명에서 <strong>'(' 앞 공백</strong>(예: <code>GALAXY탐사 (과학)</code>)을 제거하여 <code>GALAXY탐사(과학)</code> 형태로 표준화합니다.
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+            <div style="flex: 1; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 0.85em; color: #718096; margin-bottom: 4px;">정제 대상 프로그램</div>
+                <div style="font-size: 1.3em; font-weight: bold; color: #2d3748;">
+                    ${result.programs.length}건
+                    ${duplicateCount > 0 ? `<span style="font-size: 0.7em; color: #dd6b20;">(${duplicateCount}건 병합)</span>` : ''}
+                </div>
+            </div>
+            <div style="flex: 1; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 0.85em; color: #718096; margin-bottom: 4px;">연관 수업 일정</div>
+                <div style="font-size: 1.3em; font-weight: bold; color: #2b6cb0;">${result.totalSchedulesCount}건</div>
+            </div>
+            <div style="flex: 1; background: #f8f9fa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center;">
+                <div style="font-size: 0.85em; color: #718096; margin-bottom: 4px;">강사 배정 과목</div>
+                <div style="font-size: 1.3em; font-weight: bold; color: #2f855a;">${result.instructors.length}명</div>
+            </div>
+        </div>
+    `;
+
+    // 1. 프로그램 목록 테이블
+    if (result.programs.length > 0) {
+        html += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: #2d3748; font-size: 1em;">📦 프로그램 목록 변경 내역 (${result.programs.length}건)</h4>
+                <div class="table-responsive" style="max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="history-table" style="margin: 0;">
+                        <thead>
+                            <tr style="background: #f7fafc;">
+                                <th>현재 명칭</th>
+                                <th>변경(표준) 명칭</th>
+                                <th style="width: 150px; text-align: center;">처리 방식</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.programs.map(p => `
+                                <tr>
+                                    <td style="color: #e53e3e; font-weight: 500;">"${p.oldName}"</td>
+                                    <td style="color: #3182ce; font-weight: bold;">"${p.newName}"</td>
+                                    <td style="text-align: center;">
+                                        ${p.isDuplicate 
+                                            ? '<span style="background: #feebc8; color: #c05621; padding: 2px 8px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">중복 병합 후 정리</span>' 
+                                            : '<span style="background: #e2e8f0; color: #4a5568; padding: 2px 8px; border-radius: 12px; font-size: 0.85em;">단순 명칭 수정</span>'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // 2. 수업 일정 테이블
+    if (result.schedules.length > 0) {
+        html += `
+            <div style="margin-bottom: 20px;">
+                <h4 style="margin: 0 0 8px 0; color: #2d3748; font-size: 1em;">📅 수업 일정 일괄 변경 내역 (총 ${result.totalSchedulesCount}건)</h4>
+                <div class="table-responsive" style="max-height: 160px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="history-table" style="margin: 0;">
+                        <thead>
+                            <tr style="background: #f7fafc;">
+                                <th>현재 등록된 명칭</th>
+                                <th>변경될 명칭</th>
+                                <th style="width: 90px; text-align: center;">일정 수</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.schedules.map(s => `
+                                <tr>
+                                    <td style="color: #e53e3e;">"${s.oldName}"</td>
+                                    <td style="color: #3182ce; font-weight: bold;">"${s.newName}"</td>
+                                    <td style="text-align: center; font-weight: bold;">${s.count}건</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // 3. 강사 프로필 테이블
+    if (result.instructors.length > 0) {
+        html += `
+            <div style="margin-bottom: 15px;">
+                <h4 style="margin: 0 0 8px 0; color: #2d3748; font-size: 1em;">👤 강사 프로필 배정 과목 변경 (${result.instructors.length}명)</h4>
+                <div class="table-responsive" style="max-height: 140px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                    <table class="history-table" style="margin: 0;">
+                        <thead>
+                            <tr style="background: #f7fafc;">
+                                <th style="width: 100px;">강사명</th>
+                                <th>변경 전</th>
+                                <th>변경 후</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${result.instructors.map(inst => `
+                                <tr>
+                                    <td style="font-weight: bold;">${inst.name}</td>
+                                    <td style="color: #718096; font-size: 0.9em;">${inst.oldPrograms}</td>
+                                    <td style="color: #2b6cb0; font-size: 0.9em; font-weight: 500;">${inst.newPrograms}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    html += `
+        <div style="background: #ebf8ff; border-left: 4px solid #3182ce; padding: 12px; border-radius: 4px; font-size: 0.88em; color: #2c5282;">
+            💡 <strong>[일괄 정제 실행]</strong>을 클릭하면 프로그램, 수업 일정, 강사 정보의 괄호 앞 공백이 일제히 제거되며, 이미 동일한 이름의 프로그램이 존재하는 경우 계획안 및 재료 데이터를 안전하게 병합한 뒤 정리합니다.
+        </div>
+    `;
+
+    normalizeModalBody.innerHTML = html;
+}
+
+async function handleExecuteNormalize() {
+    if (!currentAuditResult || !currentAuditResult.hasChanges) return;
+
+    const progLen = currentAuditResult.programs.length;
+    const schedLen = currentAuditResult.totalSchedulesCount;
+    const instLen = currentAuditResult.instructors.length;
+
+    const confirmMsg = `총 ${progLen}개의 프로그램, ${schedLen}개의 수업 일정, ${instLen}명의 강사 정보가 일괄 정제됩니다.\n\n정제를 진행하시겠습니까?`;
+    if (!confirm(confirmMsg)) return;
+
+    btnExecuteNormalize.disabled = true;
+    btnExecuteNormalize.textContent = "정제 실행 중...";
+    normalizeStatusMsg.textContent = "작업을 시작합니다...";
+
+    try {
+        const stats = await executeNormalizeProgramNames(currentAuditResult, (msg) => {
+            normalizeStatusMsg.textContent = msg;
+        });
+
+        alert(
+            `🎉 프로그램 명칭 공백 정제가 성공적으로 완료되었습니다!\n\n` +
+            `• 프로그램: ${stats.updatedProgramsCount}건 수정, ${stats.mergedProgramsCount}건 중복 병합\n` +
+            `• 수업 일정: ${stats.updatedSchedulesCount}건 표준화 완료\n` +
+            `• 강사 정보: ${stats.updatedInstructorsCount}명 표준화 완료`
+        );
+
+        normalizeModal.style.display = 'none';
+
+        // 프로그램 목록 새로고침
+        await loadPrograms();
+
+        // 현재 선택된 프로그램이 있었다면 내역도 갱신
+        if (currentSelectedId) {
+            selectProgram(currentSelectedId);
+        }
+
+    } catch (error) {
+        alert("일괄 정제 처리 중 오류가 발생했습니다: " + error.message);
+        normalizeStatusMsg.textContent = "오류 발생: " + error.message;
+    } finally {
+        btnExecuteNormalize.disabled = false;
+        btnExecuteNormalize.textContent = "💾 일괄 정제 실행";
     }
 }

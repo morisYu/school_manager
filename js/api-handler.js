@@ -1,4 +1,4 @@
-import { addSchedule, updateSchedule, deleteSchedule, duplicateSchedule, checkInstructorAvailability } from './db_service.js';
+import { addSchedule, updateSchedule, deleteSchedule, duplicateSchedule, checkInstructorAvailability, normalizeProgramName } from './db_service.js';
 
 // 1. HTML의 onclick="saveEvent()"와 연결 (module 스크립트에서도 동작하도록 window에 바인딩)
 window.saveEvent = function() {
@@ -37,7 +37,7 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
             startTime: getValue('edit-start'),
             endTime: getValue('edit-end'),
             region: getValue('edit-region'),
-            programName: getValue('edit-program'),
+            programName: normalizeProgramName(getValue('edit-program')),
             schoolName: getValue('edit-institution'),
             mainInstructor: getValue('edit-main').trim() || '미정',
             subInstructors: collectSubInstructors('edit-sub-list'),

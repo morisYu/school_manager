@@ -17,6 +17,31 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
 
 /**
+ * 프로그램명 괄호 앞 공백 제거 정규화 유틸리티
+ * 예: 'GALAXY탐사 (과학)' -> 'GALAXY탐사(과학)'
+ * @param {string} name 프로그램명
+ * @returns {string} 정제된 프로그램명
+ */
+export function normalizeProgramName(name) {
+    if (!name || typeof name !== 'string') return name;
+    return name.replace(/\s+\(/g, '(').trim();
+}
+
+/**
+ * 쉼표 구분 프로그램 목록 문자열 내 각 프로그램명 정규화 유틸리티
+ * @param {string} str 쉼표로 구분된 프로그램 목록 문자열
+ * @returns {string} 정제된 프로그램 목록 문자열
+ */
+export function normalizeProgramsListString(str) {
+    if (!str || typeof str !== 'string') return str;
+    return str
+        .split(',')
+        .map(s => normalizeProgramName(s))
+        .filter(Boolean)
+        .join(', ');
+}
+
+/**
  * =========================================================
  * [Instructors 컬렉션 관련 기능]
  * Schema: { name, birthDate, hireDate, programs, note, photoBase64 }
@@ -49,7 +74,11 @@ export async function getInstructorProfile(name) {
 export async function saveInstructorProfile(name, data) {
     try {
         const docRef = doc(db, "instructors", name);
-        await setDoc(docRef, { ...data, updatedAt: new Date().toISOString() }, { merge: true });
+        const dataToSave = { ...data };
+        if (dataToSave.programs) {
+            dataToSave.programs = normalizeProgramsListString(dataToSave.programs);
+        }
+        await setDoc(docRef, { ...dataToSave, updatedAt: new Date().toISOString() }, { merge: true });
     } catch (error) {
         console.error("👤 saveInstructorProfile 에러:", error);
         throw error;
@@ -288,8 +317,12 @@ export async function getAllSchedules() {
  */
 export async function addSchedule(data) {
     try {
+        const scheduleData = { ...data };
+        if (scheduleData.programName) {
+            scheduleData.programName = normalizeProgramName(scheduleData.programName);
+        }
         const schedulesRef = collection(db, "schedules");
-        const docRef = await addDoc(schedulesRef, data);
+        const docRef = await addDoc(schedulesRef, scheduleData);
         return docRef.id;
     } catch (error) {
         console.error("➕ addSchedule 에러:", error);
@@ -305,8 +338,12 @@ export async function addSchedule(data) {
  */
 export async function updateSchedule(docId, data) {
     try {
+        const updateData = { ...data };
+        if (updateData.programName) {
+            updateData.programName = normalizeProgramName(updateData.programName);
+        }
         const scheduleRef = doc(db, "schedules", docId);
-        await updateDoc(scheduleRef, data);
+        await updateDoc(scheduleRef, updateData);
         return true;
     } catch (error) {
         console.error("✏️ updateSchedule 에러:", error);
@@ -354,6 +391,9 @@ export async function duplicateSchedule(originalDocId, updatedData = {}) {
             ...originalData,
             ...updatedData
         };
+        if (newData.programName) {
+            newData.programName = normalizeProgramName(newData.programName);
+        }
 
         // 4. 새로운 문서로 컬렉션에 추가하고 새 ID를 반환한다.
         const newDocId = await addSchedule(newData);
@@ -416,9 +456,13 @@ export async function getPrograms() {
 
 export async function addProgram(data) {
     try {
+        const programData = { ...data };
+        if (programData.programName) {
+            programData.programName = normalizeProgramName(programData.programName);
+        }
         const programsRef = collection(db, "programs");
         const docRef = await addDoc(programsRef, {
-            ...data,
+            ...programData,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         });
@@ -431,8 +475,12 @@ export async function addProgram(data) {
 
 export async function updateProgram(docId, data) {
     try {
+        const programData = { ...data };
+        if (programData.programName) {
+            programData.programName = normalizeProgramName(programData.programName);
+        }
         const programRef = doc(db, "programs", docId);
-        await updateDoc(programRef, { ...data, updatedAt: new Date().toISOString() });
+        await updateDoc(programRef, { ...programData, updatedAt: new Date().toISOString() });
         return true;
     } catch (error) {
         console.error("✏️ updateProgram 에러:", error);
@@ -447,6 +495,232 @@ export async function deleteProgram(docId) {
         return true;
     } catch (error) {
         console.error("🗑️ deleteProgram 에러:", error);
+        throw error;
+    }
+}
+
+/**
+ * =========================================================
+ * [프로그램 명칭 공백 정제 및 일괄 표준화 기능]
+ * ' (' 형태의 공백을 '(' 로 통일하여 프로그램, 일정, 강사 정보를 일괄 정제
+ * =========================================================
+ */
+
+/**
+ * 데이터베이스 전체에서 괄호 앞 공백(' \(')이 포함된 프로그램, 일정, 강사 데이터를 검사합니다.
+ * @returns {Promise<Object>} 검사 결과 리포트 객체
+ */
+export async function auditProgramNameSpaces() {
+    try {
+        const [programsSnap, schedulesSnap, instructorsSnap] = await Promise.all([
+            getDocs(collection(db, "programs")),
+            getDocs(collection(db, "schedules")),
+            getDocs(collection(db, "instructors"))
+        ]);
+
+        const allPrograms = [];
+        programsSnap.forEach(d => allPrograms.push({ id: d.id, ...d.data() }));
+
+        const allSchedules = [];
+        schedulesSnap.forEach(d => allSchedules.push({ id: d.id, ...d.data() }));
+
+        const allInstructors = [];
+        instructorsSnap.forEach(d => allInstructors.push({ id: d.id, ...d.data() }));
+
+        const spaceRegex = /\s+\(/;
+
+        // 1. 프로그램 검사 (중복 여부 확인)
+        const affectedPrograms = [];
+        const programsByName = new Map();
+        allPrograms.forEach(p => {
+            if (p.programName) {
+                programsByName.set(p.programName.trim(), p);
+            }
+        });
+
+        allPrograms.forEach(p => {
+            const origName = p.programName || '';
+            if (spaceRegex.test(origName)) {
+                const targetName = normalizeProgramName(origName);
+                const existingTarget = programsByName.get(targetName);
+                const isDuplicate = existingTarget && existingTarget.id !== p.id;
+                affectedPrograms.push({
+                    docId: p.id,
+                    oldName: origName,
+                    newName: targetName,
+                    isDuplicate: !!isDuplicate,
+                    targetDocId: isDuplicate ? existingTarget.id : null,
+                    docData: p
+                });
+            }
+        });
+
+        // 2. 수업 일정 검사 (기존 명칭별 그룹화)
+        const affectedSchedulesMap = new Map();
+        let totalAffectedSchedules = 0;
+        allSchedules.forEach(s => {
+            const origName = s.programName || '';
+            if (spaceRegex.test(origName)) {
+                const targetName = normalizeProgramName(origName);
+                if (!affectedSchedulesMap.has(origName)) {
+                    affectedSchedulesMap.set(origName, {
+                        oldName: origName,
+                        newName: targetName,
+                        count: 0,
+                        scheduleIds: []
+                    });
+                }
+                const group = affectedSchedulesMap.get(origName);
+                group.count += 1;
+                group.scheduleIds.push(s.id);
+                totalAffectedSchedules += 1;
+            }
+        });
+        const affectedSchedules = Array.from(affectedSchedulesMap.values());
+
+        // 3. 강사 정보 검사
+        const affectedInstructors = [];
+        allInstructors.forEach(inst => {
+            const origPrograms = inst.programs || '';
+            if (spaceRegex.test(origPrograms)) {
+                const newPrograms = normalizeProgramsListString(origPrograms);
+                affectedInstructors.push({
+                    docId: inst.id,
+                    name: inst.name || inst.id,
+                    oldPrograms: origPrograms,
+                    newPrograms: newPrograms
+                });
+            }
+        });
+
+        const hasChanges = affectedPrograms.length > 0 || affectedSchedules.length > 0 || affectedInstructors.length > 0;
+
+        return {
+            programs: affectedPrograms,
+            schedules: affectedSchedules,
+            totalSchedulesCount: totalAffectedSchedules,
+            instructors: affectedInstructors,
+            hasChanges
+        };
+    } catch (error) {
+        console.error("🔍 auditProgramNameSpaces 에러:", error);
+        throw error;
+    }
+}
+
+/**
+ * 감사 결과를 바탕으로 프로그램, 수업 일정, 강사 정보를 일괄 표준화합니다.
+ * @param {Object} auditResult auditProgramNameSpaces의 반환값
+ * @param {Function} [onProgress] 진행 상황 콜백 (메시지 문자열 전달)
+ * @returns {Promise<Object>} 정제 결과 통계
+ */
+export async function executeNormalizeProgramNames(auditResult, onProgress = null) {
+    if (!auditResult || !auditResult.hasChanges) {
+        return {
+            success: true,
+            updatedProgramsCount: 0,
+            mergedProgramsCount: 0,
+            updatedSchedulesCount: 0,
+            updatedInstructorsCount: 0
+        };
+    }
+
+    let updatedProgramsCount = 0;
+    let mergedProgramsCount = 0;
+    let updatedSchedulesCount = 0;
+    let updatedInstructorsCount = 0;
+
+    try {
+        // 1. 프로그램 컬렉션 정제
+        for (const prog of auditResult.programs) {
+            if (prog.isDuplicate && prog.targetDocId) {
+                // 이미 표준 명칭을 가진 문서가 존재하는 경우 -> 데이터 병합 후 공백 포함 문서 삭제
+                const targetRef = doc(db, "programs", prog.targetDocId);
+                const targetSnap = await getDoc(targetRef);
+                if (targetSnap.exists()) {
+                    const targetData = targetSnap.data();
+                    const oldData = prog.docData || {};
+                    const mergedUpdates = { updatedAt: new Date().toISOString() };
+
+                    // 타겟 문서에 비어있는 필드가 있다면 구문서의 내용으로 보완
+                    if ((!targetData.educationPlan || targetData.educationPlan.trim() === '' || targetData.educationPlan === '<p><br></p>') && oldData.educationPlan) {
+                        mergedUpdates.educationPlan = oldData.educationPlan;
+                    }
+                    if ((!targetData.materials || targetData.materials.length === 0) && (oldData.materials && oldData.materials.length > 0)) {
+                        mergedUpdates.materials = oldData.materials;
+                    }
+                    if ((!targetData.examplePhotos || targetData.examplePhotos.length === 0) && (oldData.examplePhotos && oldData.examplePhotos.length > 0)) {
+                        mergedUpdates.examplePhotos = oldData.examplePhotos;
+                    }
+                    if ((!targetData.targetGrades || targetData.targetGrades.length === 0) && (oldData.targetGrades && oldData.targetGrades.length > 0)) {
+                        mergedUpdates.targetGrades = oldData.targetGrades;
+                    }
+                    if ((!targetData.assignableInstructors || targetData.assignableInstructors.length === 0) && (oldData.assignableInstructors && oldData.assignableInstructors.length > 0)) {
+                        mergedUpdates.assignableInstructors = oldData.assignableInstructors;
+                    }
+                    if (!targetData.description && oldData.description) mergedUpdates.description = oldData.description;
+                    if (!targetData.memo && oldData.memo) mergedUpdates.memo = oldData.memo;
+                    if (!targetData.category && oldData.category) mergedUpdates.category = oldData.category;
+
+                    await updateDoc(targetRef, mergedUpdates);
+                }
+
+                // 공백 포함 중복 문서 삭제
+                await deleteDoc(doc(db, "programs", prog.docId));
+                mergedProgramsCount++;
+            } else {
+                // 중복이 없는 경우 -> 프로그램명 단순 수정
+                await updateDoc(doc(db, "programs", prog.docId), {
+                    programName: prog.newName,
+                    updatedAt: new Date().toISOString()
+                });
+                updatedProgramsCount++;
+            }
+
+            if (onProgress) {
+                onProgress(`📦 프로그램 데이터 정제 중... (${updatedProgramsCount + mergedProgramsCount}/${auditResult.programs.length})`);
+            }
+        }
+
+        // 2. 수업 일정(schedules) 컬렉션 일괄 수정 (25개씩 청크 분할)
+        const scheduleUpdates = [];
+        for (const group of auditResult.schedules) {
+            for (const sId of group.scheduleIds) {
+                scheduleUpdates.push({ id: sId, newName: group.newName });
+            }
+        }
+
+        const CHUNK_SIZE = 25;
+        for (let i = 0; i < scheduleUpdates.length; i += CHUNK_SIZE) {
+            const chunk = scheduleUpdates.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(item => updateDoc(doc(db, "schedules", item.id), { programName: item.newName })));
+            updatedSchedulesCount += chunk.length;
+            if (onProgress) {
+                onProgress(`📅 수업 일정 정제 중... (${updatedSchedulesCount}/${scheduleUpdates.length})`);
+            }
+        }
+
+        // 3. 강사(instructors) 프로필 컬렉션 수정
+        for (const inst of auditResult.instructors) {
+            await updateDoc(doc(db, "instructors", inst.docId), {
+                programs: inst.newPrograms,
+                updatedAt: new Date().toISOString()
+            });
+            updatedInstructorsCount++;
+            if (onProgress) {
+                onProgress(`👤 강사 프로필 정제 중... (${updatedInstructorsCount}/${auditResult.instructors.length})`);
+            }
+        }
+
+        return {
+            success: true,
+            updatedProgramsCount,
+            mergedProgramsCount,
+            updatedSchedulesCount,
+            updatedInstructorsCount
+        };
+    } catch (error) {
+        console.error("⚡ executeNormalizeProgramNames 에러:", error);
         throw error;
     }
 }

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
@@ -39,6 +39,7 @@
                 <div class="panel-header">
                     <h2>📦 프로그램 목록</h2>
                     <div style="display: flex; gap: 8px;">
+                        <button id="btn-normalize-spaces" class="btn-outline btn-sm" title="프로그램명의 괄호 앞 공백 제거 (예: GALAXY (과학) → GALAXY(과학))">✨ 명칭 공백 정제</button>
                         <button id="btn-cleanse-data" class="btn-outline btn-sm">🧹 일정 클렌징</button>
                         <button id="btn-new-program" class="btn-primary">+ 신규 등록</button>
                     </div>
@@ -282,6 +283,26 @@
             <div style="padding: 15px 20px; border-top: 1px solid #ecf0f1; text-align: right; background: #fdfdfd; border-radius: 0 0 12px 12px;">
                 <button type="button" class="btn-outline" onclick="document.getElementById('cleanse-modal').style.display='none'">취소</button>
                 <button type="button" id="btn-apply-cleanse" class="btn-success" style="margin-left: 10px;">💾 일괄 수정 적용</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 프로그램 명칭 공백 정제 모달 -->
+    <div id="normalize-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; border-radius: 12px; max-width: 800px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+            <div style="padding: 20px; border-bottom: 1px solid #ecf0f1; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; color: #2c3e50; font-size: 1.2em;">✨ 프로그램 명칭 공백 일괄 정제</h2>
+                <button type="button" id="btn-close-normalize-modal" style="background: none; border: none; font-size: 1.5em; cursor: pointer; color: #7f8c8d;">&times;</button>
+            </div>
+            <div id="normalize-modal-body" style="padding: 20px; overflow-y: auto; flex: 1;">
+                <div style="text-align: center; padding: 30px; color: #7f8c8d;">데이터를 검사하고 있습니다...</div>
+            </div>
+            <div style="padding: 15px 20px; border-top: 1px solid #ecf0f1; display: flex; justify-content: space-between; align-items: center; background: #fdfdfd; border-radius: 0 0 12px 12px;">
+                <span id="normalize-status-msg" style="font-size: 0.9em; color: #2980b9; font-weight: 500;"></span>
+                <div>
+                    <button type="button" class="btn-outline" id="btn-cancel-normalize">취소</button>
+                    <button type="button" id="btn-execute-normalize" class="btn-success" style="margin-left: 10px;">💾 일괄 정제 실행</button>
+                </div>
             </div>
         </div>
     </div>
