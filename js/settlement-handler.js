@@ -18,11 +18,30 @@ onAuthStateChanged(auth, async (user) => {
 
         schedulesData = schedules;
         
-        // 강사 프로필 매핑
+        // 강사 프로필 매핑 및 소속 드롭다운 동적 생성
         instructorsMap = {};
+        const affiliations = new Set();
         instructors.forEach(inst => {
             instructorsMap[inst.name] = inst;
+            if (inst.affiliation && inst.affiliation.trim()) {
+                affiliations.add(inst.affiliation.trim());
+            }
         });
+
+        const affSelect = document.getElementById('affiliationSearch');
+        if (affSelect) {
+            affSelect.innerHTML = '<option value="">전체</option>';
+            [...affiliations].sort((a, b) => a.localeCompare(b, 'ko')).forEach(aff => {
+                const opt = document.createElement('option');
+                opt.value = aff;
+                opt.textContent = aff;
+                affSelect.appendChild(opt);
+            });
+            const noneOpt = document.createElement('option');
+            noneOpt.value = '__none__';
+            noneOpt.textContent = '소속 없음';
+            affSelect.appendChild(noneOpt);
+        }
 
         // 오늘 날짜 기준으로 이번 달 1일~말일 기본 세팅 (선택적)
         const today = new Date();
@@ -69,6 +88,7 @@ window.loadSettlementReport = function() {
     const start = document.getElementById('startDate').value;
     const end = document.getElementById('endDate').value;
     const affiliationSearch = document.getElementById('affiliationSearch').value.trim().toLowerCase();
+    const employmentTypeFilter = document.getElementById('employmentTypeFilter')?.value || '';
 
     if (!start || !end) {
         alert("시작일과 종료일을 모두 선택해주세요.");
@@ -146,17 +166,29 @@ window.loadSettlementReport = function() {
 
     let names = Object.keys(settlementMap).sort((a, b) => a.localeCompare(b, 'ko'));
 
-    // 소속 검색어 필터링
+    // 소속 필터링
     if (affiliationSearch) {
         names = names.filter(name => {
             const profile = instructorsMap[name] || {};
-            const aff = (profile.affiliation || '').toLowerCase();
-            return aff.includes(affiliationSearch);
+            const aff = (profile.affiliation || '').trim();
+            if (affiliationSearch === '__none__') {
+                return aff === '';
+            }
+            return aff.toLowerCase() === affiliationSearch;
+        });
+    }
+
+    // 고용형태 필터링
+    if (employmentTypeFilter) {
+        names = names.filter(name => {
+            const profile = instructorsMap[name] || {};
+            const empType = profile.employmentType === 'part-time' ? 'part-time' : 'instructor';
+            return empType === employmentTypeFilter;
         });
     }
 
     if (names.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8">해당 기간/조건에 정산할 내역이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9">해당 기간/조건에 정산할 내역이 없습니다.</td></tr>';
         footer.style.display = 'none';
         return;
     }
@@ -182,8 +214,9 @@ window.loadSettlementReport = function() {
 
         const profile = instructorsMap[name] || {};
         const affiliation = profile.affiliation || '-';
-        const empTypeLabel = profile.employmentType === 'part-time' ? '알바' : '강사';
-        const displayAffiliation = affiliation !== '-' ? `${affiliation}(${empTypeLabel})` : `(${empTypeLabel})`;
+        const isPartTime = profile.employmentType === 'part-time';
+        const empTypeLabel = isPartTime ? '알바' : '강사';
+        const nameBtnClass = isPartTime ? 'instructor-name-btn part-time-btn' : 'instructor-name-btn';
         
         const birth6 = getBirth6Digits(profile.birthDate);
         const bankName = profile.bankName || '-';
@@ -193,11 +226,12 @@ window.loadSettlementReport = function() {
         tbody.innerHTML += `
             <tr>
                 <td class="table-center">
-                    <div class="instructor-name-btn" onclick="openDetailModal('${name}')">
+                    <div class="${nameBtnClass}" onclick="openDetailModal('${name}')">
                         <strong>${name}</strong>
                     </div>
                 </td>
-                <td class="table-center">${displayAffiliation}</td>
+                <td class="table-center">${affiliation}</td>
+                <td class="table-center">${empTypeLabel}</td>
                 <td class="table-center">${birth6}</td>
                 <td class="table-center">${bankName}</td>
                 <td class="table-center">${accountNum}</td>

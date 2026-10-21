@@ -226,23 +226,25 @@
 
             const [classStartDate, setClassStartDate] = useState('');
             const [classEndDate, setClassEndDate] = useState('');
+            const [showSummaryModal, setShowSummaryModal] = useState(false);
+            const [includeCompletedInSummary, setIncludeCompletedInSummary] = useState(true);
 
             const checkAssignedInstructorConflict = (cls, subject, instructorId, role = null) => {
-                if (!cls || !subject || !instructorId) return null;
+                if (!cls || !subject || !instructorId || !role) return null;
                 const detail = cls.subjectDetails && cls.subjectDetails[subject];
                 if (!detail) return null;
 
                 const conflicts = [];
 
-                // Check main instructor
-                if ((role === null || role === '주강사' || role === 'main') && detail.main) {
+                // Check main instructor only when selecting main instructor role
+                if ((role === '주강사' || role === 'main') && detail.main) {
                     if (detail.main.status === 'Confirmed' && detail.main.assignedInstructorId && detail.main.assignedInstructorId !== instructorId) {
                         conflicts.push(`주강사: ${detail.main.assignedInstructorId}`);
                     }
                 }
 
-                // Check sub instructor
-                if ((role === null || role === '보조강사' || role === 'sub') && detail.sub && detail.sub.isActive) {
+                // Check sub instructor only when selecting sub instructor role
+                if ((role === '보조강사' || role === 'sub') && detail.sub && detail.sub.isActive) {
                     if (detail.sub.status === 'Confirmed' && detail.sub.assignedInstructorId && detail.sub.assignedInstructorId !== instructorId) {
                         conflicts.push(`보조강사: ${detail.sub.assignedInstructorId}`);
                     }
@@ -267,27 +269,150 @@
                 alert(message);
             };
 
-            const visibleClasses = useMemo(() => {
+            const parseTimeRangeMinutes = (timeRangeStr) => {
+                if (!timeRangeStr) return null;
+                const parts = timeRangeStr.replace('-', '~').split('~').map(s => s.trim());
+                if (parts.length !== 2) return null;
+                const toMin = (t) => {
+                    const [h, m] = t.split(':').map(Number);
+                    return (h || 0) * 60 + (m || 0);
+                };
+                return [toMin(parts[0]), toMin(parts[1])];
+            };
+
+            const isTimeRangeOverlapping = (timeStrA, timeStrB) => {
+                const rangeA = parseTimeRangeMinutes(timeStrA);
+                const rangeB = parseTimeRangeMinutes(timeStrB);
+                if (!rangeA || !rangeB) return false;
+                return rangeA[0] < rangeB[1] && rangeB[0] < rangeA[1];
+            };
+
+            const checkInstructorScheduleOverlap = (targetCls, targetSubject, instructorId, currentCart = []) => {
+                if (!targetCls || !instructorId) return [];
+                const overlaps = [];
+
+                // 1) 이미 배정완료(Confirmed) 또는 제안중(Pending)인 같은 날 다른 수업과 시간이 겹치는지 확인
+                classes.forEach(c => {
+                    if (c.fullDate !== targetCls.fullDate) return;
+                    if (!isTimeRangeOverlapping(c.time, targetCls.time)) return;
+
+                    Object.entries(c.subjectDetails || {}).forEach(([subj, detail]) => {
+                        if (c.id === targetCls.id && subj === targetSubject) return;
+
+                        if (detail.main) {
+                            if (detail.main.status === 'Confirmed' && detail.main.assignedInstructorId === instructorId) {
+                                overlaps.push(`${c.location} - ${subj} (${c.time}, 주강사 배정완료)`);
+                            } else if (detail.main.status === 'Pending' && detail.main.proposedInstructorId === instructorId) {
+                                overlaps.push(`${c.location} - ${subj} (${c.time}, 주강사 제안중)`);
+                            }
+                        }
+                        if (detail.sub && detail.sub.isActive) {
+                            if (detail.sub.status === 'Confirmed' && detail.sub.assignedInstructorId === instructorId) {
+                                overlaps.push(`${c.location} - ${subj} (${c.time}, 보조강사 배정완료)`);
+                            } else if (detail.sub.status === 'Pending' && detail.sub.proposedInstructorId === instructorId) {
+                                overlaps.push(`${c.location} - ${subj} (${c.time}, 보조강사 제안중)`);
+                            }
+                        }
+                    });
+                });
+
+                // 2) 장바구니(currentCart)에 담긴 같은 날 다른 수업과 시간이 겹치는지 확인
+                currentCart.forEach(cartItem => {
+                    if (cartItem.classId === targetCls.id && cartItem.subject === targetSubject) return;
+                    const c = classes.find(x => x.id === cartItem.classId);
+                    if (!c || c.fullDate !== targetCls.fullDate) return;
+                    if (isTimeRangeOverlapping(c.time, targetCls.time)) {
+                        overlaps.push(`${c.location} - ${cartItem.subject} (${c.time}, 장바구니 ${cartItem.role})`);
+                    }
+                });
+
+                return overlaps;
+            };
+
+            const dateFilteredClasses = useMemo(() => {
                 return classes.filter((c) => {
-                    const hasOpenOrPending = Object.values(c.subjectDetails).some(d => {
+                    if (!c.fullDate) return true;
+                    if (classStartDate && c.fullDate < classStartDate) return false;
+                    if (classEndDate && c.fullDate > classEndDate) return false;
+                    return true;
+                });
+            }, [classes, classStartDate, classEndDate]);
+
+            const visibleClasses = useMemo(() => {
+                return dateFilteredClasses.filter((c) => {
+                    return Object.values(c.subjectDetails).some(d => {
                         if (d.main.status === 'Open' || d.main.status === 'Pending') return true;
                         if (d.sub.isActive && (d.sub.status === 'Open' || d.sub.status === 'Pending')) return true;
                         return false;
                     });
-                    if (!hasOpenOrPending) return false;
-
-                    if (!c.date || !c.date.includes('/')) return true;
-
-                    const currentYear = new Date().getFullYear();
-                    const [month, day] = c.date.split('/');
-                    const classDateStr = `${currentYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                    
-                    if (classStartDate && classDateStr < classStartDate) return false;
-                    if (classEndDate && classDateStr > classEndDate) return false;
-
-                    return true;
                 });
-            }, [classes, classStartDate, classEndDate]);
+            }, [dateFilteredClasses]);
+
+            const summaryClasses = useMemo(() => {
+                return includeCompletedInSummary ? dateFilteredClasses : visibleClasses;
+            }, [includeCompletedInSummary, dateFilteredClasses, visibleClasses]);
+
+            const getInstructorName = (id) => {
+                if (!id) return '';
+                return instructors.find(i => i.id === id)?.name || id;
+            };
+
+            const formatSubjectStatusParts = (detail) => {
+                if (!detail) return { mainText: '', mainState: 'empty', subText: '', subState: 'inactive', hasSub: false, rejectedNames: [] };
+
+                let mainText = '';
+                let mainState = 'empty';
+                if (detail.main?.status === 'Confirmed' && detail.main.assignedInstructorId) {
+                    mainText = getInstructorName(detail.main.assignedInstructorId);
+                    mainState = 'confirmed';
+                } else if (detail.main?.status === 'Pending' && detail.main.proposedInstructorId) {
+                    mainText = `${getInstructorName(detail.main.proposedInstructorId)}(제안중)`;
+                    mainState = 'pending';
+                }
+
+                let subText = '';
+                let subState = 'inactive';
+                const hasSub = !!(detail.sub && detail.sub.isActive);
+                if (hasSub) {
+                    if (detail.sub.status === 'Confirmed' && detail.sub.assignedInstructorId) {
+                        subText = getInstructorName(detail.sub.assignedInstructorId);
+                        subState = 'confirmed';
+                    } else if (detail.sub.status === 'Pending' && detail.sub.proposedInstructorId) {
+                        subText = `${getInstructorName(detail.sub.proposedInstructorId)}(제안중)`;
+                        subState = 'pending';
+                    } else {
+                        subState = 'empty';
+                    }
+                }
+
+                const mainRej = detail.main?.rejectedInstructorIds || [];
+                const subRej = detail.sub?.rejectedInstructorIds || [];
+                const allRejIds = [...new Set([...mainRej, ...subRej])];
+                const rejectedNames = allRejIds.map(id => `${getInstructorName(id)}(x)`);
+
+                return { mainText, mainState, subText, subState, hasSub, rejectedNames };
+            };
+
+            const summaryBoardText = useMemo(() => {
+                if (summaryClasses.length === 0) return '해당 기간에 표시할 수업이 없습니다.';
+                return summaryClasses.map(cls => {
+                    const timeCompact = cls.time.replace(/\s*~\s*/g, '~');
+                    const header = `${cls.date} (${cls.day}) ${cls.location} (${timeCompact})`;
+                    const lines = cls.subjects.map(subj => {
+                        const detail = cls.subjectDetails[subj];
+                        const { mainText, subText, hasSub, rejectedNames } = formatSubjectStatusParts(detail);
+                        let assignStr = '';
+                        if (hasSub) {
+                            assignStr = `${mainText ? mainText + ' ' : '   '}/ ${subText}`;
+                        } else {
+                            assignStr = mainText;
+                        }
+                        const rejStr = rejectedNames.length > 0 ? `      ${rejectedNames.join(', ')}` : '';
+                        return `${subj}: ${assignStr.trimEnd()}${rejStr}`;
+                    });
+                    return `${header}\n${lines.join('\n')}`;
+                }).join('\n\n');
+            }, [summaryClasses, instructors]);
 
             const canInstructorTeach = (cls, instructorId) => {
                 if (!instructorId) return true;
@@ -298,9 +423,8 @@
                     const cleanS = s.replace(/ #\d+$/, '');
                     return inst.subjects.includes(s) || inst.subjects.includes(cleanS);
                 });
-                const noTimeConflict = !checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes);
                 
-                return canTeachAny && noTimeConflict;
+                return canTeachAny;
             };
 
             const visibleInstructors = useMemo(() => {
@@ -315,15 +439,25 @@
                 return list;
             }, [instructors, filterOrg, searchName]);
 
-            const handleToggleCart = (classId, subject) => {
+            const handleToggleCart = (classId, subject, roleOverride = null) => {
                 setCart((prev) => {
                     const exists = prev.find((item) => item.classId === classId && item.subject === subject);
-                    if (exists) return prev.filter((item) => !(item.classId === classId && item.subject === subject));
+                    if (exists) {
+                        if (roleOverride && exists.role !== roleOverride) {
+                            const cls = classes.find((c) => c.id === classId);
+                            if (selectedInstructorId && cls) {
+                                const conflict = checkAssignedInstructorConflict(cls, subject, selectedInstructorId, roleOverride);
+                                if (conflict) showAssignedWarning(conflict);
+                            }
+                            return prev.map((item) => (item.classId === classId && item.subject === subject ? { ...item, role: roleOverride } : item));
+                        }
+                        return prev.filter((item) => !(item.classId === classId && item.subject === subject));
+                    }
                     
                     const cls = classes.find((c) => c.id === classId);
                     const detail = cls && cls.subjectDetails && cls.subjectDetails[subject];
-                    let defaultRole = '주강사';
-                    if (detail && detail.main && detail.main.status === 'Confirmed' && detail.sub && detail.sub.isActive && detail.sub.status !== 'Confirmed') {
+                    let defaultRole = roleOverride || '주강사';
+                    if (!roleOverride && detail && detail.main && detail.main.status === 'Confirmed' && detail.sub && detail.sub.isActive && detail.sub.status !== 'Confirmed') {
                         defaultRole = '보조강사';
                     }
 
@@ -331,6 +465,10 @@
                         const conflict = checkAssignedInstructorConflict(cls, subject, selectedInstructorId, defaultRole);
                         if (conflict) {
                             showAssignedWarning(conflict);
+                        }
+                        const scheduleOverlaps = checkInstructorScheduleOverlap(cls, subject, selectedInstructorId, prev);
+                        if (scheduleOverlaps.length > 0) {
+                            alert(`⚠️ [수업 시간 중복 경고]\n\n선택한 강사(${selectedInstructorId})에게 같은 시간대 다른 수업이 이미 있습니다.\n\n📍 선택한 수업: ${cls.location} - ${subject} (${cls.date} ${cls.day} ${cls.time})\n\n[시간이 겹치는 수업]\n• ${scheduleOverlaps.join('\n• ')}`);
                         }
                     }
 
@@ -358,12 +496,7 @@
                 if (!cls || !cls.subjectDetails[subject]) return;
                 const detail = cls.subjectDetails[subject];
 
-                if (selectedInstructorId) {
-                    const conflict = checkAssignedInstructorConflict(cls, subject, selectedInstructorId);
-                    if (conflict) {
-                        showAssignedWarning(conflict);
-                    }
-                } else if (selectedClassId === classId) {
+                if (!selectedInstructorId && selectedClassId === classId) {
                     if (detail.main && detail.main.status === 'Confirmed' && detail.main.assignedInstructorId) {
                         setSelectedInstructorId(detail.main.assignedInstructorId);
                     } else if (detail.main && detail.main.proposedInstructorId) {
@@ -526,6 +659,19 @@
             const generatedMessage = useMemo(() => {
                 if (cart.length === 0) return '';
 
+                const formatKoreanTime = (timeRangeStr) => {
+                    if (!timeRangeStr) return '';
+                    const formatSingleTime = (tStr) => {
+                        const [hStr, mStr] = tStr.trim().split(':');
+                        const h = parseInt(hStr, 10);
+                        const m = parseInt(mStr, 10);
+                        if (isNaN(h)) return tStr.trim();
+                        if (!m || m === 0) return `${h}시`;
+                        return `${h}시 ${m}분`;
+                    };
+                    return timeRangeStr.split('~').map(formatSingleTime).join(' ~ ');
+                };
+
                 const cartItemsWithDate = cart.map((item) => {
                     const cls = classes.find((c) => c.id === item.classId);
                     return { item, cls };
@@ -541,10 +687,11 @@
 
                 const blocks = cartItemsWithDate.map(({ item, cls }) => {
                     const cleanSubject = item.subject.replace(/ #\d+$/, '');
-                    return `${cls.date} (${cls.day}) ${cls.location}\n시간: ${cls.time}\n주제: ${cleanSubject}\n구분: ${item.role}`;
+                    const koreanTime = formatKoreanTime(cls.time);
+                    return `${cls.date} (${cls.day}) ${cls.location}\n시간: ${koreanTime}\n주제: ${cleanSubject}\n구분: ${item.role}`;
                 });
 
-                return `${blocks.join('\n\n')}\n\n위 일정들 가능하신지 확인 부탁드립니다.`;
+                return `${blocks.join('\n\n')}\n\n일정 확인 부탁드립니다~^^`;
             }, [cart, classes]);
 
             const checkTimeOverlap = (classDay, classTimeStr, unavailStr) => {
@@ -605,16 +752,20 @@
                     if (!proceed) return;
                 }
 
-                let overlapDetails = [];
-                cart.forEach(item => {
+                let scheduleOverlapDetails = [];
+                cart.forEach((item, idx) => {
                     const cls = classes.find((c) => c.id === item.classId);
-                    if (cls && checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes)) {
-                        overlapDetails.push(`- ${cls.location} ${item.subject} (${cls.date} ${cls.day} ${cls.time})`);
+                    if (cls) {
+                        const prevCartItems = cart.slice(0, idx);
+                        const overlaps = checkInstructorScheduleOverlap(cls, item.subject, selectedInstructorId, prevCartItems);
+                        if (overlaps.length > 0) {
+                            scheduleOverlapDetails.push(`- ${cls.location} ${item.subject} (${cls.date} ${cls.day} ${cls.time})\n  ↳ 겹침: ${overlaps.join(', ')}`);
+                        }
                     }
                 });
 
-                if (overlapDetails.length > 0) {
-                    const proceed = window.confirm(`⚠️ [일정 중복 경고]\n\n선택한 강사의 불가 일정과 겹치는 수업이 있습니다:\n${overlapDetails.join('\n')}\n\n그래도 제안을 진행하시겠습니까?`);
+                if (scheduleOverlapDetails.length > 0) {
+                    const proceed = window.confirm(`⚠️ [수업 시간 중복 경고]\n\n해당 강사(${inst.name})의 다른 수업(배정/제안중/장바구니)과 시간이 겹치는 일정이 있습니다:\n\n${scheduleOverlapDetails.join('\n\n')}\n\n그래도 제안을 진행하시겠습니까?`);
                     if (!proceed) return;
                 }
 
@@ -672,12 +823,20 @@
             }
 
             return (
-                <div className="flex h-full bg-slate-100 p-6 gap-6 font-sans overflow-hidden text-left">
-                    <div className="flex flex-col w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="flex h-full bg-slate-100 p-6 gap-5 font-sans overflow-hidden text-left">
+                    <div className="flex flex-col w-[45%] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-5 border-b border-slate-100 flex flex-col bg-slate-50 gap-3">
                             <div className="flex justify-between items-center">
                                 <h2 className="font-bold text-lg text-slate-800">1. 배정 대기 수업</h2>
-                                <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">{visibleClasses.length}건</span>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => setShowSummaryModal(true)}
+                                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-1"
+                                    >
+                                        📋 배정 현황판 보기
+                                    </button>
+                                    <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">{visibleClasses.length}건</span>
+                                </div>
                             </div>
                             <div className="flex gap-2 items-center">
                                 <input type="date" className="text-xs border border-slate-300 rounded p-1.5 flex-1 outline-none text-slate-700 bg-white" value={classStartDate} onChange={e => setClassStartDate(e.target.value)} />
@@ -690,23 +849,14 @@
                             {visibleClasses.map((cls) => {
                                 const isSelected = selectedClassId === cls.id;
                                 const currentDetail = cls.subjectDetails[cls.selectedSubject];
-                                const isCarted = cart.some((item) => item.classId === cls.id && item.subject === cls.selectedSubject);
                                 const isMatch = canInstructorTeach(cls, selectedInstructorId);
-                                const isPending = (currentDetail.main && currentDetail.main.status === 'Pending') || (currentDetail.sub && currentDetail.sub.isActive && currentDetail.sub.status === 'Pending');
-                                const isConfirmed = (currentDetail.main && currentDetail.main.status === 'Confirmed') && (!currentDetail.sub || !currentDetail.sub.isActive || currentDetail.sub.status === 'Confirmed');
-                                const rejectedIds = currentDetail.rejectedInstructorIds || [];
                                 return (
                                     <div key={cls.id} onClick={() => {
                                             if (isSelected) {
                                                 setSelectedClassId(null);
                                             } else {
                                                 setSelectedClassId(cls.id);
-                                                if (selectedInstructorId) {
-                                                    const conflict = checkAssignedInstructorConflict(cls, cls.selectedSubject, selectedInstructorId);
-                                                    if (conflict) {
-                                                        showAssignedWarning(conflict);
-                                                    }
-                                                } else {
+                                                if (!selectedInstructorId) {
                                                     if (currentDetail.main && currentDetail.main.status === 'Confirmed' && currentDetail.main.assignedInstructorId) {
                                                         setSelectedInstructorId(currentDetail.main.assignedInstructorId);
                                                     } else if (currentDetail.main && currentDetail.main.proposedInstructorId) {
@@ -726,65 +876,120 @@
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-indigo-500' : 'bg-indigo-200/60'}`}></div>
                                         
                                         <div className="flex items-start gap-3 pl-1">
-                                            <input type="checkbox" disabled={isConfirmed} checked={isCarted} onChange={() => handleToggleCart(cls.id, cls.selectedSubject)} onClick={(e) => e.stopPropagation()} className="mt-0.5 w-5 h-5 shrink-0 cursor-pointer accent-indigo-600 disabled:opacity-50 transition-transform hover:scale-110" />
-                                            <div className="flex-1 space-y-1.5">
-                                                <div className="flex justify-between items-start">
-                                                    <h3 className="font-semibold text-slate-800 flex items-center gap-1.5">📍 {cls.location}</h3>
+                                            <div className="flex-1 space-y-2">
+                                                <div className="flex justify-between items-center flex-wrap gap-2">
+                                                    <h3 className="font-bold text-slate-800 flex items-center gap-1.5 text-base">📍 {cls.location}</h3>
+                                                    <div className="text-xs text-slate-600 flex items-center gap-3 font-medium">
+                                                        <span>📅 {cls.date} ({cls.day})</span>
+                                                        <span>⏰ {cls.time}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="text-sm text-slate-600 flex items-center gap-4">
-                                                    <span>📅 {cls.date} ({cls.day})</span>
-                                                    <span>⏰ {cls.time}</span>
-                                                </div>
-                                            {cls.subjects.length > 0 && (
-                                                <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-slate-100/60 pt-2.5">
-                                                    {cls.subjects.map(subject => {
-                                                        const isSel = cls.selectedSubject === subject;
-                                                        const detail = cls.subjectDetails[subject];
-                                                        const mainStat = detail.main.status;
-                                                        const subStat = detail.sub.isActive ? detail.sub.status : 'Confirmed';
-                                                        
-                                                        let subjStatus = 'Open';
-                                                        if (mainStat === 'Confirmed' && subStat === 'Confirmed') subjStatus = 'Confirmed';
-                                                        else if (mainStat === 'Pending' || subStat === 'Pending') subjStatus = 'Pending';
 
-                                                        const cleanSubject = subject.replace(/ #\d+$/, '');
+                                            {cls.subjects.length > 0 && (
+                                                <div className="mt-2 bg-white/90 rounded-lg border border-slate-200/90 p-2.5 space-y-1.5 text-xs font-mono">
+                                                    {cls.subjects.map(subj => {
+                                                        const detail = cls.subjectDetails[subj];
+                                                        const { mainText, mainState, subText, subState, hasSub, rejectedNames } = formatSubjectStatusParts(detail);
+                                                        const isSelSubj = cls.selectedSubject === subj;
+                                                        const cartItem = cart.find(item => item.classId === cls.id && item.subject === subj);
+                                                        const isSubjCarted = !!cartItem;
+                                                        const isSubjConfirmed = (detail.main && detail.main.status === 'Confirmed') && (!detail.sub || !detail.sub.isActive || detail.sub.status === 'Confirmed');
+
+                                                        const cleanSubject = subj.replace(/ #\d+$/, '');
                                                         const selectedInst = selectedInstructorId ? instructors.find(i => i.id === selectedInstructorId) : null;
                                                         const matchedRole = selectedInst && selectedInst.subjectRoles ? 
-                                                            selectedInst.subjectRoles.find(sr => sr.name === cleanSubject || sr.name === subject) : null;
-                                                        const isTeachable = !!matchedRole || (selectedInst && selectedInst.subjects && (selectedInst.subjects.includes(cleanSubject) || selectedInst.subjects.includes(subject)));
-
-                                                        let btnClass = "text-[11px] px-2 py-1 rounded-md font-bold transition-all border ";
-                                                        
-                                                        if (subjStatus === 'Confirmed') {
-                                                            btnClass += isSel ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-200 border-emerald-600" : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200";
-                                                        } else if (subjStatus === 'Pending') {
-                                                            btnClass += isSel ? "bg-amber-500 text-white shadow-md ring-2 ring-amber-200 border-amber-500" : "bg-amber-100 text-amber-700 hover:bg-amber-200 border-amber-200";
-                                                        } else {
-                                                            if (isSel) {
-                                                                btnClass += "bg-indigo-600 text-white shadow-md ring-2 ring-indigo-200 border-indigo-600";
-                                                            } else if (isTeachable) {
-                                                                if (matchedRole && matchedRole.role === 'main') {
-                                                                    btnClass += "bg-blue-100 text-blue-800 border-blue-300 shadow-sm ring-1 ring-blue-300 hover:bg-blue-200";
-                                                                } else if (matchedRole && matchedRole.role === 'sub') {
-                                                                    btnClass += "bg-emerald-100 text-emerald-800 border-emerald-300 shadow-sm ring-1 ring-emerald-300 hover:bg-emerald-200";
-                                                                } else {
-                                                                    btnClass += "bg-sky-100 text-sky-800 border-sky-300 shadow-sm ring-1 ring-sky-300 hover:bg-sky-200";
-                                                                }
-                                                            } else {
-                                                                btnClass += selectedInstructorId ? "bg-slate-100 text-slate-400 hover:bg-slate-200 border-transparent" : "bg-slate-100 text-slate-600 hover:bg-slate-200 border-transparent";
-                                                            }
-                                                        }
+                                                            selectedInst.subjectRoles.find(sr => sr.name === cleanSubject || sr.name === subj) : null;
+                                                        const isTeachable = !!matchedRole || (selectedInst && selectedInst.subjects && (selectedInst.subjects.includes(cleanSubject) || selectedInst.subjects.includes(subj)));
 
                                                         return (
-                                                            <button
-                                                                key={subject}
-                                                                onClick={(e) => { e.stopPropagation(); handleSubjectChange(cls.id, subject); }}
-                                                                className={btnClass}
-                                                                title={isTeachable ? `${selectedInst.name} 강사 수업 가능 과목 (${matchedRole?.role === 'main' ? '주강사' : matchedRole?.role === 'sub' ? '보조강사' : '수업가능'})` : ''}
+                                                            <div
+                                                                key={`summary-${subj}`}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedClassId(cls.id);
+                                                                    handleSubjectChange(cls.id, subj);
+                                                                    if (!isSubjConfirmed) {
+                                                                        handleToggleCart(cls.id, subj);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all border ${isSubjCarted ? 'bg-indigo-50 border-indigo-300 shadow-sm' : isSelSubj ? 'bg-slate-100/90 border-slate-300' : 'border-transparent hover:bg-slate-50'}`}
                                                             >
-                                                                {isTeachable && !isSel && <span className="mr-1 text-[10px]">✨</span>}
-                                                                {subject}
-                                                            </button>
+                                                                <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        disabled={isSubjConfirmed}
+                                                                        checked={isSubjCarted}
+                                                                        onChange={() => {}}
+                                                                        className="w-3.5 h-3.5 shrink-0 cursor-pointer accent-indigo-600 disabled:opacity-40"
+                                                                    />
+                                                                    <span className="font-bold text-slate-800 shrink-0">
+                                                                        {isTeachable && <span className="mr-0.5 text-[10px]" title={`${selectedInst?.name} 강사 수업 가능 과목`}>✨</span>}
+                                                                        {subj}:
+                                                                    </span>
+                                                                    <span
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setSelectedClassId(cls.id);
+                                                                            handleSubjectChange(cls.id, subj);
+                                                                            if (!isSubjConfirmed) handleToggleCart(cls.id, subj, '주강사');
+                                                                        }}
+                                                                        title="클릭하여 주강사로 제안 담기"
+                                                                        className={`px-1 rounded hover:bg-indigo-100/70 ${mainState === 'confirmed' ? 'text-slate-900 font-bold' : mainState === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}
+                                                                    >
+                                                                        {mainText || '___'}
+                                                                    </span>
+                                                                    {hasSub && (
+                                                                        <>
+                                                                            <span className="text-slate-400 font-bold mx-0.5">/</span>
+                                                                            <span
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    setSelectedClassId(cls.id);
+                                                                                    handleSubjectChange(cls.id, subj);
+                                                                                    if (!isSubjConfirmed) handleToggleCart(cls.id, subj, '보조강사');
+                                                                                }}
+                                                                                title="클릭하여 보조강사로 제안 담기"
+                                                                                className={`px-1 rounded hover:bg-indigo-100/70 ${subState === 'confirmed' ? 'text-slate-900 font-bold' : subState === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}
+                                                                            >
+                                                                                {subText || '___'}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center gap-2 shrink-0 ml-auto">
+                                                                    {rejectedNames.length > 0 && (
+                                                                        <span className="text-[11px] text-rose-500 font-semibold">
+                                                                            {rejectedNames.join(', ')}
+                                                                        </span>
+                                                                    )}
+                                                                    {!isSubjConfirmed && (
+                                                                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setSelectedClassId(cls.id);
+                                                                                    handleSubjectChange(cls.id, subj);
+                                                                                    handleToggleCart(cls.id, subj, '주강사');
+                                                                                }}
+                                                                                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border transition-all ${isSubjCarted && cartItem.role === '주강사' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                                                                            >
+                                                                                주강사
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setSelectedClassId(cls.id);
+                                                                                    handleSubjectChange(cls.id, subj);
+                                                                                    handleToggleCart(cls.id, subj, '보조강사');
+                                                                                }}
+                                                                                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border transition-all ${isSubjCarted && cartItem.role === '보조강사' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                                                                            >
+                                                                                보조강사
+                                                                            </button>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         );
                                                     })}
                                                 </div>
@@ -846,7 +1051,7 @@
                             })}
                         </div>
                     </div>
-                    <div className="flex flex-col w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="flex flex-col w-[27.5%] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-5 border-b border-slate-100 flex flex-col bg-slate-50 gap-3">
                             <div className="flex justify-between items-center">
                                 <h2 className="font-bold text-lg text-slate-800">2. 강사 리스트</h2>
@@ -882,7 +1087,6 @@
                             {visibleInstructors.map((inst) => {
                                 const isSelected = selectedInstructorId === inst.id;
                                 const selectedCls = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
-                                const isUnavailable = selectedCls ? checkTimeOverlap(selectedCls.day, selectedCls.time, inst.rawUnavailableTimes) : false;
 
                                 return (
                                     <div 
@@ -891,30 +1095,34 @@
                                             if (isSelected) {
                                                 setSelectedInstructorId(null);
                                             } else {
-                                                if (selectedCls) {
-                                                    const conflict = checkAssignedInstructorConflict(selectedCls, selectedCls.selectedSubject, inst.id);
-                                                    if (conflict) {
-                                                        showAssignedWarning(conflict);
-                                                    }
-                                                } else if (cart.length > 0) {
+                                                if (cart.length > 0) {
                                                     const cartConflicts = [];
-                                                    cart.forEach(item => {
+                                                    const cartTimeOverlaps = [];
+                                                    cart.forEach((item, idx) => {
                                                         const cls = classes.find(c => c.id === item.classId);
                                                         if (cls) {
                                                             const conflict = checkAssignedInstructorConflict(cls, item.subject, inst.id, item.role);
                                                             if (conflict) {
                                                                 cartConflicts.push(`${cls.location} - ${item.subject} (${item.role}: ${conflict.conflicts.join(', ')})`);
                                                             }
+                                                            const prevCartItems = cart.slice(0, idx);
+                                                            const overlaps = checkInstructorScheduleOverlap(cls, item.subject, inst.id, prevCartItems);
+                                                            if (overlaps.length > 0) {
+                                                                cartTimeOverlaps.push(`${cls.location} - ${item.subject} (${cls.date} ${cls.day} ${cls.time})\n  ↳ 겹침: ${overlaps.join(', ')}`);
+                                                            }
                                                         }
                                                     });
                                                     if (cartConflicts.length > 0) {
-                                                        alert(`⚠️ [강사 배정 경고]\n\n장바구니에 담긴 일정 중 이미 강사가 배정되어 있는 일정이 있습니다:\n• ${cartConflicts.join('\n• ')}\n\n(선택한 강사: ${inst.name})`);
+                                                        alert(`⚠️ [강사 배정 경고]\n\n장바구니에 담긴 일정 중 이미 강사가 배정되어 있는 역할이 있습니다:\n• ${cartConflicts.join('\n• ')}\n\n(선택한 강사: ${inst.name})`);
+                                                    }
+                                                    if (cartTimeOverlaps.length > 0) {
+                                                        alert(`⚠️ [수업 시간 중복 경고]\n\n장바구니에 담긴 일정 중 선택한 강사(${inst.name})의 다른 수업과 시간이 겹치는 일정이 있습니다:\n\n• ${cartTimeOverlaps.join('\n• ')}`);
                                                     }
                                                 }
                                                 setSelectedInstructorId(inst.id);
                                             }
                                         }}
-                                        className={`relative p-4 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden flex justify-between items-start ${isSelected ? 'border-teal-500 shadow-md ring-1 ring-teal-500 bg-teal-50/50' : 'border-teal-100/50 bg-gradient-to-br from-teal-50/40 to-emerald-50/20 shadow-sm hover:shadow-md hover:border-teal-300 hover:-translate-y-0.5'} ${isUnavailable ? 'opacity-40 grayscale hover:opacity-80' : 'opacity-100'}`}
+                                        className={`relative p-4 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden flex justify-between items-start ${isSelected ? 'border-teal-500 shadow-md ring-1 ring-teal-500 bg-teal-50/50' : 'border-teal-100/50 bg-gradient-to-br from-teal-50/40 to-emerald-50/20 shadow-sm hover:shadow-md hover:border-teal-300 hover:-translate-y-0.5'}`}
                                     >
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-teal-500' : 'bg-teal-200/60'}`}></div>
 
@@ -954,14 +1162,14 @@
                             })}
                         </div>
                     </div>
-                    <div className="flex flex-col w-1/3 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="flex flex-col w-[27.5%] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div className="p-5 border-b border-slate-100 bg-slate-50">
                             <h2 className="font-bold text-lg text-slate-800">3. 제안 장바구니 & 문자 폼</h2>
                         </div>
                         <div className="flex-1 flex flex-col p-5 gap-4 overflow-hidden">
                             <div className="max-h-[40%] overflow-y-auto space-y-2 pr-2">
                                 {cart.length === 0 ? (
-                                    <div className="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">1번 패널에서 제안할 수업을 체크해주세요.</div>
+                                    <div className="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">1번 패널에서 제안할 과목 줄을 클릭해주세요.</div>
                                 ) : (
                                     cart.map((item) => {
                                         const cls = classes.find((c) => c.id === item.classId);
@@ -972,10 +1180,19 @@
                                                     <p className="text-sm font-semibold text-slate-800 truncate">{cls.date} ({cls.day}) {cls.location}</p>
                                                     <p className="text-xs text-slate-500 truncate">{cls.time} | {item.subject}</p>
                                                 </div>
-                                                <select className="text-sm border-slate-300 rounded bg-white text-slate-700 py-1 pl-2 pr-2 outline-none" value={item.role} onChange={(e) => handleRoleChange(item.classId, item.subject, e.target.value)}>
-                                                    <option value="주강사">주강사</option>
-                                                    <option value="보조강사">보조강사</option>
-                                                </select>
+                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${item.role === '주강사' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                        {item.role}
+                                                    </span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleToggleCart(item.classId, item.subject)}
+                                                        className="text-slate-400 hover:text-rose-500 text-xs font-bold px-1"
+                                                        title="장바구니에서 제거"
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
                                             </div>
                                         );
                                     })
@@ -997,6 +1214,97 @@
                             </div>
                         </div>
                     </div>
+
+                    {showSummaryModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setShowSummaryModal(false)}>
+                            <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                                <div className="p-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                                    <div>
+                                        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                                            📋 수업별 강사 배정 현황판
+                                            <span className="text-xs bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full font-semibold">
+                                                {summaryClasses.length}건
+                                            </span>
+                                        </h3>
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            {classStartDate || classEndDate ? `조회 기간: ${classStartDate || '전체'} ~ ${classEndDate || '전체'}` : '전체 기간 현황 (1번 패널에서 시작일~종료일을 지정하면 해당 기간만 표시됩니다)'}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <label className="flex items-center gap-1.5 text-xs font-medium text-slate-600 cursor-pointer select-none bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                                            <input
+                                                type="checkbox"
+                                                checked={includeCompletedInSummary}
+                                                onChange={e => setIncludeCompletedInSummary(e.target.checked)}
+                                                className="accent-indigo-600 w-3.5 h-3.5 cursor-pointer"
+                                            />
+                                            배정 완료된 수업도 포함
+                                        </label>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(summaryBoardText);
+                                                    alert('배정 현황판 텍스트가 클립보드에 복사되었습니다.');
+                                                } catch (err) {
+                                                    console.error(err);
+                                                    alert('복사에 실패했습니다.');
+                                                }
+                                            }}
+                                            className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm transition-colors"
+                                        >
+                                            전체 텍스트 복사
+                                        </button>
+                                        <button onClick={() => setShowSummaryModal(false)} className="text-slate-400 hover:text-slate-600 text-lg font-bold px-2">✕</button>
+                                    </div>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-6 space-y-5 bg-slate-50/50">
+                                    {summaryClasses.length === 0 ? (
+                                        <div className="text-center text-slate-400 py-12">해당 기간에 표시할 수업이 없습니다.</div>
+                                    ) : (
+                                        summaryClasses.map(cls => {
+                                            const timeCompact = cls.time.replace(/\s*~\s*/g, '~');
+                                            return (
+                                                <div key={`modal-${cls.id}`} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
+                                                    <div className="font-bold text-slate-800 text-base border-b border-slate-100 pb-2">
+                                                        {cls.date} ({cls.day}) {cls.location} ({timeCompact})
+                                                    </div>
+                                                    <div className="space-y-1.5 text-sm font-mono">
+                                                        {cls.subjects.map(subj => {
+                                                            const detail = cls.subjectDetails[subj];
+                                                            const { mainText, mainState, subText, subState, hasSub, rejectedNames } = formatSubjectStatusParts(detail);
+                                                            return (
+                                                                <div key={`modal-${cls.id}-${subj}`} className="flex items-center justify-between gap-4 py-0.5">
+                                                                    <div className="flex items-center flex-wrap gap-1.5">
+                                                                        <span className="font-bold text-slate-700">{subj}:</span>
+                                                                        <span className={mainState === 'confirmed' ? 'text-slate-900 font-bold' : mainState === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-300'}>
+                                                                            {mainText || '____'}
+                                                                        </span>
+                                                                        {hasSub && (
+                                                                            <>
+                                                                                <span className="text-slate-400 font-bold mx-1">/</span>
+                                                                                <span className={subState === 'confirmed' ? 'text-slate-900 font-bold' : subState === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-300'}>
+                                                                                    {subText || '____'}
+                                                                                </span>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                    {rejectedNames.length > 0 && (
+                                                                        <span className="text-rose-500 font-semibold text-xs shrink-0">
+                                                                            {rejectedNames.join(', ')}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }

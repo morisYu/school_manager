@@ -268,18 +268,27 @@ window.initCalendar = async function() {
             })();
 
             const program = p['프로그램명'] || '프로그램 미정';
-            const mainTeacher = p['주강사'] || '강사 미정';
-            const subTeachers = p['보조강사들'] || [];
+            const mainTeacher = (p['주강사'] || '').trim() || '미정';
+            const subTeachers = (p['보조강사들'] || []).map(t => (t || '').trim() || '미정');
             const institution = p['기관명'] || '기관 미정';
 
             const startTime = typeof extractTime === 'function' ? extractTime(p['시작시간']) : (p['시작시간'] || '');
             const durationValue = typeof calculateHours === 'function' ? calculateHours(p['시작시간'], p['종료시간']) : '';
 
-            // 보조강사 축약 표시: 첫 번째 + N명
+            // 보조강사 축약 표시: 첫 번째 + N명 (미정이 포함되면 미정 표시 우선)
             let subText = '';
-            if (subTeachers.length === 1) subText = subTeachers[0];
-            else if (subTeachers.length > 1) subText = `${subTeachers[0]} +${subTeachers.length - 1}명`;
+            if (subTeachers.length === 1) {
+                subText = subTeachers[0];
+            } else if (subTeachers.length > 1) {
+                const unassignedCount = subTeachers.filter(t => t === '미정').length;
+                if (unassignedCount > 0 && subTeachers[0] !== '미정') {
+                    subText = `${subTeachers[0]} 외 (미정 ${unassignedCount}명)`;
+                } else {
+                    subText = `${subTeachers[0]} +${subTeachers.length - 1}명`;
+                }
+            }
             const teacherText = subText ? `${mainTeacher}(${subText})` : mainTeacher;
+            const fullTeacherText = subTeachers.length > 0 ? `${mainTeacher}(${subTeachers.join(', ')})` : mainTeacher;
 
             // 교구 축약 표시
             const equips = p['교구목록'] || [];
@@ -290,9 +299,8 @@ window.initCalendar = async function() {
             const teachersData = [mainTeacher, ...subTeachers].join(',');
 
             // ── 미정 판정 (상시 표시) ──
-            const rawMainTeacher = (p['주강사'] || '').trim();
-            const isMainUnassigned = !rawMainTeacher || rawMainTeacher === '미정';
-            const isSubUnassigned = subTeachers.some(t => !t.trim() || t.trim() === '미정');
+            const isMainUnassigned = mainTeacher === '미정';
+            const isSubUnassigned = subTeachers.some(t => t === '미정');
             const isUnassigned = isMainUnassigned || isSubUnassigned;
             const unassignedAttr = isUnassigned ? ' data-unassigned="true"' : '';
             const unassignedBadge = isUnassigned ? '<span class="unassigned-badge">미정</span>' : '';
@@ -303,11 +311,14 @@ window.initCalendar = async function() {
             const isMatch = isFilterActive && filterName && teachersData.includes(filterName);
             const matchAttr = isMatch ? ' data-match="true"' : '';
 
-            // 매칭 시 강사명 하이라이트 처리
+            // 매칭 시 강사명 하이라이트 및 미정 뱃지 인라인 처리
             let displayTeacherText = teacherText;
             if (isMatch && filterName) {
                 const escaped = filterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                displayTeacherText = teacherText.replace(new RegExp(escaped, 'g'), `<span class="highlight-teacher">${filterName}</span>`);
+                displayTeacherText = displayTeacherText.replace(new RegExp(escaped, 'g'), `<span class="highlight-teacher">${filterName}</span>`);
+            }
+            if (isUnassigned) {
+                displayTeacherText = displayTeacherText.replace(/미정/g, unassignedBadge);
             }
 
             if (arg.view.type === 'listWeek') {
@@ -330,7 +341,7 @@ window.initCalendar = async function() {
                         <div class="list-col col-inst" title="${institution}">${institution}</div>
                         <div class="list-col col-prog" title="${program}">${program}</div>
                         <div class="list-col col-target" title="${targetText}">${targetText}</div>
-                        <div class="list-col col-teacher" title="${teacherText}">${isUnassigned ? unassignedBadge : displayTeacherText}</div>
+                        <div class="list-col col-teacher" title="${fullTeacherText}">${displayTeacherText}</div>
                         <div class="list-col col-tool" title="${toolText}">${toolText}</div>
                         <div class="list-col col-note" title="${note}">${note}</div>
                     </div>`
