@@ -212,29 +212,33 @@ window.initCalendar = async function() {
                     const rawEvents = await getSchedulesByDate(startDate, endDate);
 
                     // 캘린더 규격에 맞게 매핑
-                    const eventsData = rawEvents.map(r => ({
-                        title: r.schoolName + (r.programName ? ` (${r.programName})` : ''),
-                        start: r.date + 'T' + r.startTime,
-                        end: r.date + 'T' + r.endTime,
-                        backgroundColor: r.color || '#2c3e50',
-                        extendedProps: {
-                            // 모달 상세 보기 및 수정을 위한 원본 데이터 매핑
-                            '날짜': r.date,
-                            '시작시간': r.startTime,
-                            '종료시간': r.endTime,
-                            '지역구분': r.region,
-                            '프로그램명': r.programName,
-                            '기관명': r.schoolName,
-                            '주강사': r.mainInstructor,
-                            '보조강사들': normalizeSubInstructors(r.subInstructors || r.subInstructor),
-                            '교구목록': normalizeEquipments(r.equipments, r.equipType, r.equipCount),
-                            '비고': r.note,
-                            '색상': r.color,
-                            '학년': r.grade,
-                            '대상인원': r.targetCount,
-                            row: r.id // Firestore 문서 ID 전달
-                        }
-                    }));
+                    const eventsData = rawEvents.map(r => {
+                        const safeStart = typeof extractTime === 'function' ? extractTime(r.startTime) : (r.startTime || '09:00');
+                        const safeEnd = typeof extractTime === 'function' ? extractTime(r.endTime) : (r.endTime || '10:00');
+                        return {
+                            title: r.schoolName + (r.programName ? ` (${r.programName})` : ''),
+                            start: r.date + 'T' + safeStart,
+                            end: r.date + 'T' + safeEnd,
+                            backgroundColor: r.color || '#2c3e50',
+                            extendedProps: {
+                                // 모달 상세 보기 및 수정을 위한 원본 데이터 매핑
+                                '날짜': r.date,
+                                '시작시간': r.startTime,
+                                '종료시간': r.endTime,
+                                '지역구분': r.region,
+                                '프로그램명': r.programName,
+                                '기관명': r.schoolName,
+                                '주강사': r.mainInstructor,
+                                '보조강사들': normalizeSubInstructors(r.subInstructors || r.subInstructor),
+                                '교구목록': normalizeEquipments(r.equipments, r.equipType, r.equipCount),
+                                '비고': r.note,
+                                '색상': r.color,
+                                '학년': r.grade,
+                                '대상인원': r.targetCount,
+                                row: r.id // Firestore 문서 ID 전달
+                            }
+                        };
+                    });
 
                     successCallback(eventsData);
                 } catch (error) {
