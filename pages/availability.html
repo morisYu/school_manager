@@ -4,8 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>출강 배정 보드 — 출강 관리 시스템</title>
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/availability.css">
+    <style>
+        body, #root {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Noto Sans KR', sans-serif !important;
+            letter-spacing: -0.015em;
+            -webkit-font-smoothing: antialiased;
+        }
+        .system-header {
+            margin-bottom: 0 !important;
+        }
+    </style>
 </head>
 <body style="display: none;">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -37,7 +48,7 @@
             </div>
         </div>
 
-        <div id="root" style="height: calc(100vh - 64px); overflow: hidden;"></div>
+        <div id="root" style="flex: 1; min-height: 0; overflow: hidden;"></div>
     </div>
 
     <script src="../js/utils.js"></script>
@@ -110,7 +121,8 @@
                     subjectRoles: subjectRoles,
                     availableDays: [],
                     unavailableTimes: timesStr || '없음',
-                    rawUnavailableTimes: timesStr // For programmatic overlap checking
+                    rawUnavailableTimes: timesStr, // For programmatic overlap checking
+                    availability: inst.availability || null
                 };
             });
         };
@@ -229,6 +241,44 @@
             const [showSummaryModal, setShowSummaryModal] = useState(false);
             const [includeCompletedInSummary, setIncludeCompletedInSummary] = useState(true);
 
+            // 배정 대기 수업 패널과 제안 장바구니 패널 사이의 너비 비율 (강사 리스트 22% 제외한 나머지 영역 중 장바구니 패널 비율 %)
+            const [cartWidthPercent, setCartWidthPercent] = useState(() => {
+                const saved = localStorage.getItem('school_manager_cart_width_pct');
+                const parsed = saved ? parseFloat(saved) : NaN;
+                return !isNaN(parsed) && parsed >= 15 && parsed <= 55 ? parsed : 24;
+            });
+            const [isResizing, setIsResizing] = useState(false);
+            const containerRef = React.useRef(null);
+
+            const handleResizeStart = (e) => {
+                e.preventDefault();
+                setIsResizing(true);
+            };
+
+            React.useEffect(() => {
+                if (!isResizing) return;
+                const handleMouseMove = (e) => {
+                    if (!containerRef.current) return;
+                    const rect = containerRef.current.getBoundingClientRect();
+                    // 오른쪽 끝에서부터 마우스 위치까지의 비율로 장바구니 패널 너비(%) 계산
+                    const rightPx = rect.right - e.clientX;
+                    let newCartPct = (rightPx / rect.width) * 100;
+                    // 최소 16% ~ 최대 50% 범위 제한 (강사 리스트 22% 고정, 배정 대기 수업은 28% ~ 62% 범위)
+                    newCartPct = Math.max(16, Math.min(50, newCartPct));
+                    setCartWidthPercent(newCartPct);
+                    localStorage.setItem('school_manager_cart_width_pct', String(newCartPct));
+                };
+                const handleMouseUp = () => {
+                    setIsResizing(false);
+                };
+                window.addEventListener('mousemove', handleMouseMove);
+                window.addEventListener('mouseup', handleMouseUp);
+                return () => {
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                };
+            }, [isResizing]);
+
             const checkAssignedInstructorConflict = (cls, subject, instructorId, role = null) => {
                 if (!cls || !subject || !instructorId || !role) return null;
                 const detail = cls.subjectDetails && cls.subjectDetails[subject];
@@ -327,6 +377,30 @@
                 });
 
                 return overlaps;
+            };
+
+            const checkInstructorRejectedSameTime = (targetCls, targetSubject, instructorId) => {
+                if (!targetCls || !instructorId) return [];
+                const rejectedList = [];
+
+                classes.forEach(c => {
+                    if (c.fullDate !== targetCls.fullDate) return;
+                    if (!isTimeRangeOverlapping(c.time, targetCls.time)) return;
+
+                    Object.entries(c.subjectDetails || {}).forEach(([subj, detail]) => {
+                        const mainRej = detail.main?.rejectedInstructorIds || [];
+                        const subRej = detail.sub?.rejectedInstructorIds || [];
+                        const isRejected = mainRej.includes(instructorId) || subRej.includes(instructorId);
+
+                        if (isRejected) {
+                            const isSameProgram = c.id === targetCls.id && subj === targetSubject;
+                            const label = isSameProgram ? '동일 프로그램 거절 이력' : '동시간대 타 프로그램 거절 이력';
+                            rejectedList.push(`${c.location} - ${subj} (${c.time}, ${label})`);
+                        }
+                    });
+                });
+
+                return rejectedList;
             };
 
             const dateFilteredClasses = useMemo(() => {
@@ -436,8 +510,16 @@
                     list = list.filter(i => i.name.toLowerCase().includes(q));
                 }
 
+                if (selectedInstructorId) {
+                    const selectedInst = instructors.find(i => i.id === selectedInstructorId);
+                    const others = list.filter(i => i.id !== selectedInstructorId);
+                    if (selectedInst) {
+                        return [selectedInst, ...others];
+                    }
+                }
+
                 return list;
-            }, [instructors, filterOrg, searchName]);
+            }, [instructors, filterOrg, searchName, selectedInstructorId]);
 
             const handleToggleCart = (classId, subject, roleOverride = null) => {
                 setCart((prev) => {
@@ -462,13 +544,21 @@
                     }
 
                     if (selectedInstructorId && cls) {
+                        const inst = instructors.find((i) => i.id === selectedInstructorId);
                         const conflict = checkAssignedInstructorConflict(cls, subject, selectedInstructorId, defaultRole);
                         if (conflict) {
                             showAssignedWarning(conflict);
                         }
+                        if (inst && checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes, inst.availability)) {
+                            alert(`⚠️ [강사 불가 일정 중복 경고]\n\n선택한 강사(${inst.name})의 수업 불가능 시간과 겹치는 일정입니다.\n\n📍 선택한 수업: ${cls.location} - ${subject} (${cls.date} ${cls.day} ${cls.time})\n🚫 강사 불가 일정: ${inst.unavailableTimes}`);
+                        }
                         const scheduleOverlaps = checkInstructorScheduleOverlap(cls, subject, selectedInstructorId, prev);
                         if (scheduleOverlaps.length > 0) {
                             alert(`⚠️ [수업 시간 중복 경고]\n\n선택한 강사(${selectedInstructorId})에게 같은 시간대 다른 수업이 이미 있습니다.\n\n📍 선택한 수업: ${cls.location} - ${subject} (${cls.date} ${cls.day} ${cls.time})\n\n[시간이 겹치는 수업]\n• ${scheduleOverlaps.join('\n• ')}`);
+                        }
+                        const rejectedOverlaps = checkInstructorRejectedSameTime(cls, subject, selectedInstructorId);
+                        if (rejectedOverlaps.length > 0) {
+                            alert(`⚠️ [동시간대 거절 이력 경고]\n\n선택한 강사(${selectedInstructorId})가 같은 날짜·시간대의 프로그램을 이미 거절한 이력이 있습니다.\n\n📍 선택한 수업: ${cls.location} - ${subject} (${cls.date} ${cls.day} ${cls.time})\n\n[거절한 프로그램]\n• ${rejectedOverlaps.join('\n• ')}`);
                         }
                     }
 
@@ -694,37 +784,53 @@
                 return `${blocks.join('\n\n')}\n\n일정 확인 부탁드립니다~^^`;
             }, [cart, classes]);
 
-            const checkTimeOverlap = (classDay, classTimeStr, unavailStr) => {
-                if (!unavailStr) return false;
-                
+            const checkTimeOverlap = (classDay, classTimeStr, unavailStr, availabilityObj = null) => {
                 const timeToMinutes = (t) => {
                     const [h, m] = t.split(':').map(Number);
-                    return h * 60 + (m || 0);
+                    return (h || 0) * 60 + (m || 0);
                 };
 
-                const cParts = classTimeStr.replace('-', '~').split('~').map(s => s.trim());
+                const cParts = (classTimeStr || '').replace('-', '~').split('~').map(s => s.trim());
                 if (cParts.length !== 2) return false;
                 const cStart = timeToMinutes(cParts[0]);
                 const cEnd = timeToMinutes(cParts[1]);
-                
-                const chunks = unavailStr.split(',').map(s => s.trim());
-                for (const chunk of chunks) {
-                    const match = chunk.match(/([월화수목금토일])\((.+)\)/);
-                    if (!match) continue;
-                    
-                    const [_, uDay, uTime] = match;
+
+                // 1) 원본 availability 객체가 있으면 직접 검사 (하루 다중 시간대 정확 지원)
+                if (availabilityObj) {
+                    const dayKeyMap = {
+                        '월': 'monday', '화': 'tuesday', '수': 'wednesday', '목': 'thursday',
+                        '금': 'friday', '토': 'saturday', '일': 'sunday'
+                    };
+                    const dayKey = dayKeyMap[classDay];
+                    const slots = dayKey ? availabilityObj[dayKey] : null;
+                    if (!slots || slots.length === 0) return false;
+                    return slots.some(slot => {
+                        if (slot.start === '00:00' && slot.end === '23:59') return true;
+                        const uStart = timeToMinutes(slot.start);
+                        const uEnd = timeToMinutes(slot.end);
+                        return cStart < uEnd && uStart < cEnd;
+                    });
+                }
+
+                // 2) 문자열 기반 폴백 검사 (예: "월(09:00~12:00, 14:00~16:00), 수(전일)")
+                if (!unavailStr || unavailStr === '없음') return false;
+                const dayRegex = /([월화수목금토일])\(([^)]+)\)/g;
+                let match;
+                while ((match = dayRegex.exec(unavailStr)) !== null) {
+                    const uDay = match[1];
+                    const uTimesStr = match[2];
                     if (uDay !== classDay) continue;
-                    
-                    if (uTime === '전일') return true;
-                    
-                    const uParts = uTime.replace('-', '~').split('~').map(s => s.trim());
-                    if (uParts.length !== 2) continue;
-                    
-                    const uStart = timeToMinutes(uParts[0]);
-                    const uEnd = timeToMinutes(uParts[1]);
-                    
-                    if (cStart < uEnd && uStart < cEnd) {
-                        return true;
+
+                    const timeSlots = uTimesStr.split(',').map(s => s.trim());
+                    for (const uTime of timeSlots) {
+                        if (uTime === '전일') return true;
+                        const uParts = uTime.replace('-', '~').split('~').map(s => s.trim());
+                        if (uParts.length !== 2) continue;
+                        const uStart = timeToMinutes(uParts[0]);
+                        const uEnd = timeToMinutes(uParts[1]);
+                        if (cStart < uEnd && uStart < cEnd) {
+                            return true;
+                        }
                     }
                 }
                 return false;
@@ -752,6 +858,19 @@
                     if (!proceed) return;
                 }
 
+                let unavailOverlapDetails = [];
+                cart.forEach(item => {
+                    const cls = classes.find((c) => c.id === item.classId);
+                    if (cls && checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes, inst.availability)) {
+                        unavailOverlapDetails.push(`- ${cls.location} ${item.subject} (${cls.date} ${cls.day} ${cls.time})`);
+                    }
+                });
+
+                if (unavailOverlapDetails.length > 0) {
+                    const proceed = window.confirm(`⚠️ [강사 불가 일정 중복 경고]\n\n선택한 강사(${inst.name})의 수업 불가능 시간(${inst.unavailableTimes})과 겹치는 수업이 있습니다:\n${unavailOverlapDetails.join('\n')}\n\n그래도 제안을 진행하시겠습니까?`);
+                    if (!proceed) return;
+                }
+
                 let scheduleOverlapDetails = [];
                 cart.forEach((item, idx) => {
                     const cls = classes.find((c) => c.id === item.classId);
@@ -766,6 +885,22 @@
 
                 if (scheduleOverlapDetails.length > 0) {
                     const proceed = window.confirm(`⚠️ [수업 시간 중복 경고]\n\n해당 강사(${inst.name})의 다른 수업(배정/제안중/장바구니)과 시간이 겹치는 일정이 있습니다:\n\n${scheduleOverlapDetails.join('\n\n')}\n\n그래도 제안을 진행하시겠습니까?`);
+                    if (!proceed) return;
+                }
+
+                let rejectedOverlapDetails = [];
+                cart.forEach(item => {
+                    const cls = classes.find((c) => c.id === item.classId);
+                    if (cls) {
+                        const rejectedOverlaps = checkInstructorRejectedSameTime(cls, item.subject, selectedInstructorId);
+                        if (rejectedOverlaps.length > 0) {
+                            rejectedOverlapDetails.push(`- ${cls.location} ${item.subject} (${cls.date} ${cls.day} ${cls.time})\n  ↳ 거절 이력: ${rejectedOverlaps.join(', ')}`);
+                        }
+                    }
+                });
+
+                if (rejectedOverlapDetails.length > 0) {
+                    const proceed = window.confirm(`⚠️ [동시간대 거절 이력 경고]\n\n해당 강사(${inst.name})가 같은 날짜·시간대의 프로그램을 이미 거절한 이력이 있습니다:\n\n${rejectedOverlapDetails.join('\n\n')}\n\n그래도 제안을 진행하시겠습니까?`);
                     if (!proceed) return;
                 }
 
@@ -823,29 +958,146 @@
             }
 
             return (
-                <div className="flex h-full bg-slate-100 p-6 gap-5 font-sans overflow-hidden text-left">
-                    <div className="flex flex-col w-[45%] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-5 border-b border-slate-100 flex flex-col bg-slate-50 gap-3">
+                <div ref={containerRef} className={`flex h-full bg-slate-100 p-3.5 overflow-hidden text-left ${isResizing ? 'select-none cursor-col-resize' : ''}`}>
+                    {/* 좌측: 강사 리스트 패널 (기존 22% 너비 고정 유지) */}
+                    <div className="flex flex-col w-[22%] shrink-0 mr-3.5 bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-slate-200 flex flex-col bg-slate-50 gap-2">
                             <div className="flex justify-between items-center">
-                                <h2 className="font-bold text-lg text-slate-800">1. 배정 대기 수업</h2>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setShowSummaryModal(true)}
-                                        className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-1"
-                                    >
-                                        📋 배정 현황판 보기
-                                    </button>
-                                    <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">{visibleClasses.length}건</span>
+                                <h2 className="font-extrabold text-lg text-slate-900 tracking-tight">1. 강사 리스트</h2>
+                                <span className="text-xs font-bold bg-teal-100 text-teal-800 px-2.5 py-0.5 rounded-full border border-teal-200">{visibleInstructors.length}명</span>
+                            </div>
+                            <div className="flex gap-1.5">
+                                <select className="text-sm font-medium border border-slate-300 rounded-lg px-2 py-1.5 outline-none bg-white text-slate-800 w-24 shrink-0 focus:border-teal-500" value={filterOrg} onChange={e => setFilterOrg(e.target.value)}>
+                                    <option value="">소속 전체</option>
+                                    {[...new Set(instructors.map(i => i.organization))].map(org => <option key={org} value={org}>{org}</option>)}
+                                </select>
+                                <div className="relative flex-1 min-w-0">
+                                    <input 
+                                        type="text" 
+                                        placeholder="강사명 검색..." 
+                                        className="w-full text-sm font-medium border border-slate-300 rounded-lg py-1.5 pl-7 pr-6 outline-none text-slate-800 bg-white focus:border-teal-500" 
+                                        value={searchName} 
+                                        onChange={e => setSearchName(e.target.value)} 
+                                    />
+                                    <span className="absolute left-2 top-2 text-slate-400 text-xs">🔍</span>
+                                    {searchName && (
+                                        <button 
+                                            onClick={() => setSearchName('')} 
+                                            className="absolute right-2 top-1.5 text-slate-400 hover:text-slate-700 text-sm font-bold"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                            <div className="flex gap-2 items-center">
-                                <input type="date" className="text-xs border border-slate-300 rounded p-1.5 flex-1 outline-none text-slate-700 bg-white" value={classStartDate} onChange={e => setClassStartDate(e.target.value)} />
-                                <span className="text-slate-400 text-xs font-bold">~</span>
-                                <input type="date" className="text-xs border border-slate-300 rounded p-1.5 flex-1 outline-none text-slate-700 bg-white" value={classEndDate} onChange={e => setClassEndDate(e.target.value)} />
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                            {visibleInstructors.length === 0 && <div className="text-center text-slate-500 font-semibold py-10 text-base">조건에 맞는 강사가 없습니다.</div>}
+                            {visibleInstructors.map((inst) => {
+                                const isSelected = selectedInstructorId === inst.id;
+                                const selectedCls = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
+
+                                return (
+                                    <div 
+                                        key={inst.id} 
+                                        onClick={() => {
+                                            if (isSelected) {
+                                                setSelectedInstructorId(null);
+                                            } else {
+                                                if (cart.length > 0) {
+                                                    const cartConflicts = [];
+                                                    const cartUnavailOverlaps = [];
+                                                    const cartTimeOverlaps = [];
+                                                    const cartRejectedOverlaps = [];
+                                                    cart.forEach((item, idx) => {
+                                                        const cls = classes.find(c => c.id === item.classId);
+                                                        if (cls) {
+                                                            const conflict = checkAssignedInstructorConflict(cls, item.subject, inst.id, item.role);
+                                                            if (conflict) {
+                                                                cartConflicts.push(`${cls.location} - ${item.subject} (${item.role}: ${conflict.conflicts.join(', ')})`);
+                                                            }
+                                                            if (checkTimeOverlap(cls.day, cls.time, inst.rawUnavailableTimes, inst.availability)) {
+                                                                cartUnavailOverlaps.push(`${cls.location} - ${item.subject} (${cls.date} ${cls.day} ${cls.time})`);
+                                                            }
+                                                            const prevCartItems = cart.slice(0, idx);
+                                                            const overlaps = checkInstructorScheduleOverlap(cls, item.subject, inst.id, prevCartItems);
+                                                            if (overlaps.length > 0) {
+                                                                cartTimeOverlaps.push(`${cls.location} - ${item.subject} (${cls.date} ${cls.day} ${cls.time})\n  ↳ 겹침: ${overlaps.join(', ')}`);
+                                                            }
+                                                            const rejectedOverlaps = checkInstructorRejectedSameTime(cls, item.subject, inst.id);
+                                                            if (rejectedOverlaps.length > 0) {
+                                                                cartRejectedOverlaps.push(`${cls.location} - ${item.subject} (${cls.date} ${cls.day} ${cls.time})\n  ↳ 거절 이력: ${rejectedOverlaps.join(', ')}`);
+                                                            }
+                                                        }
+                                                    });
+                                                    if (cartConflicts.length > 0) {
+                                                        alert(`⚠️ [강사 배정 경고]\n\n장바구니에 담긴 일정 중 이미 강사가 배정되어 있는 역할이 있습니다:\n• ${cartConflicts.join('\n• ')}\n\n(선택한 강사: ${inst.name})`);
+                                                    }
+                                                    if (cartUnavailOverlaps.length > 0) {
+                                                        alert(`⚠️ [강사 불가 일정 중복 경고]\n\n장바구니에 담긴 일정 중 선택한 강사(${inst.name})의 수업 불가능 시간(${inst.unavailableTimes})과 겹치는 일정이 있습니다:\n\n• ${cartUnavailOverlaps.join('\n• ')}`);
+                                                    }
+                                                    if (cartTimeOverlaps.length > 0) {
+                                                        alert(`⚠️ [수업 시간 중복 경고]\n\n장바구니에 담긴 일정 중 선택한 강사(${inst.name})의 다른 수업과 시간이 겹치는 일정이 있습니다:\n\n• ${cartTimeOverlaps.join('\n• ')}`);
+                                                    }
+                                                    if (cartRejectedOverlaps.length > 0) {
+                                                        alert(`⚠️ [동시간대 거절 이력 경고]\n\n장바구니에 담긴 일정 중 선택한 강사(${inst.name})가 같은 날짜·시간대에 이미 거절한 프로그램이 있습니다:\n\n• ${cartRejectedOverlaps.join('\n• ')}`);
+                                                    }
+                                                }
+                                                setSelectedInstructorId(inst.id);
+                                            }
+                                        }}
+                                        className={`relative px-3.5 py-2.5 rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden flex justify-between items-start ${isSelected ? 'sticky top-0 z-10 border-2 border-indigo-600 shadow-lg ring-2 ring-indigo-500/30 bg-indigo-50' : 'border-slate-300 bg-white shadow-sm hover:shadow-md hover:border-teal-400'}`}
+                                    >
+                                        <div className={`absolute left-0 top-0 bottom-0 w-2 transition-colors ${isSelected ? 'bg-indigo-600' : 'bg-teal-400'}`}></div>
+
+                                        <div className="flex-1 space-y-1 pl-2 min-w-0">
+                                            {/* 1행: 이름, 소속 */}
+                                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className={`font-extrabold text-[16px] ${isSelected ? 'text-indigo-950' : 'text-slate-900'}`}>{inst.name}</span>
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${isSelected ? 'text-indigo-800 bg-white border-indigo-300' : 'text-slate-700 bg-slate-100 border-slate-300'}`}>{inst.organization}</span>
+                                                </div>
+                                                {isSelected && (
+                                                    <span className="text-xs font-extrabold bg-indigo-600 text-white px-2 py-0.5 rounded-md shadow-sm">
+                                                        ✓ 선택됨
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            {/* 2행: 불가 일정 */}
+                                            <p className={`text-[13px] font-semibold leading-snug ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                                                불가 일정: <span className={inst.unavailableTimes === '없음' ? (isSelected ? "text-indigo-400 font-medium" : "text-slate-500 font-medium") : "text-rose-600 font-bold"}>{inst.unavailableTimes}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* 중앙: 배정 대기 수업 패널 (우측 핸들로 너비 조절 가능) */}
+                    <div className="flex flex-col flex-1 min-w-[320px] bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50 gap-3">
+                            <div className="flex items-center gap-2.5">
+                                <h2 className="font-extrabold text-lg text-slate-900 tracking-tight">2. 배정 대기 수업</h2>
+                                <span className="text-xs font-bold bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full border border-indigo-200">{visibleClasses.length}건</span>
+                            </div>
+                            <div className="flex items-center gap-2 ml-auto">
+                                <div className="flex gap-1.5 items-center">
+                                    <input type="date" className="text-sm font-medium border border-slate-300 rounded-lg px-2.5 py-1 outline-none text-slate-800 bg-white focus:border-indigo-500" value={classStartDate} onChange={e => setClassStartDate(e.target.value)} />
+                                    <span className="text-slate-500 text-sm font-bold">~</span>
+                                    <input type="date" className="text-sm font-medium border border-slate-300 rounded-lg px-2.5 py-1 outline-none text-slate-800 bg-white focus:border-indigo-500" value={classEndDate} onChange={e => setClassEndDate(e.target.value)} />
+                                </div>
+                                <button
+                                    onClick={() => setShowSummaryModal(true)}
+                                    className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-bold shadow-sm transition-colors flex items-center gap-1 shrink-0"
+                                >
+                                    📋 배정 현황판 보기
+                                </button>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {visibleClasses.length === 0 && <div className="text-center text-slate-400 py-10">대기 중인 수업이 없습니다.</div>}
+                        <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
+                            {visibleClasses.length === 0 && <div className="text-center text-slate-500 font-semibold py-12 text-base">대기 중인 수업이 없습니다.</div>}
                             {visibleClasses.map((cls) => {
                                 const isSelected = selectedClassId === cls.id;
                                 const currentDetail = cls.subjectDetails[cls.selectedSubject];
@@ -871,22 +1123,23 @@
                                                 }
                                             }
                                          }}
-                                         className={`relative p-4 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden ${isSelected ? 'border-indigo-500 shadow-md ring-1 ring-indigo-500 bg-indigo-50/50' : 'border-indigo-100/50 bg-gradient-to-br from-indigo-50/40 to-blue-50/20 shadow-sm hover:shadow-md hover:border-indigo-300 hover:-translate-y-0.5'} ${!isMatch && selectedInstructorId ? 'opacity-40 grayscale' : 'opacity-100'}`}>
+                                         className={`relative px-4 py-3 rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden ${isSelected ? 'border-indigo-600 shadow-md ring-2 ring-indigo-500/30 bg-indigo-50/40' : 'border-slate-300 bg-white shadow-sm hover:shadow-md hover:border-indigo-400'}`}>
                                         
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-indigo-500' : 'bg-indigo-200/60'}`}></div>
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-indigo-600' : 'bg-indigo-400'}`}></div>
                                         
-                                        <div className="flex items-start gap-3 pl-1">
-                                            <div className="flex-1 space-y-2">
+                                        <div className="flex items-start gap-2.5 pl-1.5">
+                                            <div className="flex-1 space-y-2 min-w-0">
                                                 <div className="flex justify-between items-center flex-wrap gap-2">
-                                                    <h3 className="font-bold text-slate-800 flex items-center gap-1.5 text-base">📍 {cls.location}</h3>
-                                                    <div className="text-xs text-slate-600 flex items-center gap-3 font-medium">
+                                                    <h3 className="font-extrabold text-slate-900 flex items-center gap-1.5 text-[17px] leading-snug">📍 {cls.location}</h3>
+                                                    <div className="text-[14px] text-slate-800 flex items-center gap-2.5 font-bold bg-slate-100 px-3 py-1 rounded-md border border-slate-200">
                                                         <span>📅 {cls.date} ({cls.day})</span>
-                                                        <span>⏰ {cls.time}</span>
+                                                        <span className="text-slate-300">|</span>
+                                                        <span className="text-indigo-900">⏰ {cls.time}</span>
                                                     </div>
                                                 </div>
 
                                             {cls.subjects.length > 0 && (
-                                                <div className="mt-2 bg-white/90 rounded-lg border border-slate-200/90 p-2.5 space-y-1.5 text-xs font-mono">
+                                                <div className="mt-1.5 bg-slate-50/90 rounded-lg border border-slate-200/90 p-2 space-y-1 text-[14px]">
                                                     {cls.subjects.map(subj => {
                                                         const detail = cls.subjectDetails[subj];
                                                         const { mainText, mainState, subText, subState, hasSub, rejectedNames } = formatSubjectStatusParts(detail);
@@ -912,18 +1165,18 @@
                                                                         handleToggleCart(cls.id, subj);
                                                                     }
                                                                 }}
-                                                                className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-all border ${isSubjCarted ? 'bg-indigo-50 border-indigo-300 shadow-sm' : isSelSubj ? 'bg-slate-100/90 border-slate-300' : 'border-transparent hover:bg-slate-50'}`}
+                                                                className={`flex items-center justify-between gap-2 px-2.5 py-1 rounded-md cursor-pointer transition-all border ${isSubjCarted ? 'bg-indigo-100/90 border-indigo-400 shadow-sm' : isSelSubj ? 'bg-white border-slate-300 shadow-sm' : 'bg-white/60 border-transparent hover:bg-white hover:border-slate-200'}`}
                                                             >
-                                                                <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                                                                <div className="flex items-center flex-wrap gap-2 min-w-0">
                                                                     <input
                                                                         type="checkbox"
                                                                         disabled={isSubjConfirmed}
                                                                         checked={isSubjCarted}
                                                                         onChange={() => {}}
-                                                                        className="w-3.5 h-3.5 shrink-0 cursor-pointer accent-indigo-600 disabled:opacity-40"
+                                                                        className="w-4 h-4 shrink-0 cursor-pointer accent-indigo-600 disabled:opacity-40"
                                                                     />
-                                                                    <span className="font-bold text-slate-800 shrink-0">
-                                                                        {isTeachable && <span className="mr-0.5 text-[10px]" title={`${selectedInst?.name} 강사 수업 가능 과목`}>✨</span>}
+                                                                    <span className="font-extrabold text-slate-900 shrink-0 text-[15px]">
+                                                                        {isTeachable && <span className="mr-0.5 text-xs" title={`${selectedInst?.name} 강사 수업 가능 과목`}>✨</span>}
                                                                         {subj}:
                                                                     </span>
                                                                     <span
@@ -934,7 +1187,7 @@
                                                                             if (!isSubjConfirmed) handleToggleCart(cls.id, subj, '주강사');
                                                                         }}
                                                                         title="클릭하여 주강사로 제안 담기"
-                                                                        className={`px-1 rounded hover:bg-indigo-100/70 ${mainState === 'confirmed' ? 'text-slate-900 font-bold' : mainState === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}
+                                                                        className={`px-1.5 py-0.5 rounded text-[15px] hover:bg-indigo-100 ${mainState === 'confirmed' ? 'text-slate-900 font-extrabold' : mainState === 'pending' ? 'text-amber-700 font-bold' : 'text-slate-400 font-semibold'}`}
                                                                     >
                                                                         {mainText || '___'}
                                                                     </span>
@@ -949,7 +1202,7 @@
                                                                                     if (!isSubjConfirmed) handleToggleCart(cls.id, subj, '보조강사');
                                                                                 }}
                                                                                 title="클릭하여 보조강사로 제안 담기"
-                                                                                className={`px-1 rounded hover:bg-indigo-100/70 ${subState === 'confirmed' ? 'text-slate-900 font-bold' : subState === 'pending' ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}
+                                                                                className={`px-1.5 py-0.5 rounded text-[15px] hover:bg-indigo-100 ${subState === 'confirmed' ? 'text-slate-900 font-extrabold' : subState === 'pending' ? 'text-amber-700 font-bold' : 'text-slate-400 font-semibold'}`}
                                                                             >
                                                                                 {subText || '___'}
                                                                             </span>
@@ -958,7 +1211,7 @@
                                                                 </div>
                                                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
                                                                     {rejectedNames.length > 0 && (
-                                                                        <span className="text-[11px] text-rose-500 font-semibold">
+                                                                        <span className="text-[13px] text-rose-600 font-bold">
                                                                             {rejectedNames.join(', ')}
                                                                         </span>
                                                                     )}
@@ -971,7 +1224,7 @@
                                                                                     handleSubjectChange(cls.id, subj);
                                                                                     handleToggleCart(cls.id, subj, '주강사');
                                                                                 }}
-                                                                                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border transition-all ${isSubjCarted && cartItem.role === '주강사' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                                                                                className={`px-2 py-0.5 rounded text-xs font-bold border transition-all ${isSubjCarted && cartItem.role === '주강사' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:border-indigo-400 hover:text-indigo-700'}`}
                                                                             >
                                                                                 주강사
                                                                             </button>
@@ -982,7 +1235,7 @@
                                                                                     handleSubjectChange(cls.id, subj);
                                                                                     handleToggleCart(cls.id, subj, '보조강사');
                                                                                 }}
-                                                                                className={`px-1.5 py-0.5 rounded text-[10px] font-sans font-bold border transition-all ${isSubjCarted && cartItem.role === '보조강사' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
+                                                                                className={`px-2 py-0.5 rounded text-xs font-bold border transition-all ${isSubjCarted && cartItem.role === '보조강사' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:border-indigo-400 hover:text-indigo-700'}`}
                                                                             >
                                                                                 보조강사
                                                                             </button>
@@ -997,8 +1250,9 @@
 
                                             {(() => {
                                                 const currentDetail = cls.subjectDetails[cls.selectedSubject];
+                                                const hasSubRole = currentDetail.sub && currentDetail.sub.isActive;
                                                 return (
-                                                    <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-slate-100">
+                                                    <div className={`grid ${hasSubRole ? 'grid-cols-2' : 'grid-cols-1'} gap-2 mt-2 pt-2 border-t border-slate-200`}>
                                                         {['main', 'sub'].map(roleKey => {
                                                             const rData = currentDetail[roleKey];
                                                             if (roleKey === 'sub' && !rData.isActive) return null;
@@ -1009,33 +1263,33 @@
                                                             const rejectedIds = rData.rejectedInstructorIds || [];
 
                                                             return (
-                                                                <div key={roleKey} className={`p-2 rounded border ${isPending ? 'bg-amber-50 border-amber-200' : isConfirmed ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                                                                    <div className="flex justify-between items-center mb-1">
-                                                                        <span className="font-bold text-xs text-slate-700">{roleLabel}</span>
-                                                                        <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${isPending ? 'bg-amber-200 text-amber-800' : isConfirmed ? 'bg-emerald-200 text-emerald-800' : 'bg-slate-200 text-slate-600'}`}>
+                                                                <div key={roleKey} className={`px-2.5 py-1.5 rounded-lg border ${isPending ? 'bg-amber-50 border-amber-300' : isConfirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
+                                                                    <div className="flex justify-between items-center">
+                                                                        <span className="font-extrabold text-[13px] text-slate-800">{roleLabel}</span>
+                                                                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${isPending ? 'bg-amber-200 text-amber-900' : isConfirmed ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-700'}`}>
                                                                             {isPending ? `제안중 (${instructors.find(i=>i.id===rData.proposedInstructorId)?.name || ''})` : isConfirmed ? `배정완료 (${instructors.find(i=>i.id===rData.assignedInstructorId)?.name || ''})` : '모집중'}
                                                                         </span>
                                                                     </div>
                                                                     
                                                                     {rejectedIds.length > 0 && (
-                                                                        <div className="text-[10px] text-rose-500 flex items-start gap-1 mb-1">
+                                                                        <div className="text-xs text-rose-600 flex items-start gap-1 mt-1 font-semibold">
                                                                             <span className="font-bold">거절이력:</span>
                                                                             <span>{rejectedIds.map(id => instructors.find(i => i.id === id)?.name).join(', ')}</span>
                                                                         </div>
                                                                     )}
 
                                                                     {isPending && (
-                                                                        <div className="flex gap-1 mt-1.5">
+                                                                        <div className="flex gap-1.5 mt-1.5">
                                                                             <button onClick={(e) => {
                                                                                 if (!selectedInstructorId) {
                                                                                     e.stopPropagation();
-                                                                                    alert('배정을 확정할 강사를 2번 패널에서 먼저 선택해주세요.');
+                                                                                    alert('배정을 확정할 강사를 1번 강사 리스트 패널에서 먼저 선택해주세요.');
                                                                                     return;
                                                                                 }
                                                                                 handleAcceptClass(cls.id, cls.selectedSubject, roleKey, e);
-                                                                            }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1 px-1 rounded text-[11px] font-medium transition-colors text-center whitespace-nowrap">수락 (확정)</button>
-                                                                            <button onClick={(e) => handleRejectClass(cls.id, cls.selectedSubject, roleKey, e)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-1 px-1 rounded text-[11px] font-medium transition-colors text-center whitespace-nowrap">거절</button>
-                                                                            <button onClick={(e) => handleCancelProposal(cls.id, cls.selectedSubject, roleKey, e)} className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 py-1 px-1 rounded text-[11px] font-medium transition-colors text-center whitespace-nowrap">제안 취소</button>
+                                                                            }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-1 px-2 rounded text-xs font-bold transition-colors text-center whitespace-nowrap shadow-sm">수락 (확정)</button>
+                                                                            <button onClick={(e) => handleRejectClass(cls.id, cls.selectedSubject, roleKey, e)} className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-800 py-1 px-2 rounded text-xs font-bold transition-colors text-center whitespace-nowrap">거절</button>
+                                                                            <button onClick={(e) => handleCancelProposal(cls.id, cls.selectedSubject, roleKey, e)} className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 py-1 px-2 rounded text-xs font-bold transition-colors text-center whitespace-nowrap">제안 취소</button>
                                                                         </div>
                                                                     )}
                                                                 </div>
@@ -1051,143 +1305,45 @@
                             })}
                         </div>
                     </div>
-                    <div className="flex flex-col w-[27.5%] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-5 border-b border-slate-100 flex flex-col bg-slate-50 gap-3">
-                            <div className="flex justify-between items-center">
-                                <h2 className="font-bold text-lg text-slate-800">2. 강사 리스트</h2>
-                                <span className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full">{visibleInstructors.length}명</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <select className="text-xs border border-slate-300 rounded p-1.5 outline-none bg-white text-slate-700 w-28 shrink-0" value={filterOrg} onChange={e => setFilterOrg(e.target.value)}>
-                                    <option value="">소속 전체</option>
-                                    {[...new Set(instructors.map(i => i.organization))].map(org => <option key={org} value={org}>{org}</option>)}
-                                </select>
-                                <div className="relative flex-1">
-                                    <input 
-                                        type="text" 
-                                        placeholder="강사명 검색..." 
-                                        className="w-full text-xs border border-slate-300 rounded p-1.5 pl-7 pr-6 outline-none text-slate-700 bg-white" 
-                                        value={searchName} 
-                                        onChange={e => setSearchName(e.target.value)} 
-                                    />
-                                    <span className="absolute left-2 top-1.5 text-slate-400 text-xs">🔍</span>
-                                    {searchName && (
-                                        <button 
-                                            onClick={() => setSearchName('')} 
-                                            className="absolute right-2 top-1.5 text-slate-400 hover:text-slate-600 text-xs font-bold"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                            {visibleInstructors.length === 0 && <div className="text-center text-slate-400 py-10">조건에 맞는 강사가 없습니다.</div>}
-                            {visibleInstructors.map((inst) => {
-                                const isSelected = selectedInstructorId === inst.id;
-                                const selectedCls = selectedClassId ? classes.find(c => c.id === selectedClassId) : null;
 
-                                return (
-                                    <div 
-                                        key={inst.id} 
-                                        onClick={() => {
-                                            if (isSelected) {
-                                                setSelectedInstructorId(null);
-                                            } else {
-                                                if (cart.length > 0) {
-                                                    const cartConflicts = [];
-                                                    const cartTimeOverlaps = [];
-                                                    cart.forEach((item, idx) => {
-                                                        const cls = classes.find(c => c.id === item.classId);
-                                                        if (cls) {
-                                                            const conflict = checkAssignedInstructorConflict(cls, item.subject, inst.id, item.role);
-                                                            if (conflict) {
-                                                                cartConflicts.push(`${cls.location} - ${item.subject} (${item.role}: ${conflict.conflicts.join(', ')})`);
-                                                            }
-                                                            const prevCartItems = cart.slice(0, idx);
-                                                            const overlaps = checkInstructorScheduleOverlap(cls, item.subject, inst.id, prevCartItems);
-                                                            if (overlaps.length > 0) {
-                                                                cartTimeOverlaps.push(`${cls.location} - ${item.subject} (${cls.date} ${cls.day} ${cls.time})\n  ↳ 겹침: ${overlaps.join(', ')}`);
-                                                            }
-                                                        }
-                                                    });
-                                                    if (cartConflicts.length > 0) {
-                                                        alert(`⚠️ [강사 배정 경고]\n\n장바구니에 담긴 일정 중 이미 강사가 배정되어 있는 역할이 있습니다:\n• ${cartConflicts.join('\n• ')}\n\n(선택한 강사: ${inst.name})`);
-                                                    }
-                                                    if (cartTimeOverlaps.length > 0) {
-                                                        alert(`⚠️ [수업 시간 중복 경고]\n\n장바구니에 담긴 일정 중 선택한 강사(${inst.name})의 다른 수업과 시간이 겹치는 일정이 있습니다:\n\n• ${cartTimeOverlaps.join('\n• ')}`);
-                                                    }
-                                                }
-                                                setSelectedInstructorId(inst.id);
-                                            }
-                                        }}
-                                        className={`relative p-4 rounded-xl border cursor-pointer transition-all duration-200 overflow-hidden flex justify-between items-start ${isSelected ? 'border-teal-500 shadow-md ring-1 ring-teal-500 bg-teal-50/50' : 'border-teal-100/50 bg-gradient-to-br from-teal-50/40 to-emerald-50/20 shadow-sm hover:shadow-md hover:border-teal-300 hover:-translate-y-0.5'}`}
-                                    >
-                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 transition-colors ${isSelected ? 'bg-teal-500' : 'bg-teal-200/60'}`}></div>
-
-                                        <div className="flex-1 space-y-2 pl-1">
-                                            {/* 1행: 이름, 소속 */}
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-slate-800 text-lg">{inst.name}</span>
-                                                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">{inst.organization}</span>
-                                            </div>
-                                            
-                                            {/* 2행: 불가 일정 */}
-                                            <p className="text-xs text-slate-500">
-                                                불가 일정: <span className={inst.unavailableTimes === '없음' ? "text-slate-400 font-medium" : "text-rose-600 font-medium"}>{inst.unavailableTimes}</span>
-                                            </p>
-
-                                            {/* 3행: 프로그램 뱃지 */}
-                                            <div className="flex gap-1.5 flex-wrap pt-1">
-                                                {inst.subjectRoles && inst.subjectRoles.map(sub => {
-                                                    let badgeClass = "text-[11px] px-1.5 py-0.5 rounded border shadow-sm ";
-                                                    if (sub.role === 'main') {
-                                                        badgeClass += "bg-blue-50 text-blue-700 border-blue-200";
-                                                    } else if (sub.role === 'sub') {
-                                                        badgeClass += "bg-emerald-50 text-emerald-700 border-emerald-200";
-                                                    } else {
-                                                        badgeClass += "bg-slate-50 text-slate-600 border-slate-200";
-                                                    }
-                                                    return (
-                                                        <span key={sub.name} className={badgeClass}>
-                                                            {sub.name}
-                                                        </span>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                    {/* 드래그 리사이저 핸들 (배정 대기 수업 <-> 제안 장바구니 너비 조절) */}
+                    <div
+                        onMouseDown={handleResizeStart}
+                        title="좌우로 드래그하여 배정 대기 수업과 제안 장바구니 너비를 조절하세요"
+                        className="w-3.5 shrink-0 flex items-center justify-center cursor-col-resize group select-none"
+                    >
+                        <div className={`w-1.5 h-16 rounded-full transition-all flex items-center justify-center ${isResizing ? 'bg-indigo-600 h-28 shadow-md' : 'bg-slate-300 group-hover:bg-indigo-500 group-hover:h-24'}`}>
                         </div>
                     </div>
-                    <div className="flex flex-col w-[27.5%] bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="p-5 border-b border-slate-100 bg-slate-50">
-                            <h2 className="font-bold text-lg text-slate-800">3. 제안 장바구니 & 문자 폼</h2>
+
+                    {/* 우측: 제안 장바구니 & 문자 폼 패널 (드래그로 너비 조절 가능) */}
+                    <div style={{ width: `${cartWidthPercent}%` }} className="flex flex-col shrink-0 min-w-[240px] bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
+                        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                            <h2 className="font-extrabold text-lg text-slate-900 tracking-tight">3. 제안 장바구니</h2>
+                            <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">{cart.length}건</span>
                         </div>
-                        <div className="flex-1 flex flex-col p-5 gap-4 overflow-hidden">
-                            <div className="max-h-[40%] overflow-y-auto space-y-2 pr-2">
+                        <div className="flex-1 flex flex-col p-3.5 gap-3 overflow-hidden">
+                            <div className="max-h-[42%] overflow-y-auto space-y-1.5 pr-1">
                                 {cart.length === 0 ? (
-                                    <div className="text-center text-slate-400 text-sm py-6 bg-slate-50 rounded-lg border border-dashed border-slate-200">1번 패널에서 제안할 과목 줄을 클릭해주세요.</div>
+                                    <div className="text-center text-slate-500 font-semibold text-sm py-6 bg-slate-50 rounded-lg border border-dashed border-slate-300 px-2">배정 대기 수업 패널에서 제안할 과목 줄을 클릭해주세요.</div>
                                 ) : (
                                     cart.map((item) => {
                                         const cls = classes.find((c) => c.id === item.classId);
                                         if (!cls) return null;
                                         return (
-                                            <div key={`${item.classId}-${item.subject}`} className="bg-slate-50 p-3 rounded-md border border-slate-200 flex justify-between items-center gap-2">
+                                            <div key={`${item.classId}-${item.subject}`} className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-300 flex justify-between items-center gap-2">
                                                 <div className="min-w-0">
-                                                    <p className="text-sm font-semibold text-slate-800 truncate">{cls.date} ({cls.day}) {cls.location}</p>
-                                                    <p className="text-xs text-slate-500 truncate">{cls.time} | {item.subject}</p>
+                                                    <p className="text-sm font-extrabold text-slate-900 truncate">{cls.date}({cls.day}) {cls.location}</p>
+                                                    <p className="text-xs font-semibold text-slate-700 truncate">{cls.time} | {item.subject}</p>
                                                 </div>
-                                                <div className="flex items-center gap-1.5 shrink-0">
-                                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${item.role === '주강사' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <span className={`text-xs font-extrabold px-2 py-0.5 rounded border ${item.role === '주강사' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'}`}>
                                                         {item.role}
                                                     </span>
                                                     <button
                                                         type="button"
                                                         onClick={() => handleToggleCart(item.classId, item.subject)}
-                                                        className="text-slate-400 hover:text-rose-500 text-xs font-bold px-1"
+                                                        className="text-slate-400 hover:text-rose-600 text-sm font-bold px-1"
                                                         title="장바구니에서 제거"
                                                     >
                                                         ✕
@@ -1198,18 +1354,18 @@
                                     })
                                 )}
                             </div>
-                            <div className="flex-1 flex flex-col gap-2">
-                                <label className="text-sm font-bold text-slate-700 flex justify-between items-end">
+                            <div className="flex-1 flex flex-col gap-1.5 min-h-0">
+                                <label className="text-sm font-extrabold text-slate-800 flex justify-between items-end">
                                     <span>생성된 문자 텍스트</span>
                                 </label>
-                                <textarea readOnly value={generatedMessage} className="flex-1 w-full p-4 border border-slate-300 rounded-lg bg-slate-50 text-slate-700 text-sm leading-relaxed resize-none focus:outline-none" placeholder="여기에 문자가 자동 완성됩니다." />
+                                <textarea readOnly value={generatedMessage} className="flex-1 w-full p-3 border border-slate-300 rounded-lg bg-slate-50 text-slate-900 font-medium text-[14px] leading-relaxed resize-none focus:outline-none" placeholder="여기에 문자가 자동 완성됩니다." />
                             </div>
-                            <div className="flex flex-col mt-2">
+                            <div className="flex flex-col mt-1">
                                 {!selectedInstructorId && cart.length > 0 && (
-                                    <p className="text-xs text-rose-500 text-center mb-2 font-medium">제안 문자를 복사하려면 2번 패널에서 대상 강사를 선택해주세요.</p>
+                                    <p className="text-xs text-rose-600 text-center mb-1.5 font-bold">강사 리스트 패널에서 대상 강사를 선택해주세요.</p>
                                 )}
-                                <button onClick={handleCopyAndPropose} disabled={cart.length === 0 || !selectedInstructorId} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold text-base transition-all flex items-center justify-center gap-2 shadow-sm">
-                                    문자 텍스트 복사 및 제안중으로 변경
+                                <button onClick={handleCopyAndPropose} disabled={cart.length === 0 || !selectedInstructorId} className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white py-3 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5 shadow-sm">
+                                    📋 문자 복사 및 제안중 변경
                                 </button>
                             </div>
                         </div>
