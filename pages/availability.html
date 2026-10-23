@@ -194,6 +194,7 @@
             }
             
             return Object.values(grouped).map(c => {
+                c.subjects.sort((a, b) => a.localeCompare(b, 'ko', { numeric: true }));
                 c.selectedSubject = c.subjects[0];
                 return c;
             }).sort((a, b) => a.fullDate.localeCompare(b.fullDate));
@@ -432,27 +433,33 @@
             };
 
             const formatSubjectStatusParts = (detail) => {
-                if (!detail) return { mainText: '', mainState: 'empty', subText: '', subState: 'inactive', hasSub: false, rejectedNames: [] };
+                if (!detail) return { mainText: '', mainState: 'empty', mainInstructorId: null, subText: '', subState: 'inactive', subInstructorId: null, hasSub: false, rejectedNames: [], rejectedItems: [] };
 
                 let mainText = '';
                 let mainState = 'empty';
+                let mainInstructorId = null;
                 if (detail.main?.status === 'Confirmed' && detail.main.assignedInstructorId) {
-                    mainText = getInstructorName(detail.main.assignedInstructorId);
+                    mainInstructorId = detail.main.assignedInstructorId;
+                    mainText = getInstructorName(mainInstructorId);
                     mainState = 'confirmed';
                 } else if (detail.main?.status === 'Pending' && detail.main.proposedInstructorId) {
-                    mainText = `${getInstructorName(detail.main.proposedInstructorId)}(제안중)`;
+                    mainInstructorId = detail.main.proposedInstructorId;
+                    mainText = `${getInstructorName(mainInstructorId)}(제안중)`;
                     mainState = 'pending';
                 }
 
                 let subText = '';
                 let subState = 'inactive';
+                let subInstructorId = null;
                 const hasSub = !!(detail.sub && detail.sub.isActive);
                 if (hasSub) {
                     if (detail.sub.status === 'Confirmed' && detail.sub.assignedInstructorId) {
-                        subText = getInstructorName(detail.sub.assignedInstructorId);
+                        subInstructorId = detail.sub.assignedInstructorId;
+                        subText = getInstructorName(subInstructorId);
                         subState = 'confirmed';
                     } else if (detail.sub.status === 'Pending' && detail.sub.proposedInstructorId) {
-                        subText = `${getInstructorName(detail.sub.proposedInstructorId)}(제안중)`;
+                        subInstructorId = detail.sub.proposedInstructorId;
+                        subText = `${getInstructorName(subInstructorId)}(제안중)`;
                         subState = 'pending';
                     } else {
                         subState = 'empty';
@@ -463,8 +470,9 @@
                 const subRej = detail.sub?.rejectedInstructorIds || [];
                 const allRejIds = [...new Set([...mainRej, ...subRej])];
                 const rejectedNames = allRejIds.map(id => `${getInstructorName(id)}(x)`);
+                const rejectedItems = allRejIds.map(id => ({ id, label: `${getInstructorName(id)}(x)` }));
 
-                return { mainText, mainState, subText, subState, hasSub, rejectedNames };
+                return { mainText, mainState, mainInstructorId, subText, subState, subInstructorId, hasSub, rejectedNames, rejectedItems };
             };
 
             const summaryBoardText = useMemo(() => {
@@ -579,12 +587,27 @@
                 setCart((prev) => prev.map((item) => (item.classId === classId && item.subject === subject ? { ...item, role } : item)));
             };
             
-            const handleSubjectChange = (classId, subject) => {
+            const handleSubjectChange = (classId, subject, preferredRole = null) => {
                 setClasses((prev) => prev.map((c) => (c.id === classId ? { ...c, selectedSubject: subject } : c)));
                 
                 const cls = classes.find((c) => c.id === classId);
                 if (!cls || !cls.subjectDetails[subject]) return;
                 const detail = cls.subjectDetails[subject];
+
+                if (preferredRole === 'main') {
+                    const instId = (detail.main?.status === 'Confirmed' && detail.main.assignedInstructorId)
+                        || (detail.main?.status === 'Pending' && detail.main.proposedInstructorId)
+                        || null;
+                    if (instId) setSelectedInstructorId(instId);
+                    return;
+                }
+                if (preferredRole === 'sub') {
+                    const instId = (detail.sub?.isActive && detail.sub?.status === 'Confirmed' && detail.sub.assignedInstructorId)
+                        || (detail.sub?.isActive && detail.sub?.status === 'Pending' && detail.sub.proposedInstructorId)
+                        || null;
+                    if (instId) setSelectedInstructorId(instId);
+                    return;
+                }
 
                 if (!selectedInstructorId && selectedClassId === classId) {
                     if (detail.main && detail.main.status === 'Confirmed' && detail.main.assignedInstructorId) {
@@ -1139,9 +1162,22 @@
                     {/* 중앙: 배정 대기 수업 패널 (우측 핸들로 너비 조절 가능) */}
                     <div className="flex flex-col flex-1 min-w-[320px] bg-white rounded-xl shadow-sm border border-slate-300 overflow-hidden">
                         <div className="px-4 py-3 border-b border-slate-200 flex flex-wrap justify-between items-center bg-slate-50 gap-3">
-                            <div className="flex items-center gap-2.5">
+                            <div className="flex items-center gap-2.5 flex-wrap">
                                 <h2 className="font-extrabold text-lg text-slate-900 tracking-tight">2. 배정 대기 수업</h2>
                                 <span className="text-xs font-bold bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full border border-indigo-200">{visibleClasses.length}건</span>
+                                {selectedInstructorId && (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-extrabold bg-yellow-300 text-slate-950 px-2.5 py-1 rounded-full shadow-sm ring-2 ring-amber-500">
+                                        <span>👤 선택 강사: {getInstructorName(selectedInstructorId)}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedInstructorId(null)}
+                                            className="hover:text-rose-700 font-bold ml-0.5"
+                                            title="강사 선택 해제"
+                                        >
+                                            ✕
+                                        </button>
+                                    </span>
+                                )}
                             </div>
                             <div className="flex items-center gap-2 ml-auto">
                                 <div className="flex gap-1.5 items-center">
@@ -1203,7 +1239,7 @@
                                                 <div className="mt-1.5 bg-slate-50/90 rounded-lg border border-slate-200/90 p-2 space-y-1 text-[14px]">
                                                     {cls.subjects.map(subj => {
                                                         const detail = cls.subjectDetails[subj];
-                                                        const { mainText, mainState, subText, subState, hasSub, rejectedNames } = formatSubjectStatusParts(detail);
+                                                        const { mainText, mainState, mainInstructorId, subText, subState, subInstructorId, hasSub, rejectedNames, rejectedItems } = formatSubjectStatusParts(detail);
                                                         const isSelSubj = cls.selectedSubject === subj;
                                                         const cartItem = cart.find(item => item.classId === cls.id && item.subject === subj);
                                                         const isSubjCarted = !!cartItem;
@@ -1214,6 +1250,8 @@
                                                         const matchedRole = selectedInst && selectedInst.subjectRoles ? 
                                                             selectedInst.subjectRoles.find(sr => sr.name === cleanSubject || sr.name === subj) : null;
                                                         const isTeachable = !!matchedRole || (selectedInst && selectedInst.subjects && (selectedInst.subjects.includes(cleanSubject) || selectedInst.subjects.includes(subj)));
+                                                        const isMainSelectedInst = !!(selectedInstructorId && mainInstructorId === selectedInstructorId);
+                                                        const isSubSelectedInst = !!(selectedInstructorId && subInstructorId === selectedInstructorId);
 
                                                         return (
                                                             <div
@@ -1244,11 +1282,11 @@
                                                                         onClick={(e) => {
                                                                             e.stopPropagation();
                                                                             setSelectedClassId(cls.id);
-                                                                            handleSubjectChange(cls.id, subj);
-                                                                            if (!isSubjConfirmed) handleToggleCart(cls.id, subj, '주강사');
+                                                                            handleSubjectChange(cls.id, subj, 'main');
+                                                                            if (!mainInstructorId && !isSubjConfirmed) handleToggleCart(cls.id, subj, '주강사');
                                                                         }}
-                                                                        title="클릭하여 주강사로 제안 담기"
-                                                                        className={`px-1.5 py-0.5 rounded text-[15px] hover:bg-indigo-100 ${mainState === 'confirmed' ? 'text-slate-900 font-extrabold' : mainState === 'pending' ? 'text-amber-700 font-bold' : 'text-slate-400 font-semibold'}`}
+                                                                        title={mainInstructorId ? "클릭하여 해당 강사 선택" : "클릭하여 주강사로 제안 담기"}
+                                                                        className={`rounded text-[15px] transition-all ${isMainSelectedInst ? 'px-2 py-0.5 bg-yellow-300 text-slate-950 font-extrabold ring-2 ring-amber-500 shadow-sm' : `px-1.5 py-0.5 hover:bg-indigo-100 ${mainState === 'confirmed' ? 'text-slate-900 font-extrabold' : mainState === 'pending' ? 'text-amber-700 font-bold' : 'text-slate-400 font-semibold'}`}`}
                                                                     >
                                                                         {mainText || '___'}
                                                                     </span>
@@ -1259,11 +1297,11 @@
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     setSelectedClassId(cls.id);
-                                                                                    handleSubjectChange(cls.id, subj);
-                                                                                    if (!isSubjConfirmed) handleToggleCart(cls.id, subj, '보조강사');
+                                                                                    handleSubjectChange(cls.id, subj, 'sub');
+                                                                                    if (!subInstructorId && !isSubjConfirmed) handleToggleCart(cls.id, subj, '보조강사');
                                                                                 }}
-                                                                                title="클릭하여 보조강사로 제안 담기"
-                                                                                className={`px-1.5 py-0.5 rounded text-[15px] hover:bg-indigo-100 ${subState === 'confirmed' ? 'text-slate-900 font-extrabold' : subState === 'pending' ? 'text-amber-700 font-bold' : 'text-slate-400 font-semibold'}`}
+                                                                                title={subInstructorId ? "클릭하여 해당 강사 선택" : "클릭하여 보조강사로 제안 담기"}
+                                                                                className={`rounded text-[15px] transition-all ${isSubSelectedInst ? 'px-2 py-0.5 bg-yellow-300 text-slate-950 font-extrabold ring-2 ring-amber-500 shadow-sm' : `px-1.5 py-0.5 hover:bg-indigo-100 ${subState === 'confirmed' ? 'text-slate-900 font-extrabold' : subState === 'pending' ? 'text-amber-700 font-bold' : 'text-slate-400 font-semibold'}`}`}
                                                                             >
                                                                                 {subText || '___'}
                                                                             </span>
@@ -1271,9 +1309,26 @@
                                                                     )}
                                                                 </div>
                                                                 <div className="flex items-center gap-2 shrink-0 ml-auto">
-                                                                    {rejectedNames.length > 0 && (
-                                                                        <span className="text-[13px] text-rose-600 font-bold">
-                                                                            {rejectedNames.join(', ')}
+                                                                    {rejectedItems.length > 0 && (
+                                                                        <span className="text-[13px] text-rose-600 font-bold flex items-center gap-1 flex-wrap">
+                                                                            {rejectedItems.map((rej, idx) => {
+                                                                                const isRejSelected = !!(selectedInstructorId && rej.id === selectedInstructorId);
+                                                                                return (
+                                                                                    <span
+                                                                                        key={rej.id}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setSelectedClassId(cls.id);
+                                                                                            setClasses((prev) => prev.map((c) => (c.id === cls.id ? { ...c, selectedSubject: subj } : c)));
+                                                                                            setSelectedInstructorId(rej.id);
+                                                                                        }}
+                                                                                        title="클릭하여 해당 강사 선택"
+                                                                                        className={`cursor-pointer transition-all ${isRejSelected ? 'px-1.5 py-0.5 rounded bg-rose-600 text-white font-extrabold ring-2 ring-amber-300 shadow-sm' : 'hover:underline hover:text-rose-800'}`}
+                                                                                    >
+                                                                                        {rej.label}{!isRejSelected && idx < rejectedItems.length - 1 ? ',' : ''}
+                                                                                    </span>
+                                                                                );
+                                                                            })}
                                                                         </span>
                                                                     )}
                                                                     {!isSubjConfirmed && (
@@ -1332,20 +1387,48 @@
                                                             const isConfirmed = rData.status === 'Confirmed';
                                                             const roleLabel = roleKey === 'main' ? '주강사' : '보조강사';
                                                             const rejectedIds = rData.rejectedInstructorIds || [];
+                                                            const roleInstructorId = isPending ? rData.proposedInstructorId : (isConfirmed ? rData.assignedInstructorId : null);
+                                                            const isRoleSelectedInst = !!(selectedInstructorId && roleInstructorId === selectedInstructorId);
 
                                                             return (
-                                                                <div key={roleKey} className={`px-2.5 py-1.5 rounded-lg border ${isPending ? 'bg-amber-50 border-amber-300' : isConfirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
+                                                                <div key={roleKey} className={`px-2.5 py-1.5 rounded-lg border transition-all ${isRoleSelectedInst ? 'ring-2 ring-amber-500 ' : ''}${isPending ? 'bg-amber-50 border-amber-300' : isConfirmed ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
                                                                     <div className="flex justify-between items-center">
                                                                         <span className="font-extrabold text-[13px] text-slate-800">{roleLabel}</span>
-                                                                        <span className={`text-xs px-2 py-0.5 rounded font-bold ${isPending ? 'bg-amber-200 text-amber-900' : isConfirmed ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-700'}`}>
+                                                                        <span
+                                                                            onClick={(e) => {
+                                                                                if (roleInstructorId) {
+                                                                                    e.stopPropagation();
+                                                                                    setSelectedClassId(cls.id);
+                                                                                    setSelectedInstructorId(roleInstructorId);
+                                                                                }
+                                                                            }}
+                                                                            title={roleInstructorId ? "클릭하여 해당 강사 선택" : undefined}
+                                                                            className={`text-xs px-2 py-0.5 rounded font-bold transition-all ${roleInstructorId ? 'cursor-pointer hover:ring-2 hover:ring-amber-500 ' : ''}${isRoleSelectedInst ? 'bg-yellow-300 text-slate-950 font-extrabold ring-2 ring-amber-500 shadow-sm' : isPending ? 'bg-amber-200 text-amber-900' : isConfirmed ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-700'}`}
+                                                                        >
                                                                             {isPending ? `제안중 (${instructors.find(i=>i.id===rData.proposedInstructorId)?.name || ''})` : isConfirmed ? `배정완료 (${instructors.find(i=>i.id===rData.assignedInstructorId)?.name || ''})` : '모집중'}
                                                                         </span>
                                                                     </div>
                                                                     
                                                                     {rejectedIds.length > 0 && (
-                                                                        <div className="text-xs text-rose-600 flex items-start gap-1 mt-1 font-semibold">
+                                                                        <div className="text-xs text-rose-600 flex items-center gap-1 mt-1 font-semibold flex-wrap">
                                                                             <span className="font-bold">거절이력:</span>
-                                                                            <span>{rejectedIds.map(id => instructors.find(i => i.id === id)?.name).join(', ')}</span>
+                                                                            {rejectedIds.map((id, idx) => {
+                                                                                const isRejSelected = !!(selectedInstructorId && id === selectedInstructorId);
+                                                                                return (
+                                                                                    <span
+                                                                                        key={id}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setSelectedClassId(cls.id);
+                                                                                            setSelectedInstructorId(id);
+                                                                                        }}
+                                                                                        title="클릭하여 해당 강사 선택"
+                                                                                        className={`cursor-pointer transition-all ${isRejSelected ? 'px-1.5 py-0.5 rounded bg-rose-600 text-white font-extrabold ring-2 ring-amber-300 shadow-sm' : 'hover:underline hover:text-rose-800'}`}
+                                                                                    >
+                                                                                        {instructors.find(i => i.id === id)?.name || id}{!isRejSelected && idx < rejectedIds.length - 1 ? ',' : ''}
+                                                                                    </span>
+                                                                                );
+                                                                            })}
                                                                         </div>
                                                                     )}
 
