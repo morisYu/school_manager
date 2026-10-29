@@ -316,13 +316,16 @@ window.openDetailModal = function(instructorName) {
             const mainFee = parseFloat(schedule.instructorFee) || 0;
             const subFee = parseFloat(schedule.subInstructorFee) || 0;
             const effectiveSubFee = subFee > 0 ? subFee : mainFee;
+            // 아이디어 2: 수업별 지급주체 예외(payerOverride)가 있으면 우선 적용
+            const effectivePayer = schedule.payerOverride || schedule.payer || '';
             
             if (isMain) {
                 const rounds = isPartTime ? partTimeHours : (parseFloat(schedule.rounds) || 0);
                 const fee = isPartTime ? partTimeFee : mainFee;
                 const roleText = isPartTime ? '아르바이트' : '주강사';
                 const amount = rounds * fee;
-                let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
+                // 기관 직접지급 수업은 0원 대신 라벨 표시 (지급기준 적용 시 schedule.payer 저장됨)
+                let displayAmount = effectivePayer === 'institution' ? '<span class="fee-institution-label">기관 직접지급</span>' : (amount > 0 ? amount.toLocaleString() : '-');
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
                     <tr class="detail-report-row">
@@ -342,7 +345,8 @@ window.openDetailModal = function(instructorName) {
                 const fee = isPartTime ? partTimeFee : effectiveSubFee;
                 const roleText = isPartTime ? '아르바이트' : '보조강사';
                 const amount = rounds * fee;
-                let displayAmount = amount > 0 ? amount.toLocaleString() : '-';
+                // 기관 직접지급 수업은 0원 대신 라벨 표시 (지급기준 적용 시 schedule.payer 저장됨)
+                let displayAmount = effectivePayer === 'institution' ? '<span class="fee-institution-label">기관 직접지급</span>' : (amount > 0 ? amount.toLocaleString() : '-');
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
                     <tr class="detail-report-row">

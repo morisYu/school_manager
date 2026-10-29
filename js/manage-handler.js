@@ -66,7 +66,12 @@ onAuthStateChanged(auth, async (user) => {
             '차시': r.rounds !== undefined ? r.rounds : '',
             '보조강사차시': r.subRounds !== undefined ? r.subRounds : '',
             '강사비': r.instructorFee !== undefined ? r.instructorFee : '',
-            '보조강사비': r.subInstructorFee !== undefined ? r.subInstructorFee : ''
+            '보조강사비': r.subInstructorFee !== undefined ? r.subInstructorFee : '',
+            '지급주체': r.payer || '', // 'institution'(기관 직접지급) | 'company'(업체 지급) | ''(미지정)
+            '지급주체예외': r.payerOverride || '', // 아이디어 2: 수업별 예외 토글 ('institution' | 'company' | '')
+            '강사비출처': r.feeSource || '', // 아이디어 5: 주강사 입력 출처 ('manual' | 'rule' | '')
+            '보조강사비출처': r.subFeeSource || '', // 아이디어 5: 보조강사 입력 출처 ('manual' | 'rule' | '')
+            '정산스냅샷': r.settlementSnapshot || null // 아이디어 7: 정산 적용 시점 스냅샷
         }));
 
     } catch (e) {
@@ -838,12 +843,17 @@ window.loadReport = async function () {
         }
 
         const feeStr = feeVal ? parseInt(feeVal, 10).toLocaleString() : '';
-        const feeInputTag = `<input type="text" class="fee-input" value="${feeStr}" oninput="formatFeeAndCalculate(this); queueSaveRowData(this)">`;
+        // 아이디어 2 & 5: 유효 지급주체(수업별 예외 우선)와 입력 출처('manual' 여부) 계산
+        const payerOverride = r['지급주체예외'] || '';
+        const effectivePayer = payerOverride || r['지급주체'] || '';
+        const feeSource = role === "주강사" ? (r['강사비출처'] || '') : (r['보조강사비출처'] || '');
+        const isManual = feeSource === 'manual';
 
+        const feeInputTag = buildFeeCellHtml(feeStr, effectivePayer, payerOverride, feeSource);
         const displayRole = isPartTime ? '아르바이트' : role;
 
         tbody.innerHTML += `
-            <tr class="report-row" data-role="${role}" data-id="${r['id']}" data-start="${r['시작시간']}" data-end="${r['종료시간']}">
+            <tr class="report-row" data-role="${role}" data-id="${r['id']}" data-start="${r['시작시간']}" data-end="${r['종료시간']}" data-payer="${effectivePayer}" data-rule-payer="${r['지급주체'] || ''}" data-payer-override="${payerOverride}" data-fee-source="${feeSource}">
                 <td style="text-align:center;"><input type="checkbox" class="row-checkbox" checked></td>
                 <td>${index + 1}</td>
                 <td class="date-cell">${formatDate(r['날짜'])}</td>
@@ -852,8 +862,8 @@ window.loadReport = async function () {
                 <td>${r['프로그램명']}</td>
                 <td>${displayRole}</td>
                 <td class="hour-cell">${hours}</td>
-                <td><input type="number" class="lesson-input" value="${roundsVal}" step="0.5" min="0" oninput="calculateAmount(); queueSaveRowData(this)"></td>
-                <td>${feeInputTag}</td>
+                <td><input type="number" class="lesson-input ${isManual ? 'manual-edited' : ''}" value="${roundsVal}" step="0.5" min="0" oninput="onManualRowEdit(this); calculateAmount(); queueSaveRowData(this)"></td>
+                <td class="fee-cell">${feeInputTag}</td>
                 <td class="amount-cell" style="text-align:right;">0</td>
             </tr>
         `;
@@ -880,6 +890,110 @@ window.loadReport = async function () {
         tbody.innerHTML = '<tr><td colspan="11">내역이 없습니다.</td></tr>';
         footer.style.display = 'none';
     }
+};
+
+/**
+ * 강사비 셀 HTML 생성
+ * - 아이디어 2: 수업별 지급주체 토글 배지 (기관 ↔ 업체 전환)
+ * - 아이디어 5: 직접 수정('manual') 상태 표시 및 보호 해제 배지
+ */
+function buildFeeCellHtml(feeStr, payer, payerOverride = '', feeSource = '') {
+    const isInstitution = payer === 'institution';
+    const isOverride = !!payerOverride;
+    const isManual = feeSource === 'manual';
+
+    const toggleBadge = `<button type="button" class="payer-toggle-badge ${isInstitution ? 'is-institution' : ''} ${isOverride ? 'is-override' : ''}" onclick="toggleRowPayer(this)" title="클릭하여 지급 주체 전환 (기관 직접지급 ↔ 업체 지급)${isOverride ? ' · 수업별 예외 적용됨' : ''}">${isInstitution ? '🏛️ 기관' : '🏢 업체'}</button>`;
+    const manualBadge = isManual
+        ? `<span class="manual-badge" onclick="resetManualRow(this)" title="직접 수정된 값입니다 (일괄 정산 시 덮어쓰기 제외). 클릭하면 수동 보호가 해제됩니다.">✏️ 직접수정 ✕</span>`
+        : '';
+
+    if (isInstitution) {
+        return `<div class="fee-cell-wrap"><input type="hidden" class="fee-input" value="0"><span class="fee-institution-label">기관 직접지급</span>${toggleBadge}${manualBadge}</div>`;
+    }
+    return `<div class="fee-cell-wrap"><input type="text" class="fee-input ${isManual ? 'manual-edited' : ''}" value="${feeStr}" oninput="onManualRowEdit(this); formatFeeAndCalculate(this); queueSaveRowData(this)">${toggleBadge}${manualBadge}</div>`;
+}
+
+// 아이디어 5: 사용자가 차시나 강사비를 직접 입력할 때 'manual' 출처로 표시
+window.onManualRowEdit = function(input) {
+    const row = input.closest('tr');
+    if (!row) return;
+    row.setAttribute('data-fee-source', 'manual');
+
+    const lessonInput = row.querySelector('.lesson-input');
+    const feeInput = row.querySelector('.fee-input');
+    if (lessonInput) lessonInput.classList.add('manual-edited');
+    if (feeInput && feeInput.type === 'text') feeInput.classList.add('manual-edited');
+
+    const wrap = row.querySelector('.fee-cell-wrap');
+    if (wrap && !wrap.querySelector('.manual-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'manual-badge';
+        badge.setAttribute('onclick', 'resetManualRow(this)');
+        badge.setAttribute('title', '직접 수정된 값입니다 (일괄 정산 시 덮어쓰기 제외). 클릭하면 수동 보호가 해제됩니다.');
+        badge.textContent = '✏️ 직접수정 ✕';
+        wrap.appendChild(badge);
+    }
+};
+
+// 아이디어 5: '✏️ 직접수정 ✕' 배지 클릭 시 수동 보호 해제 (다시 지급기준 자동 적용 대상이 됨)
+window.resetManualRow = function(badgeEl) {
+    const row = badgeEl.closest('tr');
+    if (!row) return;
+    row.setAttribute('data-fee-source', '');
+    row.setAttribute('data-payer-override', '');
+    const rulePayer = row.getAttribute('data-rule-payer') || 'company';
+    row.setAttribute('data-payer', rulePayer);
+
+    const lessonInput = row.querySelector('.lesson-input');
+    if (lessonInput) lessonInput.classList.remove('manual-edited');
+
+    const feeInput = row.querySelector('.fee-input');
+    const currentFeeStr = feeInput && feeInput.type === 'text' ? feeInput.value : '';
+    const feeCell = row.querySelector('.fee-cell') || feeInput.parentElement;
+    feeCell.innerHTML = buildFeeCellHtml(currentFeeStr, rulePayer, '', '');
+
+    window.calculateAmount();
+    window.queueSaveRowData(lessonInput || row.querySelector('.fee-input'));
+};
+
+// 아이디어 2: 수업별 지급 주체(기관 ↔ 업체) 원클릭 토글
+window.toggleRowPayer = function(btn) {
+    const row = btn.closest('tr');
+    if (!row) return;
+
+    const currentPayer = row.getAttribute('data-payer') === 'institution' ? 'institution' : 'company';
+    const nextPayer = currentPayer === 'institution' ? 'company' : 'institution';
+
+    row.setAttribute('data-payer-override', nextPayer);
+    row.setAttribute('data-payer', nextPayer);
+
+    // 업체 지급으로 전환 시 저장된 스냅샷 단가나 매칭 규칙 단가를 기본값으로 복원
+    let restoreFeeStr = '';
+    if (nextPayer === 'company') {
+        const docId = row.getAttribute('data-id');
+        const role = row.getAttribute('data-role');
+        const isMain = role === '주강사';
+        const target = rawData.find(item => item.id === docId);
+        const snapFee = target?.['정산스냅샷'] ? (isMain ? target['정산스냅샷'].mainFee : target['정산스냅샷'].subFee) : null;
+        if (snapFee) {
+            restoreFeeStr = Number(snapFee).toLocaleString();
+        } else {
+            const schoolName = row.children[4].textContent.trim();
+            const programName = row.children[5].textContent.trim();
+            const matched = matchRulesForRow(schoolName, programName);
+            if (matched.length > 0) {
+                const feeAmt = isMain ? matched[0].mainFee : matched[0].subFee;
+                if (feeAmt) restoreFeeStr = Number(feeAmt).toLocaleString();
+            }
+        }
+    }
+
+    const feeSource = row.getAttribute('data-fee-source') || '';
+    const feeCell = row.querySelector('.fee-cell') || btn.closest('td');
+    feeCell.innerHTML = buildFeeCellHtml(restoreFeeStr, nextPayer, nextPayer, feeSource);
+
+    window.calculateAmount();
+    window.queueSaveRowData(row.querySelector('.fee-input'));
 };
 
 window.toggleAllReportRows = function(checkbox) {
@@ -912,7 +1026,12 @@ window.calculateAmount = function () {
         const fee = parseFloat(feeInput.replace(/,/g, '')) || 0;
         const amount = lesson * fee;
 
-        amountCell.innerText = amount.toLocaleString();
+        // 기관 직접지급 수업은 합계금액 칸에도 라벨 표시 (금액은 0으로 합산 제외)
+        if (row.getAttribute('data-payer') === 'institution') {
+            amountCell.innerHTML = '<span class="fee-institution-label">기관 직접지급</span>';
+        } else {
+            amountCell.innerText = amount.toLocaleString();
+        }
 
         if (role === "주강사") {
             mainTotalAmount += amount;
@@ -966,11 +1085,18 @@ window.queueSaveRowData = function(input) {
     const feeStr = feeInput.value;
 
     const rounds = roundsStr ? parseFloat(roundsStr) : null;
-    const feeValue = feeStr ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
+    const feeValue = feeStr !== '' ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
 
     // 같은 docId로 주강사/보조강사가 각각 저장될 수 있으므로 복합 키 사용
     const saveKey = `${docId}__${role}`;
-    pendingSaves.set(saveKey, { docId, rounds, feeValue, role, lessonInput, feeInput });
+    const payer = row.getAttribute('data-payer') || null;
+    const rulePayer = row.getAttribute('data-rule-payer') || null;
+    const payerOverride = row.getAttribute('data-payer-override') || '';
+    const feeSource = row.getAttribute('data-fee-source') || '';
+    const snapshotJson = row.getAttribute('data-snapshot') || '';
+    const snapshot = snapshotJson ? JSON.parse(snapshotJson) : null;
+
+    pendingSaves.set(saveKey, { docId, rounds, feeValue, role, payer, rulePayer, payerOverride, feeSource, snapshot, lessonInput, feeInput });
 
     if (saveTimeouts.has(saveKey)) {
         clearTimeout(saveTimeouts.get(saveKey));
@@ -1003,17 +1129,30 @@ async function executeSave(docId, data = null) {
             if (data.role === '보조강사') {
                 updatePayload.subRounds = data.rounds;
                 updatePayload.subInstructorFee = data.feeValue;
+                updatePayload.subFeeSource = data.feeSource || '';
             } else {
                 updatePayload.rounds = data.rounds;
                 updatePayload.instructorFee = data.feeValue;
+                updatePayload.feeSource = data.feeSource || '';
             }
         }
+
+        // 지급 주체 및 수업별 예외(payerOverride), 정산 스냅샷(settlementSnapshot) 저장
+        if (data.rulePayer) updatePayload.payer = data.rulePayer;
+        else if (data.payer) updatePayload.payer = data.payer;
+        updatePayload.payerOverride = data.payerOverride || '';
+        if (data.snapshot) updatePayload.settlementSnapshot = data.snapshot;
 
         await updateSchedule(docId, updatePayload);
 
         // 로컬 데이터 동기화
         const target = rawData.find(item => item.id === docId);
         if (target) {
+            if (data.rulePayer) target['지급주체'] = data.rulePayer;
+            else if (data.payer) target['지급주체'] = data.payer;
+            target['지급주체예외'] = data.payerOverride || '';
+            if (data.snapshot) target['정산스냅샷'] = data.snapshot;
+
             if (isPartTime) {
                 if (!target['partTimeHours']) target['partTimeHours'] = {};
                 if (!target['partTimeFees']) target['partTimeFees'] = {};
@@ -1023,9 +1162,11 @@ async function executeSave(docId, data = null) {
                 if (data.role === '보조강사') {
                     target['보조강사차시'] = data.rounds !== null ? data.rounds : '';
                     target['보조강사비'] = data.feeValue !== null ? data.feeValue : '';
+                    target['보조강사비출처'] = data.feeSource || '';
                 } else {
                     target['차시'] = data.rounds !== null ? data.rounds : '';
                     target['강사비'] = data.feeValue !== null ? data.feeValue : '';
+                    target['강사비출처'] = data.feeSource || '';
                 }
             }
         }
@@ -1292,6 +1433,7 @@ window.saveEditedPaymentRuleRow = async function(id) {
     const minutes = parseInt(document.getElementById(`edit-rule-minutes-${id}`).value, 10);
     const mainFee = parseInt(document.getElementById(`edit-rule-mainfee-${id}`).value, 10);
     const subFee = parseInt(document.getElementById(`edit-rule-subfee-${id}`).value, 10);
+    const payer = document.getElementById(`edit-rule-payer-${id}`).value; // 지급 주체
 
     if (!keyword || isNaN(minutes) || isNaN(mainFee) || isNaN(subFee)) {
         alert("모든 필드를 올바르게 입력해주세요.");
@@ -1304,6 +1446,7 @@ window.saveEditedPaymentRuleRow = async function(id) {
         keyword: keyword,
         baseMinutes: minutes,
         mainFee: mainFee,
+        payer: payer, // 'company'(업체 지급) | 'institution'(기관 직접지급)
         subFee: subFee
     };
 
@@ -1342,7 +1485,7 @@ function renderPaymentRules() {
     tbody.innerHTML = '';
 
     if (paymentRulesData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#7f8c8d;">등록된 지급기준이 없습니다.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#7f8c8d;">등록된 지급기준이 없습니다.</td></tr>';
         return;
     }
 
@@ -1369,6 +1512,12 @@ function renderPaymentRules() {
                 <td><input type="number" id="edit-rule-minutes-${rule.id}" value="${rule.baseMinutes}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
                 <td><input type="number" id="edit-rule-mainfee-${rule.id}" value="${rule.mainFee}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
                 <td><input type="number" id="edit-rule-subfee-${rule.id}" value="${rule.subFee}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;"></td>
+                <td>
+                    <select id="edit-rule-payer-${rule.id}" style="width:100%; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
+                        <option value="company" ${rule.payer !== 'institution' ? 'selected' : ''}>업체 지급</option>
+                        <option value="institution" ${rule.payer === 'institution' ? 'selected' : ''}>기관 직접지급</option>
+                    </select>
+                </td>
                 <td style="text-align:center; white-space:nowrap;">
                     <button class="btn-primary btn-sm" onclick="saveEditedPaymentRuleRow('${rule.id}')" style="margin-bottom:4px;">저장</button>
                     <button class="btn-modal-cancel btn-sm" onclick="cancelEditPaymentRuleRow()" style="padding:4px 8px; font-size:0.75rem;">취소</button>
@@ -1385,6 +1534,7 @@ function renderPaymentRules() {
                 <td style="text-align:center;">${rule.baseMinutes}분</td>
                 <td style="text-align:right;">${rule.mainFee.toLocaleString()}원</td>
                 <td style="text-align:right;">${rule.subFee.toLocaleString()}원</td>
+                <td style="text-align:center;">${rule.payer === 'institution' ? '<span class="fee-institution-label">기관 직접지급</span>' : '업체 지급'}</td>
                 <td style="text-align:center; white-space:nowrap;">
                     <button class="btn-primary btn-sm" onclick="editPaymentRuleRow('${rule.id}')">수정</button>
                     <button class="btn-danger btn-sm" onclick="deletePaymentRuleRow('${rule.id}')">삭제</button>
@@ -1404,6 +1554,7 @@ window.addPaymentRule = async function() {
     const minutes = parseInt(document.getElementById('new-rule-minutes').value, 10);
     const mainFee = parseInt(document.getElementById('new-rule-mainfee').value, 10);
     const subFee = parseInt(document.getElementById('new-rule-subfee').value, 10);
+    const payer = document.getElementById('new-rule-payer').value; // 지급 주체
 
     if (!keyword || isNaN(minutes) || isNaN(mainFee) || isNaN(subFee)) {
         alert("모든 필드를 올바르게 입력해주세요.");
@@ -1415,6 +1566,7 @@ window.addPaymentRule = async function() {
         keyword: keyword,
         baseMinutes: minutes,
         mainFee: mainFee,
+        payer: payer, // 'company'(업체 지급) | 'institution'(기관 직접지급)
         subFee: subFee,
         order: Date.now() // 임시 정렬값
     };
@@ -1447,8 +1599,43 @@ window.deletePaymentRuleRow = async function(id) {
     }
 };
 
-// 현재 화면의 데이터를 그룹핑하여 보여주기
-function renderPaymentApplyTable() {
+// 기관명/프로그램명에 대해 우선순위 점수순으로 매칭된 규칙 배열 반환 (highestScore 동점 여부도 함께 계산 가능)
+function matchRulesWithScore(schoolName, programName) {
+    const normalize = (s) => (s || '').replace(/\s+/g, ''); // 공백 무시 ('대구 228' = '대구228')
+    const match = schoolName.match(/\(([^)]+)\)/);
+    const institutionPart = match ? schoolName.replace(/\([^)]*\)/, '').trim() : schoolName; // 괄호 밖: 기관명
+    const targetName = match ? match[1].trim() : schoolName; // 괄호 안: 학교명
+
+    const getRuleScore = (r) => {
+        if (r.ruleType === 'schoolLevel') {
+            if (r.keyword === '초등학교') return /(초|초등학교)$/.test(targetName) ? 0 : -1;
+            if (r.keyword === '중학교') return /(중|중학교)$/.test(targetName) ? 0 : -1;
+            if (r.keyword === '고등학교') return /(고|고등학교)$/.test(targetName) ? 0 : -1;
+            return -1;
+        }
+        const kw = normalize(r.keyword);
+        if (!kw) return -1;
+        if (normalize(institutionPart).includes(kw)) return 3;      // 기관명 일치 (최우선)
+        if (match && normalize(targetName).includes(kw)) return 2;  // 학교명 일치
+        if (normalize(programName).includes(kw)) return 1;          // 프로그램명 일치
+        return -1;
+    };
+
+    return paymentRulesData
+        .map(r => ({ rule: r, score: getRuleScore(r) }))
+        .filter(x => x.score >= 0)
+        .sort((a, b) => b.score - a.score);
+}
+
+function matchRulesForRow(schoolName, programName) {
+    return matchRulesWithScore(schoolName, programName).map(x => x.rule);
+}
+
+// 현재 화면의 데이터를 그룹핑하여 보여주기 (onlyGroupKeys 지정 시 충돌/미매칭 그룹만 필터링 표시)
+let currentApplyFilterKeys = null;
+
+function renderPaymentApplyTable(onlyGroupKeys = null) {
+    currentApplyFilterKeys = onlyGroupKeys;
     const tbody = document.getElementById('payment-apply-tbody');
     const tableRows = Array.from(document.getElementById('report-table-body').querySelectorAll('.report-row'));
     
@@ -1461,7 +1648,7 @@ function renderPaymentApplyTable() {
     const groups = {};
 
     tableRows.forEach(row => {
-        // 체크박스가 선택된 항목만 그룹화 및 표시 (모달에 띄울 때부터 필터링)
+        // 체크박스가 선택된 항목만 그룹화 및 표시
         const checkbox = row.querySelector('.row-checkbox');
         if (!checkbox || !checkbox.checked) return;
 
@@ -1471,8 +1658,9 @@ function renderPaymentApplyTable() {
         const endTimeStr = row.getAttribute('data-end');
         const groupKey = `${schoolName} | ${programName}`;
 
+        if (onlyGroupKeys && !onlyGroupKeys.has(groupKey)) return;
+
         if (!groups[groupKey]) {
-            // 시간 계산 (분)
             let diffMinutes = 0;
             if (startTimeStr && endTimeStr) {
                 const start = startTimeStr.split(':').map(Number);
@@ -1482,27 +1670,7 @@ function renderPaymentApplyTable() {
                 }
             }
             
-            // 키워드 및 학교급 매칭 로직
-            const matchedRules = paymentRulesData.filter(r => {
-                let targetName = schoolName;
-                const match = schoolName.match(/\(([^)]+)\)/);
-                if (match) {
-                    targetName = match[1].trim(); // 괄호 안의 이름 추출. 예: "수성미래교육관 (지산초)" -> "지산초"
-                }
-
-                if (r.ruleType === 'schoolLevel') {
-                    if (r.keyword === '초등학교') {
-                        return /(초|초등학교)$/.test(targetName);
-                    } else if (r.keyword === '중학교') {
-                        return /(중|중학교)$/.test(targetName);
-                    } else if (r.keyword === '고등학교') {
-                        return /(고|고등학교)$/.test(targetName);
-                    }
-                    return false;
-                } else {
-                    return schoolName.includes(r.keyword) || (r.keyword && programName.includes(r.keyword));
-                }
-            });
+            const matchedRules = matchRulesForRow(schoolName, programName);
             
             groups[groupKey] = {
                 schoolName,
@@ -1522,18 +1690,16 @@ function renderPaymentApplyTable() {
         let selectHtml = `<select class="rule-select" data-key="${key}" style="width:100%; padding: 4px;">`;
         if (g.matchedRules.length === 0) {
             selectHtml += `<option value="">매칭된 규칙 없음</option>`;
-            // 매칭 안 된 경우 직접 선택할 수 있도록 전체 규칙 추가
             paymentRulesData.forEach(r => {
-                selectHtml += `<option value="${r.id}">[수동선택] ${r.keyword} (${r.baseMinutes}분)</option>`;
+                selectHtml += `<option value="${r.id}">[수동선택] ${r.keyword} (${r.baseMinutes}분)${r.payer === 'institution' ? ' · 기관 직접지급' : ''}</option>`;
             });
         } else {
             g.matchedRules.forEach(r => {
-                selectHtml += `<option value="${r.id}">${r.keyword} (${r.baseMinutes}분 기준)</option>`;
+                selectHtml += `<option value="${r.id}">${r.keyword} (${r.baseMinutes}분 기준)${r.payer === 'institution' ? ' · 기관 직접지급' : ''}</option>`;
             });
-            // 다른 것도 고를 수 있도록 전체 규칙도 추가
             selectHtml += `<optgroup label="기타 규칙">`;
             paymentRulesData.filter(r => !g.matchedRules.find(mr => mr.id === r.id)).forEach(r => {
-                selectHtml += `<option value="${r.id}">${r.keyword} (${r.baseMinutes}분)</option>`;
+                selectHtml += `<option value="${r.id}">${r.keyword} (${r.baseMinutes}분)${r.payer === 'institution' ? ' · 기관 직접지급' : ''}</option>`;
             });
             selectHtml += `</optgroup>`;
         }
@@ -1549,7 +1715,169 @@ function renderPaymentApplyTable() {
     });
 }
 
-// 일괄 차시/강사비 적용 로직
+/**
+ * 단일 행에 선택된 지급기준(rule)을 적용하는 공통 헬퍼
+ * - 아이디어 2: 수업별 지급주체 예외(payerOverride)가 있으면 그 값을 우선 유지
+ * - 아이디어 5: 직접 수정(feeSource === 'manual')된 행은 덮어쓰지 않고 건너뜀
+ * - 아이디어 7: 적용 시점의 규칙 정보를 settlementSnapshot으로 행/DB에 기록
+ * @returns {'updated' | 'skipped_manual' | 'no_match'}
+ */
+function applyRuleToRowElement(row, rule) {
+    if (row.getAttribute('data-fee-source') === 'manual') {
+        return 'skipped_manual';
+    }
+
+    const startTimeStr = row.getAttribute('data-start');
+    const endTimeStr = row.getAttribute('data-end');
+    let diffMinutes = 0;
+    if (startTimeStr && endTimeStr) {
+        const start = startTimeStr.split(':').map(Number);
+        const end = endTimeStr.split(':').map(Number);
+        if (start.length === 2 && end.length === 2) {
+            diffMinutes = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
+        }
+    }
+
+    if (diffMinutes <= 0 || !rule.baseMinutes || rule.baseMinutes <= 0) {
+        return 'no_match';
+    }
+
+    const rounds = Math.floor(diffMinutes / rule.baseMinutes);
+    if (rounds <= 0) return 'no_match';
+
+    const lessonInput = row.querySelector('.lesson-input');
+    const rulePayer = rule.payer === 'institution' ? 'institution' : 'company';
+    const payerOverride = row.getAttribute('data-payer-override') || '';
+    const effectivePayer = payerOverride || rulePayer;
+
+    row.setAttribute('data-rule-payer', rulePayer);
+    row.setAttribute('data-payer', effectivePayer);
+    row.setAttribute('data-fee-source', 'rule');
+
+    // 아이디어 7: 정산 시점 스냅샷 기록 (추후 지급기준이 변경되어도 당시 적용 기준 보존)
+    const snapshot = {
+        ruleId: rule.id,
+        keyword: rule.keyword,
+        baseMinutes: rule.baseMinutes,
+        mainFee: rule.mainFee,
+        subFee: rule.subFee,
+        payer: rulePayer,
+        appliedAt: new Date().toISOString()
+    };
+    row.setAttribute('data-snapshot', JSON.stringify(snapshot));
+
+    const role = row.getAttribute('data-role');
+    const isMain = role === '주강사';
+    const feeAmount = isMain ? rule.mainFee : rule.subFee;
+    const ruleFeeStr = feeAmount.toLocaleString();
+
+    const feeCell = row.querySelector('.fee-cell') || row.querySelector('.fee-input').parentElement;
+    feeCell.innerHTML = buildFeeCellHtml(ruleFeeStr, effectivePayer, payerOverride, 'rule');
+    const feeInput = row.querySelector('.fee-input');
+
+    lessonInput.classList.remove('manual-edited');
+    lessonInput.value = rounds;
+    if (effectivePayer !== 'institution') {
+        feeInput.value = ruleFeeStr;
+    }
+
+    window.queueSaveRowData(lessonInput);
+    window.queueSaveRowData(feeInput);
+    return 'updated';
+}
+
+// 아이디어 6: 원클릭 자동 정산 (단독 1순위 매칭 그룹은 즉시 적용, 미매칭/동점 충돌 그룹만 모달 표시)
+window.autoApplyPaymentRules = async function() {
+    await window.flushUnsavedData();
+
+    if (!paymentRulesData || paymentRulesData.length === 0) {
+        paymentRulesData = await getPaymentRules() || [];
+    }
+    if (paymentRulesData.length === 0) {
+        alert("등록된 지급기준이 없습니다. 먼저 [지급기준]에서 규칙을 등록해주세요.");
+        return;
+    }
+
+    const tableRows = Array.from(document.getElementById('report-table-body').querySelectorAll('.report-row'));
+    const checkedRows = tableRows.filter(r => r.querySelector('.row-checkbox')?.checked);
+
+    if (checkedRows.length === 0) {
+        alert("적용할 수업 내역이 없습니다.");
+        return;
+    }
+
+    let updateCount = 0;
+    let skippedManualCount = 0;
+    const ambiguousGroupKeys = new Set();
+
+    checkedRows.forEach(row => {
+        if (row.getAttribute('data-fee-source') === 'manual') {
+            skippedManualCount++;
+            return;
+        }
+
+        const schoolName = row.children[4].textContent.trim();
+        const programName = row.children[5].textContent.trim();
+        const groupKey = `${schoolName} | ${programName}`;
+
+        const scored = matchRulesWithScore(schoolName, programName);
+        if (scored.length === 0) {
+            ambiguousGroupKeys.add(groupKey);
+            return;
+        }
+
+        // 최고 점수 규칙이 2개 이상 동점이면 충돌로 간주하여 모달에서 선택하도록 유도
+        const topScore = scored[0].score;
+        const topRules = scored.filter(x => x.score === topScore);
+        if (topRules.length > 1) {
+            ambiguousGroupKeys.add(groupKey);
+            return;
+        }
+
+        const res = applyRuleToRowElement(row, topRules[0].rule);
+        if (res === 'updated') updateCount++;
+    });
+
+    if (updateCount > 0) {
+        window.calculateAmount();
+    }
+
+    if (ambiguousGroupKeys.size > 0) {
+        // 미매칭/충돌 그룹만 모달의 '현재 화면에 적용' 탭으로 바로 띄움
+        const overlay = document.getElementById('payment-modal-overlay');
+        const modal = document.getElementById('payment-modal');
+        overlay.style.display = 'block';
+        modal.style.display = 'flex';
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                overlay.classList.add('is-open');
+                modal.classList.add('is-open');
+            });
+        });
+
+        document.querySelectorAll('#payment-modal .tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('#payment-modal .tab-content').forEach(c => c.style.display = 'none');
+        const applyBtn = document.querySelector('#payment-modal .tab-btn[data-target="tab-payment-apply"]');
+        if (applyBtn) applyBtn.classList.add('active');
+        document.getElementById('tab-payment-apply').style.display = 'block';
+
+        renderPaymentApplyTable(ambiguousGroupKeys);
+
+        const manualMsg = skippedManualCount > 0 ? ` (직접 수정 보호 ${skippedManualCount}건 제외)` : '';
+        alert(`자동 매칭된 ${updateCount}건이 먼저 적용되었습니다.${manualMsg}\n매칭되지 않았거나 규칙이 중복된 ${ambiguousGroupKeys.size}개 그룹의 규칙을 선택해주세요.`);
+    } else {
+        const manualMsg = skippedManualCount > 0 ? `\n(직접 수정된 ${skippedManualCount}건은 보호되어 유지되었습니다)` : '';
+        if (updateCount > 0) {
+            alert(`⚡ 총 ${updateCount}건의 수업에 지급기준이 자동 적용되었습니다.${manualMsg}`);
+        } else if (skippedManualCount > 0) {
+            alert(`모든 선택 항목(${skippedManualCount}건)이 '직접 수정' 보호 상태여서 변경되지 않았습니다.`);
+        } else {
+            alert("조건을 만족하여 업데이트된 내역이 없습니다. (수업 시간이 입력되어 있는지 확인하세요)");
+        }
+    }
+};
+
+// 모달에서 일괄 차시/강사비 적용 로직
 window.applyPaymentRules = async function() {
     await window.flushUnsavedData();
 
@@ -1568,12 +1896,13 @@ window.applyPaymentRules = async function() {
         return;
     }
 
-    if (!confirm("선택한 지급기준에 따라 차시와 강사비를 일괄 계산하시겠습니까?\n(기존 입력값은 덮어씌워집니다)")) {
+    if (!confirm("선택한 지급기준에 따라 차시와 강사비를 일괄 계산하시겠습니까?\n(직접 수정 ✏️ 표시된 항목은 덮어쓰지 않고 보호됩니다)")) {
         return;
     }
 
     const tableRows = Array.from(document.getElementById('report-table-body').querySelectorAll('.report-row'));
     let updateCount = 0;
+    let skippedManualCount = 0;
 
     tableRows.forEach(row => {
         const checkbox = row.querySelector('.row-checkbox');
@@ -1581,8 +1910,6 @@ window.applyPaymentRules = async function() {
 
         const schoolName = row.children[4].textContent.trim();
         const programName = row.children[5].textContent.trim();
-        const startTimeStr = row.getAttribute('data-start');
-        const endTimeStr = row.getAttribute('data-end');
         const groupKey = `${schoolName} | ${programName}`;
 
         const selectedRuleId = selectionMap[groupKey];
@@ -1591,46 +1918,17 @@ window.applyPaymentRules = async function() {
         const rule = paymentRulesData.find(r => r.id === selectedRuleId);
         if (!rule) return;
 
-        // 소요 시간 계산
-        let diffMinutes = 0;
-        if (startTimeStr && endTimeStr) {
-            const start = startTimeStr.split(':').map(Number);
-            const end = endTimeStr.split(':').map(Number);
-            if (start.length === 2 && end.length === 2) {
-                diffMinutes = (end[0] * 60 + end[1]) - (start[0] * 60 + start[1]);
-            }
-        }
-
-        if (diffMinutes > 0 && rule.baseMinutes > 0) {
-            // 자투리 시간 버림 (Math.floor)
-            const rounds = Math.floor(diffMinutes / rule.baseMinutes);
-            
-            if (rounds > 0) {
-                const lessonInput = row.querySelector('.lesson-input');
-                const feeInput = row.querySelector('.fee-input');
-                
-                lessonInput.value = rounds;
-                
-                // 주강사 여부 확인
-                const role = row.getAttribute('data-role');
-                const isMain = role === '주강사';
-                const feeAmount = isMain ? rule.mainFee : rule.subFee;
-                feeInput.value = feeAmount.toLocaleString();
-                
-                // 임시 저장 큐에 등록
-                window.queueSaveRowData(lessonInput);
-                window.queueSaveRowData(feeInput);
-                updateCount++;
-            }
-        }
+        const res = applyRuleToRowElement(row, rule);
+        if (res === 'updated') updateCount++;
+        else if (res === 'skipped_manual') skippedManualCount++;
     });
 
-    if (updateCount > 0) {
+    if (updateCount > 0 || skippedManualCount > 0) {
         window.calculateAmount();
-        alert(`총 ${updateCount}건의 데이터에 차시 및 강사비가 적용되었습니다.`);
+        const manualMsg = skippedManualCount > 0 ? `\n(직접 수정된 ${skippedManualCount}건은 보호되어 제외되었습니다)` : '';
+        alert(`총 ${updateCount}건의 데이터에 차시 및 강사비가 적용되었습니다.${manualMsg}`);
         closePaymentModal();
     } else {
         alert("조건을 만족하여 업데이트된 내역이 없습니다. (수업 시간이 입력되어 있는지 확인하세요)");
     }
 };
-

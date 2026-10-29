@@ -955,6 +955,92 @@ td {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+/* 기관 직접지급 라벨 (강사비 칸 / 지급기준 표) */
+.fee-institution-label {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+/* 강사비 셀 내 레이아웃 (입력창 + 배지/초기화) */
+.fee-cell-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+/* 아이디어 2: 수업별 지급 주체 토글 배지 */
+.payer-toggle-badge {
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    background: #f1f5f9;
+    color: #334155;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+.payer-toggle-badge:hover {
+    filter: brightness(0.95);
+}
+.payer-toggle-badge.is-institution {
+    background: #fef3c7;
+    border-color: #f59e0b;
+    color: #92400e;
+}
+.payer-toggle-badge.is-override {
+    box-shadow: 0 0 0 1.5px #6366f1;
+}
+
+/* 아이디어 5: 직접 수정(수동 입력) 시각적 표시 및 보호 해제 버튼 */
+.manual-edited {
+    background: #f5f3ff !important;
+    border-color: #8b5cf6 !important;
+    color: #5b21b6 !important;
+}
+.manual-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: #ede9fe;
+    border: 1px solid #c4b5fd;
+    color: #5b21b6;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.manual-badge:hover {
+    background: #ddd6fe;
+}
+
+/* 아이디어 6: 원클릭 자동정산 버튼 */
+.btn-auto-settle {
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid #2563eb;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.85rem;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.22);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.btn-auto-settle:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+}
+
 /* 입력 필드 저장 상태 피드백 */
 .saving {
     background: #fff8e1 !important;
