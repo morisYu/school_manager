@@ -67,6 +67,9 @@ onAuthStateChanged(auth, async (user) => {
             '보조강사차시': r.subRounds !== undefined ? r.subRounds : '',
             '강사비': r.instructorFee !== undefined ? r.instructorFee : '',
             '보조강사비': r.subInstructorFee !== undefined ? r.subInstructorFee : '',
+            'partTimeHours': r.partTimeHours ? { ...r.partTimeHours } : {},
+            'partTimeFees': r.partTimeFees ? { ...r.partTimeFees } : {},
+            'partTimeFeeSources': r.partTimeFeeSources ? { ...r.partTimeFeeSources } : {},
             '지급주체': r.payer || '', // 'institution'(기관 직접지급) | 'company'(업체 지급) | ''(미지정)
             '지급주체예외': r.payerOverride || '', // 아이디어 2: 수업별 예외 토글 ('institution' | 'company' | '')
             '강사비출처': r.feeSource || '', // 아이디어 5: 주강사 입력 출처 ('manual' | 'rule' | '')
@@ -102,10 +105,15 @@ window.loadInstructorList = loadInstructorList;
 // ─── 강사 선택 시 프로필 카드 표시 ────────────────────────────────────────────
 
 window.onInstructorChange = async function () {
+    // 강사 변경 전 미저장 데이터 즉시 저장 (이전 강사 컨텍스트 유지 상태에서 실행)
+    await window.flushUnsavedData();
+
     const name = document.getElementById('teacherSelect').value;
     const card = document.getElementById('instructor-profile-card');
 
     if (!name) {
+        window.currentInstructorName = '';
+        window.currentInstructorProfile = null;
         // 강사 미선택 시 카드는 빈 상태로 유지
         card.style.display = 'flex';
         document.getElementById('profile-name').textContent = '-';
@@ -120,11 +128,12 @@ window.onInstructorChange = async function () {
         // 출강 및 정산 내역서 테이블 초기화
         const tbody = document.getElementById('report-table-body');
         const footer = document.getElementById('report-footer');
-        if (tbody) tbody.innerHTML = '<tr><td colspan="10">강사를 선택하고 조회 조건을 설정하세요.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="11">강사를 선택하고 조회 조건을 설정하세요.</td></tr>';
         if (footer) footer.style.display = 'none';
         return;
     }
 
+    window.currentInstructorName = name;
     card.style.display = 'flex';
 
     // 카드 초기화
@@ -744,8 +753,10 @@ window.saveProfile = async function () {
     try {
         await saveInstructorProfile(name, profileData);
 
-        // 카드 즉시 갱신 (DB 재조회 없이 UI 업데이트)
+        // 현재 선택된 강사 프로필 상태 및 정산 내역서 즉시 갱신 (고용형태/시급 변경 반영)
+        window.currentInstructorProfile = profileData;
         renderProfileCard(name, profileData);
+        await window.loadReport();
 
         closeProfileModal();
         alert('✅ 강사 정보가 저장되었습니다.');
@@ -792,7 +803,7 @@ window.loadReport = async function () {
 
     const isPartTime = window.currentInstructorProfile && window.currentInstructorProfile.employmentType === 'part-time';
     
-    // 테이블 헤더 동적 변경
+    // 테이블 헤더 동적 변경 (체크박스 열 포함: 9번째=정산시간/차시, 10번째=적용시급/강사비)
     const headerRounds = document.querySelector('#report-area table thead tr th:nth-child(9)');
     const headerFee = document.querySelector('#report-area table thead tr th:nth-child(10)');
     if (headerRounds) headerRounds.innerText = isPartTime ? '정산 시간(h)' : '차시';
@@ -806,54 +817,58 @@ window.loadReport = async function () {
         if (role === "주강사") mainTotal += hours;
         else                   subTotal  += hours;
 
-        // 역할에 따라 해당 차시 필드를 사용
+        // 역할에 따라 해당 차시/정산시간 필드를 사용 (null이나 ''가 아닌 유효 숫자값인지 확인)
         let roundsVal;
         if (isPartTime) {
-            if (r['partTimeHours'] && r['partTimeHours'][name] !== undefined) {
-                roundsVal = r['partTimeHours'][name];
+            const savedPtHour = r['partTimeHours']?.[name];
+            if (savedPtHour !== undefined && savedPtHour !== null && savedPtHour !== '') {
+                roundsVal = savedPtHour;
             } else {
                 roundsVal = hours; // fallback to calculated hours
             }
         } else if (role === "주강사") {
-            roundsVal = r['차시'] !== undefined ? r['차시'] : '';
+            roundsVal = r['차시'] !== undefined && r['차시'] !== null ? r['차시'] : '';
         } else {
-            roundsVal = r['보조강사차시'] !== undefined && r['보조강사차시'] !== '' ? r['보조강사차시'] : (r['차시'] !== undefined ? r['차시'] : '');
+            roundsVal = r['보조강사차시'] !== undefined && r['보조강사차시'] !== null && r['보조강사차시'] !== '' ? r['보조강사차시'] : (r['차시'] !== undefined && r['차시'] !== null ? r['차시'] : '');
         }
 
-        // 차시 합계 계산
+        // 차시/정산시간 합계 계산
         const parsedRounds = parseFloat(roundsVal) || 0;
         if (role === "주강사") mainRoundsTotal += parsedRounds;
         else                   subRoundsTotal  += parsedRounds;
 
-        // 강사비 결정 로직
+        // 강사비/적용시급 결정 로직
         let feeVal;
         
         if (isPartTime) {
-            if (r['partTimeFees'] && r['partTimeFees'][name] !== undefined) {
-                feeVal = r['partTimeFees'][name];
+            const savedPtFee = r['partTimeFees']?.[name];
+            if (savedPtFee !== undefined && savedPtFee !== null && savedPtFee !== '') {
+                feeVal = savedPtFee;
             } else {
                 feeVal = window.currentInstructorProfile.hourlyWage || 13000;
             }
         } else {
             if (role === "주강사") {
-                feeVal = r['강사비'] !== undefined ? r['강사비'] : '';
+                feeVal = r['강사비'] !== undefined && r['강사비'] !== null ? r['강사비'] : '';
             } else {
-                feeVal = r['보조강사비'] !== undefined ? r['보조강사비'] : '';
+                feeVal = r['보조강사비'] !== undefined && r['보조강사비'] !== null ? r['보조강사비'] : '';
             }
         }
 
-        const feeStr = feeVal ? parseInt(feeVal, 10).toLocaleString() : '';
+        const feeStr = feeVal !== '' && feeVal !== null && feeVal !== undefined && !isNaN(parseInt(feeVal, 10)) ? parseInt(feeVal, 10).toLocaleString() : '';
         // 아이디어 2 & 5: 유효 지급주체(수업별 예외 우선)와 입력 출처('manual' 여부) 계산
         const payerOverride = r['지급주체예외'] || '';
         const effectivePayer = payerOverride || r['지급주체'] || '';
-        const feeSource = role === "주강사" ? (r['강사비출처'] || '') : (r['보조강사비출처'] || '');
+        const feeSource = isPartTime
+            ? (r['partTimeFeeSources']?.[name] || '')
+            : (role === "주강사" ? (r['강사비출처'] || '') : (r['보조강사비출처'] || ''));
         const isManual = feeSource === 'manual';
 
         const feeInputTag = buildFeeCellHtml(feeStr, effectivePayer, payerOverride, feeSource);
         const displayRole = isPartTime ? '아르바이트' : role;
 
         tbody.innerHTML += `
-            <tr class="report-row" data-role="${role}" data-id="${r['id']}" data-start="${r['시작시간']}" data-end="${r['종료시간']}" data-payer="${effectivePayer}" data-rule-payer="${r['지급주체'] || ''}" data-payer-override="${payerOverride}" data-fee-source="${feeSource}">
+            <tr class="report-row" data-role="${role}" data-id="${r['id']}" data-instructor="${name}" data-is-part-time="${isPartTime ? 'true' : 'false'}" data-start="${r['시작시간']}" data-end="${r['종료시간']}" data-payer="${effectivePayer}" data-rule-payer="${r['지급주체'] || ''}" data-payer-override="${payerOverride}" data-fee-source="${feeSource}">
                 <td style="text-align:center;"><input type="checkbox" class="row-checkbox" checked></td>
                 <td>${index + 1}</td>
                 <td class="date-cell">${formatDate(r['날짜'])}</td>
@@ -935,7 +950,7 @@ window.onManualRowEdit = function(input) {
     }
 };
 
-// 아이디어 5: '✏️ 직접수정 ✕' 배지 클릭 시 수동 보호 해제 (다시 지급기준 자동 적용 대상이 됨)
+// 아이디어 5: '✏️ 직접수정 ✕' 배지 클릭 시 수동 보호 해제 (다시 지급기준/시급 기본값 적용 대상이 됨)
 window.resetManualRow = function(badgeEl) {
     const row = badgeEl.closest('tr');
     if (!row) return;
@@ -944,11 +959,24 @@ window.resetManualRow = function(badgeEl) {
     const rulePayer = row.getAttribute('data-rule-payer') || 'company';
     row.setAttribute('data-payer', rulePayer);
 
+    const isPartTime = row.getAttribute('data-is-part-time') === 'true';
     const lessonInput = row.querySelector('.lesson-input');
-    if (lessonInput) lessonInput.classList.remove('manual-edited');
+    if (lessonInput) {
+        lessonInput.classList.remove('manual-edited');
+        if (isPartTime) {
+            // 아르바이트의 경우 수업 실제 소요시간(h)으로 정산 시간 복원
+            const hourCellText = row.querySelector('.hour-cell')?.textContent;
+            if (hourCellText) lessonInput.value = hourCellText;
+        }
+    }
 
     const feeInput = row.querySelector('.fee-input');
-    const currentFeeStr = feeInput && feeInput.type === 'text' ? feeInput.value : '';
+    let currentFeeStr = feeInput && feeInput.type === 'text' ? feeInput.value : '';
+    if (isPartTime) {
+        // 아르바이트의 경우 프로필 기본 시급으로 복원
+        const defaultWage = window.currentInstructorProfile?.hourlyWage || 13000;
+        currentFeeStr = Number(defaultWage).toLocaleString();
+    }
     const feeCell = row.querySelector('.fee-cell') || feeInput.parentElement;
     feeCell.innerHTML = buildFeeCellHtml(currentFeeStr, rulePayer, '', '');
 
@@ -967,23 +995,34 @@ window.toggleRowPayer = function(btn) {
     row.setAttribute('data-payer-override', nextPayer);
     row.setAttribute('data-payer', nextPayer);
 
-    // 업체 지급으로 전환 시 저장된 스냅샷 단가나 매칭 규칙 단가를 기본값으로 복원
+    // 업체 지급으로 전환 시 저장된 단가/기본 시급/매칭 규칙 단가를 기본값으로 복원
     let restoreFeeStr = '';
     if (nextPayer === 'company') {
         const docId = row.getAttribute('data-id');
         const role = row.getAttribute('data-role');
+        const isPartTime = row.getAttribute('data-is-part-time') === 'true';
+        const instructorName = row.getAttribute('data-instructor') || window.currentInstructorName || '';
         const isMain = role === '주강사';
         const target = rawData.find(item => item.id === docId);
-        const snapFee = target?.['정산스냅샷'] ? (isMain ? target['정산스냅샷'].mainFee : target['정산스냅샷'].subFee) : null;
-        if (snapFee) {
-            restoreFeeStr = Number(snapFee).toLocaleString();
+
+        if (isPartTime) {
+            const savedPtFee = target?.['partTimeFees']?.[instructorName];
+            const wageToRestore = (savedPtFee !== undefined && savedPtFee !== null && savedPtFee !== '')
+                ? savedPtFee
+                : (window.currentInstructorProfile?.hourlyWage || 13000);
+            restoreFeeStr = Number(wageToRestore).toLocaleString();
         } else {
-            const schoolName = row.children[4].textContent.trim();
-            const programName = row.children[5].textContent.trim();
-            const matched = matchRulesForRow(schoolName, programName);
-            if (matched.length > 0) {
-                const feeAmt = isMain ? matched[0].mainFee : matched[0].subFee;
-                if (feeAmt) restoreFeeStr = Number(feeAmt).toLocaleString();
+            const snapFee = target?.['정산스냅샷'] ? (isMain ? target['정산스냅샷'].mainFee : target['정산스냅샷'].subFee) : null;
+            if (snapFee) {
+                restoreFeeStr = Number(snapFee).toLocaleString();
+            } else {
+                const schoolName = row.children[4].textContent.trim();
+                const programName = row.children[5].textContent.trim();
+                const matched = matchRulesForRow(schoolName, programName);
+                if (matched.length > 0) {
+                    const feeAmt = isMain ? matched[0].mainFee : matched[0].subFee;
+                    if (feeAmt) restoreFeeStr = Number(feeAmt).toLocaleString();
+                }
             }
         }
     }
@@ -1015,6 +1054,8 @@ window.calculateAmount = function () {
     const rows = document.querySelectorAll('#report-table-body .report-row');
     let mainTotalAmount = 0;
     let subTotalAmount = 0;
+    let mainRoundsTotal = 0;
+    let subRoundsTotal = 0;
 
     rows.forEach(row => {
         const role = row.getAttribute('data-role');
@@ -1030,19 +1071,25 @@ window.calculateAmount = function () {
         if (row.getAttribute('data-payer') === 'institution') {
             amountCell.innerHTML = '<span class="fee-institution-label">기관 직접지급</span>';
         } else {
-            amountCell.innerText = amount.toLocaleString();
+            amountCell.innerText = Math.round(amount).toLocaleString();
         }
 
         if (role === "주강사") {
+            mainRoundsTotal += lesson;
             mainTotalAmount += amount;
         } else {
+            subRoundsTotal += lesson;
             subTotalAmount += amount;
         }
     });
 
-    document.getElementById('main-total-amount').innerText = mainTotalAmount.toLocaleString();
-    document.getElementById('sub-total-amount').innerText = subTotalAmount.toLocaleString();
-    document.getElementById('total-amount').innerText = (mainTotalAmount + subTotalAmount).toLocaleString();
+    document.getElementById('main-total-rounds').innerText = mainRoundsTotal % 1 === 0 ? mainRoundsTotal : mainRoundsTotal.toFixed(1);
+    document.getElementById('sub-total-rounds').innerText  = subRoundsTotal % 1 === 0 ? subRoundsTotal : subRoundsTotal.toFixed(1);
+    document.getElementById('total-rounds').innerText      = (mainRoundsTotal + subRoundsTotal) % 1 === 0 ? (mainRoundsTotal + subRoundsTotal) : (mainRoundsTotal + subRoundsTotal).toFixed(1);
+
+    document.getElementById('main-total-amount').innerText = Math.round(mainTotalAmount).toLocaleString();
+    document.getElementById('sub-total-amount').innerText = Math.round(subTotalAmount).toLocaleString();
+    document.getElementById('total-amount').innerText = Math.round(mainTotalAmount + subTotalAmount).toLocaleString();
 };
 
 // ─── 출강 내역 자동 저장 (Debounce) 및 강제 저장 ────────────────────────────────
@@ -1074,6 +1121,10 @@ window.queueSaveRowData = function(input) {
     const lessonInput = row.querySelector('.lesson-input');
     const feeInput = row.querySelector('.fee-input');
     const role = row.getAttribute('data-role'); // 주강사 or 보조강사
+    const instructorName = row.getAttribute('data-instructor') || window.currentInstructorName || document.getElementById('teacherSelect')?.value || '';
+    const isPartTime = row.getAttribute('data-is-part-time')
+        ? row.getAttribute('data-is-part-time') === 'true'
+        : !!(window.currentInstructorProfile && window.currentInstructorProfile.employmentType === 'part-time');
 
     // 입력 중 상태 시각적 피드백
     lessonInput.classList.remove('saved', 'save-error');
@@ -1084,11 +1135,11 @@ window.queueSaveRowData = function(input) {
     const roundsStr = lessonInput.value;
     const feeStr = feeInput.value;
 
-    const rounds = roundsStr ? parseFloat(roundsStr) : null;
-    const feeValue = feeStr !== '' ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
+    const rounds = roundsStr !== '' && !isNaN(parseFloat(roundsStr)) ? parseFloat(roundsStr) : null;
+    const feeValue = feeStr !== '' && !isNaN(parseInt(feeStr.replace(/,/g, ''), 10)) ? parseInt(feeStr.replace(/,/g, ''), 10) : null;
 
-    // 같은 docId로 주강사/보조강사가 각각 저장될 수 있으므로 복합 키 사용
-    const saveKey = `${docId}__${role}`;
+    // 같은 docId로 주강사/보조강사 및 강사별 데이터가 각각 저장될 수 있으므로 복합 키 사용
+    const saveKey = `${docId}__${instructorName}__${role}`;
     const payer = row.getAttribute('data-payer') || null;
     const rulePayer = row.getAttribute('data-rule-payer') || null;
     const payerOverride = row.getAttribute('data-payer-override') || '';
@@ -1096,7 +1147,7 @@ window.queueSaveRowData = function(input) {
     const snapshotJson = row.getAttribute('data-snapshot') || '';
     const snapshot = snapshotJson ? JSON.parse(snapshotJson) : null;
 
-    pendingSaves.set(saveKey, { docId, rounds, feeValue, role, payer, rulePayer, payerOverride, feeSource, snapshot, lessonInput, feeInput });
+    pendingSaves.set(saveKey, { docId, instructorName, isPartTime, rounds, feeValue, role, payer, rulePayer, payerOverride, feeSource, snapshot, lessonInput, feeInput });
 
     if (saveTimeouts.has(saveKey)) {
         clearTimeout(saveTimeouts.get(saveKey));
@@ -1119,12 +1170,19 @@ async function executeSave(docId, data = null) {
 
     try {
         const updatePayload = {};
-        const currentName = window.currentInstructorName;
-        const isPartTime = window.currentInstructorProfile && window.currentInstructorProfile.employmentType === 'part-time';
+        const currentName = data.instructorName || window.currentInstructorName || document.getElementById('teacherSelect')?.value || '';
+        const isPartTime = data.isPartTime !== undefined
+            ? data.isPartTime
+            : !!(window.currentInstructorProfile && window.currentInstructorProfile.employmentType === 'part-time');
 
         if (isPartTime) {
+            if (!currentName) {
+                console.error("강사명이 확인되지 않아 아르바이트 정산 데이터를 저장할 수 없습니다.");
+                return;
+            }
             updatePayload[`partTimeHours.${currentName}`] = data.rounds;
             updatePayload[`partTimeFees.${currentName}`] = data.feeValue;
+            updatePayload[`partTimeFeeSources.${currentName}`] = data.feeSource || '';
         } else {
             if (data.role === '보조강사') {
                 updatePayload.subRounds = data.rounds;
@@ -1156,8 +1214,10 @@ async function executeSave(docId, data = null) {
             if (isPartTime) {
                 if (!target['partTimeHours']) target['partTimeHours'] = {};
                 if (!target['partTimeFees']) target['partTimeFees'] = {};
+                if (!target['partTimeFeeSources']) target['partTimeFeeSources'] = {};
                 target['partTimeHours'][currentName] = data.rounds !== null ? data.rounds : '';
                 target['partTimeFees'][currentName] = data.feeValue !== null ? data.feeValue : '';
+                target['partTimeFeeSources'][currentName] = data.feeSource || '';
             } else {
                 if (data.role === '보조강사') {
                     target['보조강사차시'] = data.rounds !== null ? data.rounds : '';

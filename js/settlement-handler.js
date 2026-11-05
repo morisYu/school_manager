@@ -109,6 +109,10 @@ window.loadSettlementReport = function() {
         const rounds = parseFloat(schedule.rounds) || 0;
         const mainFee = parseFloat(schedule.instructorFee) || 0;
         const subFee = parseFloat(schedule.subInstructorFee) || 0;
+        const effectivePayer = schedule.payerOverride || schedule.payer || '';
+
+        // 기관 직접지급 수업은 업체 정산 합계에서 제외
+        if (effectivePayer === 'institution') return;
 
         const processInstructor = (name, baseFee, isSub = false) => {
             if (!name) return;
@@ -122,23 +126,25 @@ window.loadSettlementReport = function() {
             let fee = baseFee;
 
             if (profile.employmentType === 'part-time') {
-                if (schedule.partTimeFees && schedule.partTimeFees[name] !== undefined) {
-                    fee = parseFloat(schedule.partTimeFees[name]);
+                const savedPtFee = schedule.partTimeFees?.[name];
+                if (savedPtFee !== undefined && savedPtFee !== null && savedPtFee !== '' && !isNaN(parseFloat(savedPtFee))) {
+                    fee = parseFloat(savedPtFee);
                 } else {
                     fee = parseFloat(profile.hourlyWage) || 13000;
                 }
                 
-                if (schedule.partTimeHours && schedule.partTimeHours[name] !== undefined) {
-                    rounds = parseFloat(schedule.partTimeHours[name]);
+                const savedPtHour = schedule.partTimeHours?.[name];
+                if (savedPtHour !== undefined && savedPtHour !== null && savedPtHour !== '' && !isNaN(parseFloat(savedPtHour))) {
+                    rounds = parseFloat(savedPtHour);
                 } else if (schedule.startTime && schedule.endTime) {
                     const [sh, sm] = schedule.startTime.split(':').map(Number);
                     const [eh, em] = schedule.endTime.split(':').map(Number);
-                    rounds = (eh + em / 60) - (sh + sm / 60);
+                    rounds = parseFloat(((eh + em / 60) - (sh + sm / 60)).toFixed(2));
                     if (rounds < 0) rounds = 0;
                 }
             }
 
-            const amount = rounds * fee;
+            const amount = Math.round(rounds * fee);
             if (amount > 0) {
                 settlementMap[name].totalAmount += amount;
                 settlementMap[name].hasAmount = true;
@@ -299,17 +305,19 @@ window.openDetailModal = function(instructorName) {
             const fallbackWage = parseFloat(profile.hourlyWage) || 13000;
             
             let partTimeFee = fallbackWage;
-            if (schedule.partTimeFees && schedule.partTimeFees[instructorName] !== undefined) {
-                partTimeFee = parseFloat(schedule.partTimeFees[instructorName]);
+            const savedPtFee = schedule.partTimeFees?.[instructorName];
+            if (savedPtFee !== undefined && savedPtFee !== null && savedPtFee !== '' && !isNaN(parseFloat(savedPtFee))) {
+                partTimeFee = parseFloat(savedPtFee);
             }
             
             let partTimeHours = 0;
-            if (schedule.partTimeHours && schedule.partTimeHours[instructorName] !== undefined) {
-                partTimeHours = parseFloat(schedule.partTimeHours[instructorName]);
+            const savedPtHour = schedule.partTimeHours?.[instructorName];
+            if (savedPtHour !== undefined && savedPtHour !== null && savedPtHour !== '' && !isNaN(parseFloat(savedPtHour))) {
+                partTimeHours = parseFloat(savedPtHour);
             } else if (schedule.startTime && schedule.endTime) {
                 const [sh, sm] = schedule.startTime.split(':').map(Number);
                 const [eh, em] = schedule.endTime.split(':').map(Number);
-                partTimeHours = (eh + em / 60) - (sh + sm / 60);
+                partTimeHours = parseFloat(((eh + em / 60) - (sh + sm / 60)).toFixed(2));
                 if (partTimeHours < 0) partTimeHours = 0;
             }
 
@@ -318,14 +326,15 @@ window.openDetailModal = function(instructorName) {
             const effectiveSubFee = subFee > 0 ? subFee : mainFee;
             // 아이디어 2: 수업별 지급주체 예외(payerOverride)가 있으면 우선 적용
             const effectivePayer = schedule.payerOverride || schedule.payer || '';
+            const isInstitutionPayer = effectivePayer === 'institution';
             
             if (isMain) {
                 const rounds = isPartTime ? partTimeHours : (parseFloat(schedule.rounds) || 0);
                 const fee = isPartTime ? partTimeFee : mainFee;
                 const roleText = isPartTime ? '아르바이트' : '주강사';
-                const amount = rounds * fee;
+                const amount = isInstitutionPayer ? 0 : Math.round(rounds * fee);
                 // 기관 직접지급 수업은 0원 대신 라벨 표시 (지급기준 적용 시 schedule.payer 저장됨)
-                let displayAmount = effectivePayer === 'institution' ? '<span class="fee-institution-label">기관 직접지급</span>' : (amount > 0 ? amount.toLocaleString() : '-');
+                let displayAmount = isInstitutionPayer ? '<span class="fee-institution-label">기관 직접지급</span>' : (amount > 0 ? amount.toLocaleString() : '-');
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
                     <tr class="detail-report-row">
@@ -344,9 +353,9 @@ window.openDetailModal = function(instructorName) {
                 const rounds = isPartTime ? partTimeHours : (parseFloat(schedule.subRounds || schedule.rounds) || 0);
                 const fee = isPartTime ? partTimeFee : effectiveSubFee;
                 const roleText = isPartTime ? '아르바이트' : '보조강사';
-                const amount = rounds * fee;
+                const amount = isInstitutionPayer ? 0 : Math.round(rounds * fee);
                 // 기관 직접지급 수업은 0원 대신 라벨 표시 (지급기준 적용 시 schedule.payer 저장됨)
-                let displayAmount = effectivePayer === 'institution' ? '<span class="fee-institution-label">기관 직접지급</span>' : (amount > 0 ? amount.toLocaleString() : '-');
+                let displayAmount = isInstitutionPayer ? '<span class="fee-institution-label">기관 직접지급</span>' : (amount > 0 ? amount.toLocaleString() : '-');
                 totalDetailAmount += amount;
                 tbody.innerHTML += `
                     <tr class="detail-report-row">
@@ -377,6 +386,11 @@ window.openDetailModal = function(instructorName) {
     }
 
     document.getElementById('detail-modal-title').textContent = `출강 및 정산 내역서 - ${instructorName}`;
+    const isModalPartTime = (instructorsMap[instructorName] || {}).employmentType === 'part-time';
+    const detailLessonHeader = document.querySelector('#detail-modal table thead tr th:nth-child(6)');
+    if (detailLessonHeader) {
+        detailLessonHeader.textContent = isModalPartTime ? '정산 시간(h)' : '차시';
+    }
     const overlay = document.getElementById('detail-modal-overlay');
     const modal = document.getElementById('detail-modal');
     
