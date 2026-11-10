@@ -114,11 +114,13 @@
                 });
                 
                 const rawAff = inst.affiliation ? inst.affiliation.trim() : '';
+                const rawHire = inst.hireDate ? String(inst.hireDate).trim() : '';
                 return {
                     id: inst.name,
                     name: inst.name,
                     organization: rawAff || '미지정',
                     employmentType: inst.employmentType === 'part-time' ? 'part-time' : 'regular',
+                    hireDate: rawHire,
                     subjects: combinedSubjects,
                     subjectRoles: subjectRoles,
                     availableDays: [],
@@ -1193,6 +1195,16 @@
                                                     </span>
                                                     <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border shadow-sm ${getOrgBadgeClass(inst.organization)}`}>
                                                         {inst.organization}
+                                                    </span>
+                                                    <span
+                                                        title={inst.hireDate ? `입사일자: ${inst.hireDate}` : '입사일자 미입력'}
+                                                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                                                            inst.hireDate
+                                                                ? (isSelected ? 'bg-white text-indigo-900 border-indigo-300' : 'bg-slate-50 text-slate-600 border-slate-200')
+                                                                : (isSelected ? 'bg-white/70 text-indigo-400 border-indigo-200' : 'bg-slate-50 text-slate-400 border-slate-200')
+                                                        }`}
+                                                    >
+                                                        입사: {inst.hireDate || '-'}
                                                     </span>
                                                 </div>
                                                 {isSelected && (
