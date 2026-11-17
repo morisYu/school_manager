@@ -48,7 +48,14 @@ async function processData(action, btnSelector = '#save-btn', pendingText = '처
             targetCount: Number(getValue('edit-students')) || 0
         };
 
-        // ─── 강사 가용 시간 충돌 확인 (삭제 제외) ───────────────
+        // 주강사/보조강사가 모달에서 확정 입력된 경우 기존 제안중 상태 초기화
+        if (payloadData.mainInstructor !== '미정') {
+            payloadData.proposedMainInstructorId = null;
+            payloadData.proposedInstructorId = null;
+        }
+        if (!payloadData.subInstructors.includes('미정')) {
+            payloadData.proposedSubInstructorId = null;
+        }
         if (action !== 'delete' && payloadData.date && payloadData.startTime && payloadData.endTime) {
             const instructorsToCheck = [
                 payloadData.mainInstructor,

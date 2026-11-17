@@ -299,10 +299,27 @@ export async function getAllSchedules() {
         const q = query(schedulesRef, orderBy("date", "asc"));
         const snapshot = await getDocs(q);
 
+        const toMin = (t) => {
+            if (!t || typeof t !== 'string') return Number.MAX_SAFE_INTEGER;
+            const parts = t.trim().split(':').map(Number);
+            if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return Number.MAX_SAFE_INTEGER;
+            return parts[0] * 60 + parts[1];
+        };
+
         const schedules = [];
         snapshot.forEach((docSnap) => {
             schedules.push({ id: docSnap.id, ...docSnap.data() });
         });
+
+        // 동일 일자 내에서 시작시간 -> 종료시간 순으로 정렬
+        schedules.sort((a, b) => {
+            const dateCmp = (a.date || '').localeCompare(b.date || '');
+            if (dateCmp !== 0) return dateCmp;
+            const startDiff = toMin(a.startTime) - toMin(b.startTime);
+            if (startDiff !== 0) return startDiff;
+            return toMin(a.endTime) - toMin(b.endTime);
+        });
+
         return schedules;
     } catch (error) {
         console.error("📅 getAllSchedules 에러:", error);

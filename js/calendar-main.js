@@ -230,6 +230,8 @@ window.initCalendar = async function() {
                                 '기관명': r.schoolName,
                                 '주강사': r.mainInstructor,
                                 '보조강사들': normalizeSubInstructors(r.subInstructors || r.subInstructor),
+                                '제안주강사': r.proposedMainInstructorId || r.proposedInstructorId || '',
+                                '제안보조강사': r.proposedSubInstructorId || '',
                                 '교구목록': normalizeEquipments(r.equipments, r.equipType, r.equipCount),
                                 '비고': r.note,
                                 '색상': r.color,
@@ -272,27 +274,40 @@ window.initCalendar = async function() {
             })();
 
             const program = p['프로그램명'] || '프로그램 미정';
-            const mainTeacher = (p['주강사'] || '').trim() || '미정';
-            const subTeachers = (p['보조강사들'] || []).map(t => (t || '').trim() || '미정');
+            const rawMainTeacher = (p['주강사'] || '').trim() || '미정';
+            const rawSubTeachers = (p['보조강사들'] || []).map(t => (t || '').trim() || '미정');
+            const proposedMain = (p['제안주강사'] || '').trim();
+            const proposedSub = (p['제안보조강사'] || '').trim();
             const institution = p['기관명'] || '기관 미정';
 
             const startTime = typeof extractTime === 'function' ? extractTime(p['시작시간']) : (p['시작시간'] || '');
             const durationValue = typeof calculateHours === 'function' ? calculateHours(p['시작시간'], p['종료시간']) : '';
 
-            // 보조강사 축약 표시: 첫 번째 + N명 (미정이 포함되면 미정 표시 우선)
-            let subText = '';
-            if (subTeachers.length === 1) {
-                subText = subTeachers[0];
-            } else if (subTeachers.length > 1) {
-                const unassignedCount = subTeachers.filter(t => t === '미정').length;
-                if (unassignedCount > 0 && subTeachers[0] !== '미정') {
-                    subText = `${subTeachers[0]} 외 (미정 ${unassignedCount}명)`;
-                } else {
-                    subText = `${subTeachers[0]} +${subTeachers.length - 1}명`;
+            // 주강사 상태 판정 (확정 / 제안중 / 미정)
+            const mainItem = (rawMainTeacher === '미정' && proposedMain)
+                ? { name: proposedMain, state: 'proposed' }
+                : (rawMainTeacher === '미정')
+                    ? { name: '미정', state: 'unassigned' }
+                    : { name: rawMainTeacher, state: 'confirmed' };
+
+            // 보조강사 상태 판정 (첫 번째 미정 슬롯에 제안보조강사 매핑)
+            let subProposedUsed = false;
+            const subItems = rawSubTeachers.map(t => {
+                if (t === '미정' && proposedSub && !subProposedUsed) {
+                    subProposedUsed = true;
+                    return { name: proposedSub, state: 'proposed' };
                 }
-            }
-            const teacherText = subText ? `${mainTeacher}(${subText})` : mainTeacher;
-            const fullTeacherText = subTeachers.length > 0 ? `${mainTeacher}(${subTeachers.join(', ')})` : mainTeacher;
+                if (t === '미정') {
+                    return { name: '미정', state: 'unassigned' };
+                }
+                return { name: t, state: 'confirmed' };
+            });
+
+            // 툴팁용 전체 강사 텍스트 (제안중 여부 포함)
+            const formatPlainItem = (item) => item.state === 'proposed' ? `${item.name}(제안중)` : item.name;
+            const fullTeacherText = subItems.length > 0
+                ? `${formatPlainItem(mainItem)}(${subItems.map(formatPlainItem).join(', ')})`
+                : formatPlainItem(mainItem);
 
             // 교구 축약 표시
             const equips = p['교구목록'] || [];
@@ -300,14 +315,18 @@ window.initCalendar = async function() {
             if (equips.length === 1) toolText = `${equips[0].type}(${equips[0].count})`;
             else if (equips.length > 1) toolText = `${equips[0].type}(${equips[0].count}) +${equips.length - 1}종`;
 
-            const teachersData = [mainTeacher, ...subTeachers].join(',');
+            const teachersData = [mainItem.name, ...subItems.map(s => s.name)].join(',');
 
-            // ── 미정 판정 (상시 표시) ──
-            const isMainUnassigned = mainTeacher === '미정';
-            const isSubUnassigned = subTeachers.some(t => t === '미정');
+            // ── 미정 및 제안중 판정 (상시 표시) ──
+            const isMainUnassigned = mainItem.state === 'unassigned';
+            const isSubUnassigned = subItems.some(s => s.state === 'unassigned');
             const isUnassigned = isMainUnassigned || isSubUnassigned;
+            const isProposed = mainItem.state === 'proposed' || subItems.some(s => s.state === 'proposed');
+
             const unassignedAttr = isUnassigned ? ' data-unassigned="true"' : '';
-            const unassignedBadge = isUnassigned ? '<span class="unassigned-badge">미정</span>' : '';
+            const proposedAttr = isProposed ? ' data-proposed="true"' : '';
+            const unassignedBadge = '<span class="unassigned-badge">미정</span>';
+            const line1Badge = isUnassigned ? unassignedBadge : '';
 
             // ── 강사 검색 필터 매칭 판정 ──
             const isFilterActive = !!window.isInstructorFilterActive;
@@ -315,15 +334,34 @@ window.initCalendar = async function() {
             const isMatch = isFilterActive && filterName && teachersData.includes(filterName);
             const matchAttr = isMatch ? ' data-match="true"' : '';
 
-            // 매칭 시 강사명 하이라이트 및 미정 뱃지 인라인 처리
-            let displayTeacherText = teacherText;
-            if (isMatch && filterName) {
-                const escaped = filterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                displayTeacherText = displayTeacherText.replace(new RegExp(escaped, 'g'), `<span class="highlight-teacher">${filterName}</span>`);
+            // 개별 강사 토큰 HTML 생성 (제안중은 강사명만 보여주고 배지 스타일로 구분)
+            const renderTeacherToken = (item) => {
+                if (item.state === 'unassigned') return unassignedBadge;
+                let label = item.name;
+                if (isMatch && filterName) {
+                    const escaped = filterName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    label = label.replace(new RegExp(escaped, 'g'), `<span class="highlight-teacher">${filterName}</span>`);
+                }
+                if (item.state === 'proposed') {
+                    return `<span class="proposed-badge" title="${item.name} (제안중)">${label}</span>`;
+                }
+                return label;
+            };
+
+            let subDisplayHtml = '';
+            if (subItems.length === 1) {
+                subDisplayHtml = renderTeacherToken(subItems[0]);
+            } else if (subItems.length > 1) {
+                const firstHtml = renderTeacherToken(subItems[0]);
+                const restUnassignedCount = subItems.slice(1).filter(s => s.state === 'unassigned').length;
+                if (restUnassignedCount > 0 && subItems[0].state !== 'unassigned') {
+                    subDisplayHtml = `${firstHtml} 외 (${unassignedBadge} ${restUnassignedCount}명)`;
+                } else {
+                    subDisplayHtml = `${firstHtml} +${subItems.length - 1}명`;
+                }
             }
-            if (isUnassigned) {
-                displayTeacherText = displayTeacherText.replace(/미정/g, unassignedBadge);
-            }
+            const mainDisplayHtml = renderTeacherToken(mainItem);
+            const displayTeacherText = subDisplayHtml ? `${mainDisplayHtml}(${subDisplayHtml})` : mainDisplayHtml;
 
             if (arg.view.type === 'listWeek') {
                 const grade = p['학년'] || '';
@@ -340,7 +378,7 @@ window.initCalendar = async function() {
 
                 return {
                     html: `
-                    <div class="event-list-item"${unassignedAttr}${matchAttr} data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
+                    <div class="event-list-item"${unassignedAttr}${proposedAttr}${matchAttr} data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg};">
                         <div class="list-col col-time" title="${timeDisplay}(${durationValue})">${timeDisplay}</div>
                         <div class="list-col col-inst" title="${institution}">${institution}</div>
                         <div class="list-col col-prog" title="${program}">${program}</div>
@@ -354,13 +392,13 @@ window.initCalendar = async function() {
 
             return {
                 html: `
-                <div class="event-wrapper"${unassignedAttr}${matchAttr} data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
+                <div class="event-wrapper"${unassignedAttr}${proposedAttr}${matchAttr} data-teachers="${teachersData}" style="--event-color: ${color}; --event-bg: ${transparentBg}; color: #111;">
                     <div class="event-line1">
                         <span class="event-time"><strong>${startTime}(${durationValue})</strong> |</span>
-                        ${unassignedBadge}
+                        ${line1Badge}
                         <span class="event-institution">${institution}</span>
                     </div>
-                    <div class="event-line2">
+                    <div class="event-line2" title="${fullTeacherText}">
                         ${program}, ${displayTeacherText}, ${toolText}
                     </div>
                 </div>`
